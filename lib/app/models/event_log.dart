@@ -6,6 +6,7 @@ class EventLog {
   final GaitContext context;
   final double risk;
   final bool cueActive;
+  final CueMode cueMode;
 
   const EventLog({
     required this.timestamp,
@@ -13,6 +14,6 @@ class EventLog {
     required this.context,
     required this.risk,
     required this.cueActive,
+    required this.cueMode,
   });
 }
-

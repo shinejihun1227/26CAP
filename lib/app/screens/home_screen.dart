@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../services/sensor_controller.dart';
+import 'cueing_screen.dart';
+import 'dashboard_screen.dart';
 import 'live_monitor_screen.dart';
-import 'logs_screen.dart';
 import 'report_screen.dart';
 import 'settings_screen.dart';
 
@@ -21,8 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final screens = [
+      DashboardScreen(controller: widget.controller),
       LiveMonitorScreen(controller: widget.controller),
-      LogsScreen(controller: widget.controller),
+      CueingScreen(controller: widget.controller),
       ReportScreen(controller: widget.controller),
       const SettingsScreen(),
     ];
@@ -33,13 +35,28 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (value) => setState(() => _currentIndex = value),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.monitor_heart_outlined), label: 'Live'),
-          NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Logs'),
-          NavigationDestination(icon: Icon(Icons.assessment_outlined), label: 'Report'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Setup'),
+          NavigationDestination(
+            icon: Icon(Icons.space_dashboard_outlined),
+            label: '개요',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.monitor_heart_outlined),
+            label: '센서',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.vibration_outlined),
+            label: '큐잉',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.assessment_outlined),
+            label: '리포트',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            label: '기기',
+          ),
         ],
       ),
     );
   }
 }
-

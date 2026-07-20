@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'repositories/mock_sensor_repository.dart';
 import 'screens/home_screen.dart';
 import 'services/sensor_controller.dart';
+import 'theme/app_theme.dart';
 
 class StepOnApp extends StatefulWidget {
   const StepOnApp({super.key});
@@ -31,12 +32,8 @@ class _StepOnAppState extends State<StepOnApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'StepOn',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF3D7BF7)),
-        useMaterial3: true,
-      ),
+      theme: buildStepOnTheme(),
       home: HomeScreen(controller: controller),
     );
   }
 }
-

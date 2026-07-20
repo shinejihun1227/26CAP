@@ -38,13 +38,34 @@ class MockSensorRepository implements SensorRepository {
         GaitState.fog => _range(0.75, 0.95),
         GaitState.recovery => _range(0.22, 0.40),
       };
+      final cueMode = switch (state) {
+        GaitState.normal => CueMode.none,
+        GaitState.warning => CueMode.haptic,
+        GaitState.fog when context == GaitContext.turning => CueMode.multisensory,
+        GaitState.fog => CueMode.audio,
+        GaitState.recovery => CueMode.haptic,
+      };
+      final cadence = switch (state) {
+        GaitState.normal => _intRange(94, 104),
+        GaitState.warning => _intRange(86, 94),
+        GaitState.fog => _intRange(72, 84),
+        GaitState.recovery => _intRange(88, 96),
+      };
       _controller?.add(
         SensorFrame(
           timestamp: DateTime.now(),
           pressure: List.generate(8, (index) {
-            final base = 60 + (index * 10);
-            final amp = state == GaitState.fog ? 12 : 35;
-            return (base + _random.nextDouble() * amp).toDouble();
+            final forefoot = index < 4;
+            final heel = index >= 5;
+            final base = switch (state) {
+              GaitState.normal => forefoot ? 98 : 78,
+              GaitState.warning => forefoot ? 85 : 72,
+              GaitState.fog => heel ? 110 : 52,
+              GaitState.recovery => forefoot ? 88 : 76,
+            };
+            final offset = (index % 2 == 0) ? 6 : -4;
+            final amp = context == GaitContext.turning ? 28 : 18;
+            return (base + offset + _random.nextDouble() * amp).toDouble();
           }),
           accel: Vector3Data(
             x: _range(-0.4, 0.6),
@@ -63,12 +84,37 @@ class MockSensorRepository implements SensorRepository {
           state: state,
           battery: max(15, 100 - (_tick ~/ 18)),
           cueActive: state == GaitState.warning || state == GaitState.fog,
+          cueMode: cueMode,
+          freezeIndex: switch (state) {
+            GaitState.normal => _range(0.12, 0.24),
+            GaitState.warning => _range(0.33, 0.49),
+            GaitState.fog => _range(0.62, 0.89),
+            GaitState.recovery => _range(0.25, 0.38),
+          },
+          stepVariability: switch (state) {
+            GaitState.normal => _range(0.08, 0.14),
+            GaitState.warning => _range(0.16, 0.25),
+            GaitState.fog => _range(0.26, 0.42),
+            GaitState.recovery => _range(0.12, 0.20),
+          },
+          asymmetry: switch (state) {
+            GaitState.normal => _range(0.05, 0.11),
+            GaitState.warning => _range(0.10, 0.19),
+            GaitState.fog => _range(0.20, 0.31),
+            GaitState.recovery => _range(0.09, 0.14),
+          },
+          turningRisk: context == GaitContext.turning
+              ? _range(0.58, 0.88)
+              : _range(0.10, 0.32),
+          cadenceBpm: cadence,
         ),
       );
     });
   }
 
   double _range(double min, double max) => min + _random.nextDouble() * (max - min);
+
+  int _intRange(int min, int max) => min + _random.nextInt(max - min + 1);
 
   void _stop() {
     if (_controller?.hasListener ?? false) return;
@@ -82,4 +128,3 @@ class MockSensorRepository implements SensorRepository {
     await _controller?.close();
   }
 }
-

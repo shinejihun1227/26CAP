@@ -22,6 +22,12 @@ class SensorController extends ChangeNotifier {
   int get warningCount => _logs.where((e) => e.state == GaitState.warning).length;
   int get fogCount => _logs.where((e) => e.state == GaitState.fog).length;
   int get cueCount => _logs.where((e) => e.cueActive).length;
+  int get turningCount => _logs.where((e) => e.context == GaitContext.turning).length;
+  double get averageRisk =>
+      _logs.isEmpty ? 0 : _logs.map((e) => e.risk).reduce((a, b) => a + b) / _logs.length;
+  double get turningRatio =>
+      _logs.isEmpty ? 0 : turningCount / _logs.length;
+  EventLog? get latestLog => logs.isEmpty ? null : logs.first;
 
   void start() {
     _subscription ??= _repository.watchFrames().listen((frame) {
@@ -36,6 +42,7 @@ class SensorController extends ChangeNotifier {
             context: frame.context,
             risk: frame.risk,
             cueActive: frame.cueActive,
+            cueMode: frame.cueMode,
           ),
         );
         if (_logs.length > 120) {
@@ -53,4 +60,3 @@ class SensorController extends ChangeNotifier {
     super.dispose();
   }
 }
-
