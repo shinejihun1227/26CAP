@@ -22,7 +22,8 @@ class LogsScreen extends StatelessWidget {
               : ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: logs.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
                   itemBuilder: (context, index) => _LogTile(log: logs[index]),
                 ),
         );
@@ -73,4 +74,3 @@ class _LogTile extends StatelessWidget {
         GaitContext.standing => 'Standing',
       };
 }
-
