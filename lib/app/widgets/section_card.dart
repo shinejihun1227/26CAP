@@ -20,7 +20,19 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
+      decoration: BoxDecoration(
+        color: StepOnColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: StepOnColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: StepOnColors.navy.withOpacity(0.045),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Padding(
         padding: padding,
         child: Column(

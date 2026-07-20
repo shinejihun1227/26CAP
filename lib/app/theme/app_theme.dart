@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 class StepOnColors {
   static const navy = Color(0xFF0E1A2B);
+  static const deepNavy = Color(0xFF13253F);
   static const blue = Color(0xFF2F6BFF);
   static const sky = Color(0xFF75A8FF);
+  static const paleBlue = Color(0xFFEAF1FF);
   static const ice = Color(0xFFF4F7FC);
   static const surface = Color(0xFFFFFFFF);
   static const success = Color(0xFF1FA971);
@@ -34,17 +36,18 @@ ThemeData buildStepOnTheme() {
       centerTitle: false,
       titleTextStyle: TextStyle(
         fontSize: 22,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
         color: StepOnColors.navy,
+        letterSpacing: -0.2,
       ),
     ),
-    cardTheme: const CardThemeData(
+    cardTheme: CardThemeData(
       color: StepOnColors.surface,
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(24)),
-        side: BorderSide(color: StepOnColors.border),
+        borderRadius: BorderRadius.circular(24),
+        side: const BorderSide(color: StepOnColors.border),
       ),
     ),
     chipTheme: ChipThemeData(
@@ -54,12 +57,13 @@ ThemeData buildStepOnTheme() {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       labelStyle: const TextStyle(
         color: StepOnColors.navy,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.white,
-      indicatorColor: StepOnColors.blue.withOpacity(0.14),
+      indicatorColor: StepOnColors.blue.withOpacity(0.12),
+      shadowColor: StepOnColors.navy.withOpacity(0.06),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (states) => TextStyle(
           color: states.contains(WidgetState.selected)
@@ -71,26 +75,30 @@ ThemeData buildStepOnTheme() {
         ),
       ),
     ),
+    dividerColor: StepOnColors.border,
     textTheme: const TextTheme(
       headlineMedium: TextStyle(
         color: StepOnColors.navy,
         fontWeight: FontWeight.w800,
+        letterSpacing: -0.3,
       ),
       titleLarge: TextStyle(
         color: StepOnColors.navy,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.2,
       ),
       titleMedium: TextStyle(
         color: StepOnColors.navy,
         fontWeight: FontWeight.w700,
+        letterSpacing: -0.1,
       ),
       bodyLarge: TextStyle(
         color: StepOnColors.navy,
-        height: 1.45,
+        height: 1.5,
       ),
       bodyMedium: TextStyle(
         color: StepOnColors.textSubtle,
-        height: 1.45,
+        height: 1.5,
       ),
     ),
   );
