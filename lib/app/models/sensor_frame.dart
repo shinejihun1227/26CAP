@@ -18,7 +18,9 @@ class Vector3Data {
 
 class SensorFrame {
   final DateTime timestamp;
-  final List<double> pressure;
+  final bool isConnected;
+  final List<double> leftPressure;
+  final List<double> rightPressure;
   final Vector3Data accel;
   final Vector3Data gyro;
   final double copX;
@@ -37,7 +39,9 @@ class SensorFrame {
 
   const SensorFrame({
     required this.timestamp,
-    required this.pressure,
+    required this.isConnected,
+    required this.leftPressure,
+    required this.rightPressure,
     required this.accel,
     required this.gyro,
     required this.copX,
@@ -54,6 +58,8 @@ class SensorFrame {
     required this.turningRisk,
     required this.cadenceBpm,
   });
+
+  List<double> get pressure => [...leftPressure, ...rightPressure];
 }
 
 extension GaitStateX on GaitState {

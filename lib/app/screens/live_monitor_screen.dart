@@ -17,6 +17,7 @@ class LiveMonitorScreen extends StatelessWidget {
       animation: controller,
       builder: (context, _) {
         final frame = controller.latestFrame;
+        final isConnected = controller.isConnected;
         return Scaffold(
           appBar: AppBar(
             title: const Text('센서 모니터'),
@@ -25,8 +26,11 @@ class LiveMonitorScreen extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 16),
                 child: Center(
                   child: Chip(
-                    avatar: const Icon(Icons.bluetooth_connected, size: 18),
-                    label: Text(frame == null ? '연결 대기' : '실시간 연결'),
+                    avatar: Icon(
+                      isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+                      size: 18,
+                    ),
+                    label: Text(isConnected ? '실시간 연결' : '연결 대기'),
                   ),
                 ),
               ),
@@ -38,6 +42,41 @@ class LiveMonitorScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   children: [
                     SectionCard(
+                      title: '연결 상태',
+                      subtitle: isConnected
+                          ? '양발 인솔과 통신 중입니다. 센서 값 수신 상태로 전환되었습니다.'
+                          : '아직 인솔과 통신되지 않았습니다. 연결되면 센서 노드가 켜지고 압력 값을 받기 시작합니다.',
+                      trailing: Chip(label: Text(isConnected ? 'ON' : 'OFF')),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          color: isConnected
+                              ? StepOnColors.blue.withOpacity(0.08)
+                              : StepOnColors.border.withOpacity(0.25),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isConnected ? Icons.sensors : Icons.sensors_off,
+                              color: isConnected ? StepOnColors.blue : StepOnColors.textSubtle,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                isConnected
+                                    ? '센서 수신 가능 상태입니다.'
+                                    : '현재는 센서 수신 대기 상태입니다.',
+                                style: Theme.of(context).textTheme.bodyLarge,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SectionCard(
                       title: '실시간 위험 상태',
                       subtitle: 'Pre-FoG와 turning-aware 위험을 함께 보여줍니다.',
                       trailing: Chip(label: Text(frame.state.label)),
@@ -45,23 +84,25 @@ class LiveMonitorScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${(frame.risk * 100).round()}점',
+                            isConnected ? '${(frame.risk * 100).round()}점' : '--',
                             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                                   fontSize: 34,
-                                  color: _stateColor(frame.state),
+                                  color: _stateColor(frame.state, isConnected),
                                 ),
                           ),
                           const SizedBox(height: 12),
                           LinearProgressIndicator(
-                            value: frame.risk.clamp(0.0, 1.0),
+                            value: isConnected ? frame.risk.clamp(0.0, 1.0) : 0,
                             minHeight: 14,
                             borderRadius: BorderRadius.circular(999),
-                            color: _stateColor(frame.state),
+                            color: _stateColor(frame.state, isConnected),
                             backgroundColor: StepOnColors.border,
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            '현재 문맥: ${frame.context.label} · 큐잉 ${frame.cueActive ? '활성' : '대기'}',
+                            isConnected
+                                ? '현재 문맥: ${frame.context.label} · 큐잉 ${frame.cueActive ? '활성' : '대기'}'
+                                : '연결이 되면 현재 문맥과 큐잉 상태를 표시합니다.',
                             style: Theme.of(context).textTheme.bodyLarge,
                           ),
                         ],
@@ -69,23 +110,37 @@ class LiveMonitorScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     SectionCard(
-                      title: '발바닥 압력 8센서',
-                      subtitle: '발모양 위에 센서 위치를 배치하고, 밟을수록 값이 커지도록 표현했습니다.',
+                      title: '양발 압력 센서',
+                      subtitle: '좌우 인솔의 8개 압력 센서를 각각 표시합니다.',
                       child: Column(
                         children: [
-                          FootPressureMap(values: frame.pressure),
+                          BilateralPressureView(
+                            leftValues: frame.leftPressure,
+                            rightValues: frame.rightPressure,
+                            isConnected: isConnected,
+                          ),
                           const SizedBox(height: 16),
                           Wrap(
                             spacing: 8,
                             runSpacing: 8,
-                            children: List.generate(
-                              frame.pressure.length,
-                              (index) => Chip(
-                                label: Text(
-                                  'P${index + 1} ${frame.pressure[index].toStringAsFixed(0)}',
+                            children: [
+                              ...List.generate(
+                                frame.leftPressure.length,
+                                (index) => Chip(
+                                  label: Text(
+                                    'L${index + 1} ${isConnected ? frame.leftPressure[index].toStringAsFixed(0) : 'OFF'}',
+                                  ),
                                 ),
                               ),
-                            ),
+                              ...List.generate(
+                                frame.rightPressure.length,
+                                (index) => Chip(
+                                  label: Text(
+                                    'R${index + 1} ${isConnected ? frame.rightPressure[index].toStringAsFixed(0) : 'OFF'}',
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -96,7 +151,7 @@ class LiveMonitorScreen extends StatelessWidget {
                         Expanded(
                           child: _FeatureCard(
                             title: 'Freeze Index',
-                            value: frame.freezeIndex.toStringAsFixed(2),
+                            value: isConnected ? frame.freezeIndex.toStringAsFixed(2) : '--',
                             subtitle: '발 떨림 기반 지표',
                           ),
                         ),
@@ -104,7 +159,7 @@ class LiveMonitorScreen extends StatelessWidget {
                         Expanded(
                           child: _FeatureCard(
                             title: 'Turning Risk',
-                            value: frame.turningRisk.toStringAsFixed(2),
+                            value: isConnected ? frame.turningRisk.toStringAsFixed(2) : '--',
                             subtitle: '회전 고위험 문맥',
                           ),
                         ),
@@ -116,7 +171,7 @@ class LiveMonitorScreen extends StatelessWidget {
                         Expanded(
                           child: _FeatureCard(
                             title: '보폭 변동성',
-                            value: frame.stepVariability.toStringAsFixed(2),
+                            value: isConnected ? frame.stepVariability.toStringAsFixed(2) : '--',
                             subtitle: 'Step CV 추정',
                           ),
                         ),
@@ -124,27 +179,11 @@ class LiveMonitorScreen extends StatelessWidget {
                         Expanded(
                           child: _FeatureCard(
                             title: '좌우 비대칭',
-                            value: frame.asymmetry.toStringAsFixed(2),
+                            value: isConnected ? frame.asymmetry.toStringAsFixed(2) : '--',
                             subtitle: 'Asymmetry 추정',
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      title: 'IMU 요약',
-                      child: Column(
-                        children: [
-                          _SensorRow(label: '가속도', value: _vector(frame.accel), unit: 'g'),
-                          _SensorRow(label: '자이로', value: _vector(frame.gyro), unit: 'deg/s'),
-                          _SensorRow(
-                            label: 'COP',
-                            value:
-                                'x ${frame.copX.toStringAsFixed(2)} / y ${frame.copY.toStringAsFixed(2)}',
-                            unit: '정규화',
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),
@@ -153,15 +192,15 @@ class LiveMonitorScreen extends StatelessWidget {
     );
   }
 
-  String _vector(Vector3Data vector) =>
-      '${vector.x.toStringAsFixed(2)}, ${vector.y.toStringAsFixed(2)}, ${vector.z.toStringAsFixed(2)}';
-
-  Color _stateColor(GaitState state) => switch (state) {
-        GaitState.normal => StepOnColors.success,
-        GaitState.warning => StepOnColors.warning,
-        GaitState.fog => StepOnColors.danger,
-        GaitState.recovery => StepOnColors.blue,
-      };
+  Color _stateColor(GaitState state, bool isConnected) {
+    if (!isConnected) return StepOnColors.textSubtle;
+    return switch (state) {
+      GaitState.normal => StepOnColors.success,
+      GaitState.warning => StepOnColors.warning,
+      GaitState.fog => StepOnColors.danger,
+      GaitState.recovery => StepOnColors.blue,
+    };
+  }
 }
 
 class _FeatureCard extends StatelessWidget {
@@ -190,35 +229,6 @@ class _FeatureCard extends StatelessWidget {
             Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SensorRow extends StatelessWidget {
-  const _SensorRow({
-    required this.label,
-    required this.value,
-    required this.unit,
-  });
-
-  final String label;
-  final String value;
-  final String unit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 76,
-            child: Text(label, style: Theme.of(context).textTheme.bodyLarge),
-          ),
-          Expanded(child: Text(value, style: Theme.of(context).textTheme.titleMedium)),
-          Text(unit, style: Theme.of(context).textTheme.bodyMedium),
-        ],
       ),
     );
   }

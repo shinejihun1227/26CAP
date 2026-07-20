@@ -18,35 +18,35 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('다음 단계에서는 BLE 레포지토리를 붙여 실제 ESP32 신호를 받습니다.'),
+                Text('다음 단계에서는 BLE 레포지토리를 붙여 실제 좌우 인솔 ESP32 신호를 받습니다.'),
                 SizedBox(height: 10),
-                Text('필수 필드: pressure[8], imu[6], cop[2], risk, context, state, battery'),
+                Text('필수 필드: leftPressure[8], rightPressure[8], imu[6], cop[2], risk, context, state, battery'),
               ],
             ),
           ),
           SizedBox(height: 16),
           SectionCard(
-            title: 'BLE 연동 메모',
+            title: 'AI 조언 기능을 넣는 방법',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('1. ESP32가 GATT characteristic으로 센서 프레임 송신'),
+                Text('1. 먼저 센서 프레임과 일자별 요약 데이터를 구조화합니다.'),
                 SizedBox(height: 8),
-                Text('2. 앱에서 실시간 파싱 후 화면, 로그, 리포트에 연결'),
+                Text('2. 앱 안에서는 규칙 기반 조언 카드로 즉시 피드백을 제공합니다.'),
                 SizedBox(height: 8),
-                Text('3. 추후 사용자 보정값과 큐잉 강도 설정 화면 추가'),
+                Text('3. 추후 OpenAI API 같은 LLM을 연결해 하루 요약, 위험 패턴 설명, 상담 보조 문장을 생성할 수 있습니다.'),
               ],
             ),
           ),
           SizedBox(height: 16),
           SectionCard(
-            title: '기획 포인트',
+            title: '주의할 점',
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('이 앱은 의료 진단 앱이 아니라, 일상 보행 위험 모니터링 및 상담 보조용 프로토타입입니다.'),
+                Text('이 앱은 의료 진단 앱이 아니라, 일상 보행 위험 모니터링 및 상담 보조용 프로토타입으로 표현하는 것이 안전합니다.'),
                 SizedBox(height: 8),
-                Text('발표에서는 감지-판단-큐잉-기록 흐름이 끊기지 않는 점을 강조하면 좋습니다.'),
+                Text('AI 조언도 진단/처방이 아니라 패턴 설명과 사용자/보호자/의료진 참고 정보로 두는 것이 좋습니다.'),
               ],
             ),
           ),

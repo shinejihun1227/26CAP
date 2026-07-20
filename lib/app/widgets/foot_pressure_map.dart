@@ -2,10 +2,56 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-class FootPressureMap extends StatelessWidget {
-  const FootPressureMap({super.key, required this.values});
+class BilateralPressureView extends StatelessWidget {
+  const BilateralPressureView({
+    super.key,
+    required this.leftValues,
+    required this.rightValues,
+    required this.isConnected,
+  });
 
+  final List<double> leftValues;
+  final List<double> rightValues;
+  final bool isConnected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _SingleFootPressureMap(
+            title: '왼발',
+            values: leftValues,
+            isConnected: isConnected,
+            mirrored: false,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _SingleFootPressureMap(
+            title: '오른발',
+            values: rightValues,
+            isConnected: isConnected,
+            mirrored: true,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SingleFootPressureMap extends StatelessWidget {
+  const _SingleFootPressureMap({
+    required this.title,
+    required this.values,
+    required this.isConnected,
+    required this.mirrored,
+  });
+
+  final String title;
   final List<double> values;
+  final bool isConnected;
+  final bool mirrored;
 
   static const _positions = <Offset>[
     Offset(0.38, 0.12),
@@ -20,36 +66,63 @@ class FootPressureMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 0.72,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-          final maxValue = values.isEmpty
-              ? 1.0
-              : values.reduce((a, b) => a > b ? a : b).clamp(1, double.infinity);
-
-          return Stack(
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: isConnected ? StepOnColors.border : StepOnColors.border.withOpacity(0.7),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _FootShapePainter(),
-                ),
-              ),
-              for (var i = 0; i < values.length && i < _positions.length; i++)
-                Positioned(
-                  left: (width * _positions[i].dx) - 34,
-                  top: (height * _positions[i].dy) - 34,
-                  child: _SensorNode(
-                    label: 'P${i + 1}',
-                    value: values[i],
-                    intensity: values[i] / maxValue,
-                  ),
-                ),
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Chip(label: Text(isConnected ? '활성' : '대기')),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 12),
+          AspectRatio(
+            aspectRatio: 0.72,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final height = constraints.maxHeight;
+                final maxValue = values.isEmpty
+                    ? 1.0
+                    : values.reduce((a, b) => a > b ? a : b).clamp(1, double.infinity);
+
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()..scale(mirrored ? -1.0 : 1.0, 1.0),
+                        child: CustomPaint(
+                          painter: _FootShapePainter(isConnected: isConnected),
+                        ),
+                      ),
+                    ),
+                    for (var i = 0; i < values.length && i < _positions.length; i++)
+                      Positioned(
+                        left: (width * _positions[i].dx) - 28,
+                        top: (height * _positions[i].dy) - 28,
+                        child: _SensorNode(
+                          label: 'P${i + 1}',
+                          value: values[i],
+                          intensity: isConnected ? values[i] / maxValue : 0,
+                          isConnected: isConnected,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -60,31 +133,36 @@ class _SensorNode extends StatelessWidget {
     required this.label,
     required this.value,
     required this.intensity,
+    required this.isConnected,
   });
 
   final String label;
   final double value;
   final double intensity;
+  final bool isConnected;
 
   @override
   Widget build(BuildContext context) {
-    final color = Color.lerp(
-      StepOnColors.sky.withValues(alpha: 0.30),
-      StepOnColors.danger,
-      intensity.clamp(0.0, 1.0),
-    );
+    final color = !isConnected
+        ? StepOnColors.border
+        : Color.lerp(
+            StepOnColors.sky.withOpacity(0.30),
+            StepOnColors.danger,
+            intensity.clamp(0.0, 1.0),
+          )!;
 
-    return Container(
-      width: 68,
-      height: 68,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      width: 56,
+      height: 56,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color,
         border: Border.all(color: Colors.white, width: 3),
         boxShadow: [
           BoxShadow(
-            color: StepOnColors.blue.withValues(alpha: 0.15),
-            blurRadius: 18,
+            color: StepOnColors.blue.withOpacity(isConnected ? 0.16 : 0.05),
+            blurRadius: 16,
             offset: const Offset(0, 8),
           ),
         ],
@@ -101,9 +179,9 @@ class _SensorNode extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            value.toStringAsFixed(0),
+            isConnected ? value.toStringAsFixed(0) : 'OFF',
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -115,21 +193,24 @@ class _SensorNode extends StatelessWidget {
 }
 
 class _FootShapePainter extends CustomPainter {
+  const _FootShapePainter({required this.isConnected});
+
+  final bool isConnected;
+
   @override
   void paint(Canvas canvas, Size size) {
     final fill = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFFEAF1FF),
-          Color(0xFFDDE8FF),
-        ],
+        colors: isConnected
+            ? const [Color(0xFFEAF1FF), Color(0xFFD8E6FF)]
+            : const [Color(0xFFF2F4F8), Color(0xFFE7EBF2)],
       ).createShader(Offset.zero & size);
 
     final stroke = Paint()
       ..style = PaintingStyle.stroke
-      ..color = StepOnColors.border
+      ..color = isConnected ? StepOnColors.border : StepOnColors.textSubtle.withOpacity(0.3)
       ..strokeWidth = 2;
 
     final path = Path()
@@ -181,5 +262,6 @@ class _FootShapePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _FootShapePainter oldDelegate) =>
+      oldDelegate.isConnected != isConnected;
 }

@@ -35,26 +35,11 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (value) => setState(() => _currentIndex = value),
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.space_dashboard_outlined),
-            label: '개요',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.monitor_heart_outlined),
-            label: '센서',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.vibration_outlined),
-            label: '큐잉',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.assessment_outlined),
-            label: '리포트',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            label: '기기',
-          ),
+          NavigationDestination(icon: Icon(Icons.space_dashboard_outlined), label: '개요'),
+          NavigationDestination(icon: Icon(Icons.monitor_heart_outlined), label: '센서'),
+          NavigationDestination(icon: Icon(Icons.vibration_outlined), label: '큐잉'),
+          NavigationDestination(icon: Icon(Icons.assessment_outlined), label: '히스토리'),
+          NavigationDestination(icon: Icon(Icons.settings_outlined), label: '기기'),
         ],
       ),
     );

@@ -16,8 +16,9 @@ class DashboardScreen extends StatelessWidget {
       animation: controller,
       builder: (context, _) {
         final frame = controller.latestFrame;
+        final isConnected = controller.isConnected;
         return Scaffold(
-          appBar: AppBar(title: const Text('StepOn 대시보드')),
+          appBar: AppBar(title: const Text('StepOn 개요')),
           body: frame == null
               ? const Center(child: CircularProgressIndicator())
               : ListView(
@@ -31,6 +32,9 @@ class DashboardScreen extends StatelessWidget {
                           colors: [StepOnColors.navy, StepOnColors.blue],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
+                        ),
+                        border: Border.all(
+                          color: StepOnColors.sky.withOpacity(0.24),
                         ),
                       ),
                       child: Column(
@@ -59,6 +63,7 @@ class DashboardScreen extends StatelessWidget {
                             spacing: 8,
                             runSpacing: 8,
                             children: [
+                              _HeroChip(label: isConnected ? '연결됨' : '연결 대기'),
                               _HeroChip(label: frame.state.label),
                               _HeroChip(label: frame.context.label),
                               _HeroChip(label: '배터리 ${frame.battery}%'),
@@ -73,7 +78,7 @@ class DashboardScreen extends StatelessWidget {
                         Expanded(
                           child: _MetricCard(
                             title: '현재 위험도',
-                            value: '${(frame.risk * 100).round()}점',
+                            value: isConnected ? '${(frame.risk * 100).round()}점' : '--',
                             subtitle: 'Pre-FoG / FoG 판단',
                             color: StepOnColors.blue,
                           ),
@@ -82,12 +87,21 @@ class DashboardScreen extends StatelessWidget {
                         Expanded(
                           child: _MetricCard(
                             title: '개인 템포',
-                            value: '${frame.cadenceBpm} BPM',
+                            value: isConnected ? '${frame.cadenceBpm} BPM' : '--',
                             subtitle: '큐잉 기준 박자',
                             color: StepOnColors.success,
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    SectionCard(
+                      title: 'AI 조언',
+                      subtitle: '현재는 규칙 기반 분석 카드로 시작하고, 추후 실제 AI API와 연결할 수 있습니다.',
+                      child: Text(
+                        controller.aiAdvice,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     const SectionCard(
@@ -97,8 +111,8 @@ class DashboardScreen extends StatelessWidget {
                         children: [
                           _FlowTile(
                             step: 'Sense',
-                            title: '압력 8셀 + IMU 수집',
-                            subtitle: '앞꿈치, 발볼, 아치, 뒤꿈치 압력과 yaw/가속도를 수집합니다.',
+                            title: '양발 압력 8셀 + IMU 수집',
+                            subtitle: '좌우 인솔의 압력 분포와 자세 정보를 동시에 수집합니다.',
                           ),
                           SizedBox(height: 12),
                           _FlowTile(
@@ -110,28 +124,13 @@ class DashboardScreen extends StatelessWidget {
                           _FlowTile(
                             step: 'Cue',
                             title: '햅틱 · 청각 · 시각 큐잉',
-                            subtitle: '상태에 따라 개인 박자 기반 큐잉을 단계적으로 강화합니다.',
+                            subtitle: '연결 상태와 위험 단계에 따라 큐잉 강도를 점진적으로 조정합니다.',
                           ),
                           SizedBox(height: 12),
                           _FlowTile(
-                            step: 'Report',
-                            title: '상담 보조 리포트',
-                            subtitle: '이벤트 빈도, turning 비율, 고위험 시간대를 요약합니다.',
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      title: '오늘 요약',
-                      child: Column(
-                        children: [
-                          _SummaryRow(label: '누적 이벤트', value: '${controller.logs.length}건'),
-                          _SummaryRow(label: '전조 경고', value: '${controller.warningCount}건'),
-                          _SummaryRow(label: '동결 위험', value: '${controller.fogCount}건'),
-                          _SummaryRow(
-                            label: '방향 전환 비율',
-                            value: '${(controller.turningRatio * 100).round()}%',
+                            step: 'History',
+                            title: '일자별 히스토리 분석',
+                            subtitle: 'Warning/FoG/Turning 패턴을 날짜별로 누적해 상담 보조 정보로 정리합니다.',
                           ),
                         ],
                       ),
@@ -154,7 +153,7 @@ class _HeroChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
+        color: Colors.white.withOpacity(0.14),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -227,7 +226,7 @@ class _FlowTile extends StatelessWidget {
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: StepOnColors.blue.withValues(alpha: 0.10),
+            color: StepOnColors.blue.withOpacity(0.10),
             borderRadius: BorderRadius.circular(18),
           ),
           alignment: Alignment.center,
@@ -251,31 +250,6 @@ class _FlowTile extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyLarge)),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: StepOnColors.blue,
-                ),
-          ),
-        ],
-      ),
     );
   }
 }

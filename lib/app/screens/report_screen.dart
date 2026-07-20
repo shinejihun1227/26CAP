@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../models/sensor_frame.dart';
 import '../services/sensor_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/section_card.dart';
@@ -15,137 +14,107 @@ class ReportScreen extends StatelessWidget {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
-        final latest = controller.latestFrame;
         return Scaffold(
-          appBar: AppBar(title: const Text('리포트')),
-          body: latest == null
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ReportMetric(
-                            title: '총 이벤트',
-                            value: '${controller.logs.length}',
-                            subtitle: '상태 전이 기준',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ReportMetric(
-                            title: '평균 위험도',
-                            value: '${(controller.averageRisk * 100).round()}점',
-                            subtitle: '누적 평균',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ReportMetric(
-                            title: '전조 경고',
-                            value: '${controller.warningCount}',
-                            subtitle: 'Pre-FoG 후보',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _ReportMetric(
-                            title: '회전 비율',
-                            value: '${(controller.turningRatio * 100).round()}%',
-                            subtitle: 'Turning-aware',
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      title: '상담 보조 인사이트',
-                      subtitle: '투약 지시가 아니라, 일상 보행 패턴을 요약한 참고 정보입니다.',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '최근 기록 기준으로 ${controller.turningCount}회가 방향 전환 문맥에서 발생했습니다. '
-                            '방향 전환 시 Warning 임계값을 더 보수적으로 볼 필요가 있습니다.',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            '현재 개인 템포는 ${latest.cadenceBpm} BPM이며, ${latest.cueMode.label} 큐잉이 우선 활성화되고 있습니다.',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      title: '이벤트 타임라인',
-                      subtitle: '상태 변화가 일어날 때만 기록합니다.',
-                      child: controller.logs.isEmpty
-                          ? const Text('아직 기록된 이벤트가 없습니다.')
-                          : Column(
-                              children: controller.logs.take(12).map((log) {
-                                final color = _stateColor(log.state);
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+          appBar: AppBar(title: const Text('히스토리 분석')),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              SectionCard(
+                title: '일자별 히스토리',
+                subtitle: '환자의 날마다 Warning / FoG / Turning 패턴을 비교합니다.',
+                child: controller.dailyHistory.isEmpty
+                    ? const Text('아직 연결 데이터가 없어 히스토리를 생성하지 않았습니다.')
+                    : Column(
+                        children: controller.dailyHistory.map((day) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                color: StepOnColors.ice,
+                                border: Border.all(color: StepOnColors.border),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(day.dateLabel, style: Theme.of(context).textTheme.titleMedium),
+                                  const SizedBox(height: 10),
+                                  Row(
                                     children: [
-                                      Container(
-                                        width: 12,
-                                        height: 12,
-                                        margin: const EdgeInsets.only(top: 6),
-                                        decoration: BoxDecoration(
-                                          color: color,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
+                                      Expanded(child: _DayMetric(label: '전조', value: '${day.warningCount}')),
+                                      Expanded(child: _DayMetric(label: '동결', value: '${day.fogCount}')),
+                                      Expanded(child: _DayMetric(label: '회전', value: '${day.turningCount}')),
                                       Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              '${log.state.label} · ${log.context.label}',
-                                              style: Theme.of(context).textTheme.titleMedium,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '위험도 ${log.risk.toStringAsFixed(2)} · '
-                                              '${log.cueMode.label} ${log.cueActive ? '활성' : '대기'}',
-                                              style: Theme.of(context).textTheme.bodyMedium,
-                                            ),
-                                          ],
+                                        child: _DayMetric(
+                                          label: '평균 위험',
+                                          value: '${(day.averageRisk * 100).round()}점',
                                         ),
-                                      ),
-                                      Text(
-                                        '${log.timestamp.hour.toString().padLeft(2, '0')}:${log.timestamp.minute.toString().padLeft(2, '0')}:${log.timestamp.second.toString().padLeft(2, '0')}',
-                                        style: Theme.of(context).textTheme.bodyMedium,
                                       ),
                                     ],
                                   ),
-                                );
-                              }).toList(),
+                                ],
+                              ),
                             ),
+                          );
+                        }).toList(),
+                      ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ReportMetric(
+                      title: '총 이벤트',
+                      value: '${controller.logs.length}',
+                      subtitle: '상태 전이 기준',
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ReportMetric(
+                      title: '평균 위험도',
+                      value: '${(controller.averageRisk * 100).round()}점',
+                      subtitle: '누적 평균',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ReportMetric(
+                      title: '전조 경고',
+                      value: '${controller.warningCount}',
+                      subtitle: 'Pre-FoG 후보',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ReportMetric(
+                      title: '회전 비율',
+                      value: '${(controller.turningRatio * 100).round()}%',
+                      subtitle: 'Turning-aware',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SectionCard(
+                title: 'AI 분석 조언',
+                subtitle: '현재는 규칙 기반 설명형 조언이며, 추후 LLM 기반 요약으로 확장 가능합니다.',
+                child: Text(
+                  controller.aiAdvice,
+                  style: Theme.of(context).textTheme.bodyLarge,
                 ),
+              ),
+            ],
+          ),
         );
       },
     );
   }
-
-  Color _stateColor(GaitState state) => switch (state) {
-        GaitState.normal => StepOnColors.success,
-        GaitState.warning => StepOnColors.warning,
-        GaitState.fog => StepOnColors.danger,
-        GaitState.recovery => StepOnColors.blue,
-      };
 }
 
 class _ReportMetric extends StatelessWidget {
@@ -178,6 +147,25 @@ class _ReportMetric extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DayMetric extends StatelessWidget {
+  const _DayMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: 4),
+        Text(value, style: Theme.of(context).textTheme.titleMedium),
+      ],
     );
   }
 }
