@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models/sensor_frame.dart';
 import '../services/sensor_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/section_card.dart';
