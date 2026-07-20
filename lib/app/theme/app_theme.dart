@@ -38,18 +38,18 @@ ThemeData buildStepOnTheme() {
         color: StepOnColors.navy,
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: const CardThemeData(
       color: StepOnColors.surface,
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: const BorderSide(color: StepOnColors.border),
+        borderRadius: BorderRadius.all(Radius.circular(24)),
+        side: BorderSide(color: StepOnColors.border),
       ),
     ),
     chipTheme: ChipThemeData(
       backgroundColor: Colors.white,
-      selectedColor: StepOnColors.blue.withValues(alpha: 0.12),
+      selectedColor: StepOnColors.blue.withOpacity(0.12),
       side: const BorderSide(color: StepOnColors.border),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
       labelStyle: const TextStyle(
@@ -59,7 +59,7 @@ ThemeData buildStepOnTheme() {
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: Colors.white,
-      indicatorColor: StepOnColors.blue.withValues(alpha: 0.14),
+      indicatorColor: StepOnColors.blue.withOpacity(0.14),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (states) => TextStyle(
           color: states.contains(WidgetState.selected)
