@@ -1,0 +1,258 @@
+/* StepOn typography system
+   Keep the dashboard calm and readable for Korean text at normal zoom. */
+:root {
+  --font-ui: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
+  --font-number: "Pretendard", "Noto Sans KR", "Malgun Gothic", Arial, sans-serif;
+}
+
+html { font-size: 100%; }
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-ui);
+}
+
+body {
+  font-size: 1rem;
+  line-height: 1.55;
+  letter-spacing: -.012em;
+}
+
+/* Display type: one sans-serif family prevents Korean and Latin text from
+   switching between unrelated serif shapes in the same heading. */
+.welcome-row h1,
+.subpage-heading h1,
+.clarity-page-intro h1,
+.status-hero h2,
+.clarity-status-main h2,
+.panel-heading h2,
+.clarity-section-heading h2,
+.mediapipe-hero h2,
+.mobile-section-heading h1,
+.mobile-status-card h2,
+.mobile-stream-card h2,
+.mobile-panel-heading h2 {
+  font-family: var(--font-ui);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+}
+
+.brand-lockup strong,
+.mobile-brand-lockup strong,
+.metric-value,
+.clarity-risk-score strong,
+.hero-score strong,
+.live-state-stats b,
+.clarity-live-values b,
+.mobile-risk-score strong,
+.mobile-metric-card strong,
+.mobile-stream-stats b,
+.report-summary h2,
+.rehab-metric strong,
+.rehab-report-grid strong,
+.mobile-algorithm-stats strong,
+.mobile-chart-number strong {
+  font-family: var(--font-number);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Global navigation and context */
+.brand-lockup strong { font-size: .9375rem; letter-spacing: .08em; }
+.brand-lockup span { font-size: .6875rem; letter-spacing: .08em; }
+.sidebar-section-label { margin-top: 3.25rem; margin-bottom: .8rem; font-size: .75rem; line-height: 1.4; letter-spacing: .08em; }
+.nav-item { gap: .25rem; }
+.nav-item b { font-size: .875rem; line-height: 1.35; }
+.nav-item small { margin-top: .12rem; font-size: .75rem; line-height: 1.35; }
+.care-card strong { font-size: 1rem; line-height: 1.35; }
+.care-card p { font-size: .8125rem; line-height: 1.65; }
+.text-button { font-size: .8125rem; line-height: 1.4; }
+.sidebar-footer { font-size: .75rem; line-height: 1.4; }
+.topbar-context { font-size: .8125rem; line-height: 1.4; }
+.context-kicker { font-size: .6875rem; letter-spacing: .08em; }
+.topbar-sensor-status { font-size: .75rem; line-height: 1.35; }
+.profile-copy b { font-size: .8125rem; line-height: 1.35; }
+.profile-copy small { font-size: .75rem; line-height: 1.35; }
+
+/* Page hierarchy */
+.welcome-row h1,
+.subpage-heading h1,
+.clarity-page-intro h1 {
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+}
+.welcome-row p,
+.subpage-heading p,
+.clarity-page-intro p {
+  max-width: 60rem;
+  font-size: .9375rem;
+  line-height: 1.7;
+}
+.eyebrow,
+.panel-kicker,
+.metric-label,
+.hero-label,
+.clarity-card-kicker,
+.mobile-card-kicker,
+.mobile-context-kicker {
+  font-size: .6875rem;
+  line-height: 1.35;
+  letter-spacing: .08em;
+}
+.panel-heading h2,
+.clarity-section-heading h2,
+.mobile-panel-heading h2 { font-size: 1.5rem; }
+.panel-description,
+.clarity-analysis-flow p,
+.clarity-signal-note p { font-size: .875rem; line-height: 1.7; }
+.panel-heading { gap: 1.25rem; }
+
+/* Numbers and summaries */
+.metric-label { letter-spacing: .02em; }
+.metric-value { font-size: 2rem; line-height: 1.1; letter-spacing: -.04em; }
+.metric-description,
+.metric-delta { font-size: .8125rem; line-height: 1.5; }
+.status-hero-copy h2,
+.clarity-status-main h2 { font-size: clamp(2.15rem, 4vw, 3rem); }
+.status-hero-copy p,
+.clarity-status-main p { font-size: .9375rem; line-height: 1.7; }
+.hero-note b { font-size: .875rem; line-height: 1.4; }
+.hero-note p { font-size: .8125rem; line-height: 1.6; }
+.hero-score span { font-size: .6875rem; letter-spacing: .08em; }
+.live-state-main > strong { font-size: 1.875rem; line-height: 1.2; }
+.live-state-main p,
+.live-state-stats small { font-size: .8125rem; line-height: 1.55; }
+.live-state-stats b { font-size: 1.625rem; line-height: 1.1; }
+.medical-disclaimer { font-size: .8125rem; line-height: 1.6; }
+
+/* Controls and sensor legend */
+.hero-button,
+.control-button,
+.primary-button,
+.outline-button,
+.banner-button,
+.clarity-primary-button,
+.clarity-link-button,
+.editor-link-button { font-size: .8125rem; line-height: 1.35; }
+.connection-pill b { font-size: .8125rem; }
+.connection-pill small { font-size: .75rem; line-height: 1.35; }
+.heatmap-tab { font-family: var(--font-ui); font-size: .8125rem; line-height: 1.35; letter-spacing: 0; }
+.heatmap-edit-button { font-size: .75rem; line-height: 1.35; }
+.heatmap-legend,
+.heatmap-legend small { font-size: .75rem; line-height: 1.45; }
+.heatmap-summary span { font-size: .8125rem; line-height: 1.35; }
+.heatmap-summary b { font-size: 1.25rem; line-height: 1.2; }
+.heat-spot b { font-size: .6875rem; }
+.heat-spot b em,
+.heat-spot b span { font-size: .625rem; }
+
+/* Analysis, device and personalization pages */
+.algorithm-card .panel-description,
+.algorithm-card .algorithm-disclaimer,
+.algorithm-card .thermal-table,
+.algorithm-card .feature-row,
+.cue-panel .cue-recommendation,
+.output-control,
+.hardware-list,
+.hardware-note,
+.camera-status,
+.camera-placeholder small,
+.camera-privacy p,
+.personal-form label,
+.personal-toggle,
+.confidence-row label,
+.retention-row p {
+  font-size: .8125rem;
+  line-height: 1.6;
+}
+.algorithm-card h3,
+.cue-panel h3,
+.camera-placeholder b { font-size: 1rem; line-height: 1.4; }
+.algorithm-card .threshold-line,
+.algorithm-card .fog-score,
+.algorithm-card .feature-list,
+.algorithm-footer,
+.output-control-icon { font-size: .8125rem; line-height: 1.55; }
+.research-badge,
+.algorithm-pill,
+.rehab-status-pill,
+.camera-status { letter-spacing: .01em; }
+.personal-form input,
+.personal-form select,
+.retention-row select { font-size: .875rem; line-height: 1.4; }
+
+/* Editor chrome: the canvas itself remains a faithful scaled preview, while
+   the surrounding controls become comfortable to read and edit. */
+.editor-topbar,
+.editor-workspace-context,
+.editor-screen-tab,
+.editor-side-heading p,
+.editor-inspector-heading p,
+.palette-item b,
+.palette-item small,
+.inspector-form label,
+.inspector-section-label,
+.editor-workspace-actions button {
+  line-height: 1.45;
+}
+.editor-workspace-context,
+.editor-side-heading p,
+.editor-inspector-heading p { font-size: .8125rem; }
+.editor-screen-tab { font-size: .8125rem; }
+.editor-screen-tab small { font-size: .6875rem; }
+.palette-item b { font-size: .875rem; }
+.palette-item small { font-size: .75rem; }
+.inspector-form label,
+.inspector-section-label { font-size: .75rem; letter-spacing: .02em; }
+.inspector-form input,
+.inspector-form textarea,
+.inspector-form select { font-size: .875rem; line-height: 1.45; }
+.editor-ghost-button,
+.editor-primary-button,
+.editor-workspace-actions button,
+.inspector-history button { font-size: .8125rem; }
+
+/* Mobile follows the same hierarchy instead of shrinking every label. */
+.mobile-context-row strong { font-size: .8125rem; }
+.mobile-connection { font-size: .75rem; }
+.mobile-section-heading h1 { font-size: clamp(1.875rem, 8vw, 2.5rem); }
+.mobile-section-heading p { font-size: .875rem; line-height: 1.65; }
+.mobile-status-card h2,
+.mobile-stream-card h2 { font-size: 1.75rem; }
+.mobile-status-card p,
+.mobile-stream-card p { font-size: .8125rem; line-height: 1.65; }
+.mobile-primary-button,
+.mobile-secondary-button,
+.mobile-outline-button,
+.mobile-link-button { font-size: .8125rem; }
+.mobile-metric-top { font-size: .8125rem; line-height: 1.4; }
+.mobile-metric-card strong { font-size: 1.625rem; line-height: 1.1; }
+.mobile-metric-card p { font-size: .75rem; line-height: 1.5; }
+.mobile-panel-heading h2 { font-size: 1.375rem; }
+.mobile-event-time,
+.mobile-event-row b,
+.mobile-health-list b,
+.mobile-output-row,
+.mobile-hardware-list { font-size: .8125rem; }
+.mobile-event-row small,
+.mobile-health-list small,
+.mobile-algorithm-disclaimer,
+.mobile-hardware-note,
+.mobile-disclaimer { font-size: .75rem; line-height: 1.55; }
+.mobile-pipeline-list span,
+.mobile-algorithm-card > p,
+.mobile-feature-list div { font-size: .8125rem; line-height: 1.5; }
+
+@media (max-width: 700px) {
+  .welcome-row h1,
+  .subpage-heading h1,
+  .clarity-page-intro h1 { font-size: 2rem; }
+  .welcome-row p,
+  .subpage-heading p,
+  .clarity-page-intro p { font-size: .875rem; }
+  .panel-heading h2,
+  .clarity-section-heading h2 { font-size: 1.375rem; }
+  .panel-description { font-size: .8125rem; }
+}

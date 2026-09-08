@@ -1,0 +1,12 @@
+* { box-sizing: border-box; }
+html { min-width: 320px; background: var(--canvas); }
+body { margin: 0; color: var(--ink); background: var(--canvas); font-family: Arial, "Malgun Gothic", sans-serif; -webkit-font-smoothing: antialiased; }
+button { font: inherit; }
+button:focus-visible { outline: 3px solid rgba(47, 107, 255, .28); outline-offset: 3px; }
+h1, h2, h3, p { margin: 0; }
+ul { list-style: none; padding: 0; margin: 0; }
+.icon { width: 18px; height: 18px; display: block; flex: 0 0 auto; }
+.eyebrow, .panel-kicker, .metric-label, .sidebar-section-label, .hero-label { letter-spacing: .14em; font-size: 10px; font-weight: 800; }
+.eyebrow { color: var(--coral); }
+.panel-kicker { color: #91a0ad; }
+.medical-disclaimer { margin: 22px 0 4px; color: #719394; font-size: 10px; line-height: 1.5; text-align: center; }

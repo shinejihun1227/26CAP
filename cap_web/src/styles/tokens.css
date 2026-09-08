@@ -1,0 +1,28 @@
+:root {
+  /* Existing StepOn web theme: keep these tokens stable when redesigning. */
+  --canvas: #d9f2f1;
+  --canvas-deep: #c3e8e5;
+  --ink: #243954;
+  --ink-soft: #344d66;
+  --muted: #6b898a;
+  --muted-light: #8290a3;
+  --line: #e5ebf1;
+  --surface: #ffffff;
+  --surface-soft: #f7fbfb;
+  --coral: #ef7777;
+  --coral-soft: #fff0ee;
+  --mint: #58bd9a;
+  --mint-soft: #eaf8f2;
+  --lavender: #8681d8;
+  --lavender-soft: #f0efff;
+  --sky: #72acd0;
+  --sky-soft: #edf8fd;
+  --orange: #cf7b27;
+  --orange-soft: #fff5e8;
+  --shadow-sm: 0 8px 24px rgba(36, 57, 84, 0.05);
+  --shadow-md: 0 18px 48px rgba(36, 57, 84, 0.09);
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 11px;
+  --sidebar-width: 244px;
+}

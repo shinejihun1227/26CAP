@@ -1,8 +1,34 @@
-.dart_tool/
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.DS_Store
+Thumbs.db
 .idea/
-.packages
-.flutter-plugins
-.flutter-plugins-dependencies
-.metadata
+.vscode/
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
 build/
+dist/
+.codex*/
 
+# Never upload personal sessions/settings
+recordings/
+*.calibration.json
+cap_web/.stepon-editor-state.json
+
+# Only the three inference artifacts are shared
+ai_engine/data/**
+!ai_engine/data/processed/
+!ai_engine/data/processed/ml/
+!ai_engine/data/processed/ml/model_artifact/
+!ai_engine/data/processed/ml/model_artifact/rf_model.joblib
+!ai_engine/data/processed/ml/model_artifact/cnn_model.pt
+!ai_engine/data/processed/ml/model_artifact/deploy_config.json
+ai_engine/results/

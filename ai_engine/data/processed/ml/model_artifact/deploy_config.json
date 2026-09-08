@@ -1,0 +1,30 @@
+{
+  "preferred_model_for_live_demo": "ensemble",
+  "why_cnn_preferred_for_demo": "CORRECTED after actually measuring both (realtime_replay_demo.py, single-window CPU inference): RF's per-window latency was mean=214.9ms, p95=244.5ms, max=677.3ms - the max BREAKS the 500ms hop budget. CNN measured mean=18.8ms, p95=31.6ms, max=148.5ms - comfortably under budget. This is the opposite of an earlier, unverified guess in this same file that preferred RF for 'no PyTorch dependency' reasons without having measured RF's actual single-sample latency yet - that guess was wrong: RF's RandomForestClassifier(n_jobs=-1) most likely pays multiprocess dispatch overhead on every single-window predict_proba() call, overhead that a bigger batch would amortize but a live one-window-at-a-time stream cannot. SUPERSEDED by why_ensemble_preferred_for_demo below: that overhead hypothesis was confirmed this session (n_jobs=1 profiling) and turned the RF latency problem into a non-problem, unblocking the ensemble now deployed as the live default. Kept verbatim for history. The poster AUC should still cite whichever single model actually scores higher on test.npz - this field is about live-demo latency safety only.",
+  "why_ensemble_preferred_for_demo": "Miss-rate investigation (scripts/ensemble_investigation.py, data/processed/ml/ensemble_investigation_summary.json), separate from and complementary to the earlier false-alarm work: averaging RF+CNN's fog_score probabilities (both already-trained, unchanged) raised PD_only val AUC from 0.7996 (RF)/0.8163 (CNN) to 0.8343 - a genuine, threshold-INDEPENDENT ranking improvement, not a threshold-tuning artifact. At a threshold picked to match-or-beat the deployed CNN's own PD_only val FPR_stop (0.4507, so this does not undo the separate false-alarm-rate work), the ensemble's threshold=0.39: val FPR_stop 0.4468 (slightly better), val sensitivity 0.805 (small +0.44pp gain per-window) but caught 2 ADDITIONAL real val FoG episodes at the window-level state-machine granularity that actually matters for this project (37/45 -> 39/45, i.e. missed 8 -> missed 6, a 25% relative reduction in real freezes the state machine never reaches Active for) - confirmed generalizing on held-out test.npz, where sensitivity rose 0.8408->0.8753 AND FPR_stop IMPROVED 0.3464->0.3178 simultaneously (no false-alarm cost at all on test). RF-alone was tempting on raw episode-catch count (42/45) but explicitly rejected: its own FPR_stop (0.6228) is far worse than CNN's, i.e. that number is bought with a big false-alarm regression this task must not reintroduce. Latency was the one real risk (running RF on every window) - resolved by profiling RF with n_jobs=1 (not previously tried live): mean~16ms/p95~22ms/max~32ms per window, vs n_jobs=-1's mean~39ms/max~150ms+ on the same single-window call pattern - combined ensemble worst case (RF n_jobs=1 + CNN) measured ~85ms, comfortably inside the 500ms hop budget. live_detector.py's LiveFogDetector now supports model_name='ensemble' (loads both models, RF forced to n_jobs=1, averages fog_score) alongside the existing 'rf'/'cnn' single-model modes, which remain available unchanged.",
+  "rf": {
+    "threshold_fog_pd_only_youden_j": 0.2125,
+    "PD_only_val_AUC": 0.7996
+  },
+  "cnn": {
+    "threshold_fog_pd_only_youden_j": 0.3748,
+    "PD_only_val_AUC": 0.8163
+  },
+  "ensemble": {
+    "method": "average of rf and cnn fog_score probabilities (predict_proba_baseline + predict_proba_cnn, each on the same window, averaged - see live_detector.py's model_name='ensemble' branch)",
+    "threshold_fog_pd_only_youden_j": 0.39,
+    "threshold_selection_note": "NOT the raw Youden's-J optimum (0.3718, which trades a larger sensitivity gain for a real FPR_stop increase on val, 0.4507->0.472) - chosen instead as the highest-sensitivity threshold on PD_only val subject to FPR_stop <= the deployed CNN's own val FPR_stop (0.4507), so this fix cannot be read as trading away the separate false-alarm-rate work. See why_ensemble_preferred_for_demo and ensemble_investigation_summary.json for the full numbers.",
+    "PD_only_val_AUC": 0.8343,
+    "rf_n_jobs_required": 1,
+    "rf_n_jobs_note": "RF MUST be run with n_jobs=1 for this ensemble's latency budget to hold live - see why_ensemble_preferred_for_demo. live_detector.py sets this automatically for model_name='rf' and 'ensemble' both."
+  },
+  "state_machine_defaults": {
+    "n_consecutive": 2,
+    "exit_margin": 0.15,
+    "note": "n_consecutive/exit_margin are ported-mechanism defaults, NOT re-swept for this pipeline's score - see state_machine.py's module docstring. Only the threshold above (Youden's J on PD_only val) is a validated number."
+  },
+  "yaw_gate": {
+    "threshold_dps": 250.0,
+    "note": "peak-to-peak yaw gyro range per window, above which a FoG prediction is suppressed - see scripts/test_yaw_gate.py for the sweep this came from and this file's own comment for caveats. Only applied by ble_receiver.py when the session's calibration.json actually identified a gyro_yaw_channel (skipped, not guessed, otherwise)."
+  }
+}

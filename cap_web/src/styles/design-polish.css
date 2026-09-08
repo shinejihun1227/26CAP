@@ -1,0 +1,1155 @@
+/*
+ * StepOn visual system pass
+ *
+ * This file is intentionally loaded last. It keeps the existing mint/coral
+ * palette while giving the dashboard and editor one consistent visual layer.
+ * Component files remain responsible for layout and behavior; this file is
+ * for shared rhythm, contrast, focus states, and responsive finishing.
+ */
+:root {
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-display: Georgia, "Times New Roman", "Malgun Gothic", serif;
+  --text-secondary: #5f7b80;
+  --text-tertiary: #789396;
+  --line-soft: #dcebea;
+  --surface-glass: rgba(255, 255, 255, .76);
+  --focus-ring: 0 0 0 4px rgba(88, 189, 154, .18);
+  --transition-fast: 160ms ease;
+}
+
+body {
+  min-width: 320px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  background:
+    radial-gradient(circle at 82% -12%, rgba(255, 255, 255, .7), transparent 34%),
+    linear-gradient(rgba(255, 255, 255, .13) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .13) 1px, transparent 1px),
+    var(--canvas);
+  background-size: auto, 36px 36px, 36px 36px, auto;
+}
+
+h1, h2, h3,
+.welcome-row h1, .subpage-heading h1,
+.panel-heading h2, .status-hero h2,
+.mediapipe-hero h2, .report-summary h2,
+.inspector-selection h2, .inspector-empty strong {
+  font-family: var(--font-display);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-ui);
+}
+
+button,
+.nav-item,
+.palette-item,
+.heatmap-tab,
+.editor-screen-tab,
+.editor-element,
+.foot-map-layer,
+.editor-sensor-target {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 0;
+  box-shadow: var(--focus-ring);
+}
+
+.sidebar {
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(14px);
+}
+
+.brand-lockup strong,
+.mobile-brand strong {
+  letter-spacing: .16em;
+}
+
+.sidebar-section-label,
+.panel-kicker,
+.eyebrow,
+.hero-label,
+.editor-widget-kicker {
+  line-height: 1.2;
+}
+
+.sidebar-section-label {
+  margin-top: 40px;
+}
+
+.nav-item {
+  min-height: 52px;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.nav-item:hover {
+  transform: translateX(2px);
+}
+
+.topbar {
+  position: relative;
+  z-index: 5;
+}
+
+.topbar-context,
+.welcome-row p,
+.subpage-heading p,
+.panel-description,
+.metric-description,
+.metric-delta,
+.event-copy small,
+.sensor-row small,
+.hardware-note {
+  color: var(--text-secondary);
+}
+
+.context-kicker,
+.topbar-context {
+  font-weight: 700;
+}
+
+.content-area {
+  padding-top: 2px;
+}
+
+.welcome-row {
+  margin-bottom: 20px;
+}
+
+.welcome-row h1,
+.subpage-heading h1 {
+  line-height: 1.08;
+}
+
+.connection-pill {
+  min-height: 58px;
+  box-shadow: 0 8px 18px rgba(36, 57, 84, .04);
+}
+
+.status-hero {
+  min-height: 238px;
+  padding: 26px 30px;
+  border: 1px solid rgba(255, 255, 255, .08);
+  box-shadow: 0 18px 36px rgba(36, 57, 84, .13);
+}
+
+.status-hero-copy p {
+  max-width: 410px;
+  line-height: 1.65;
+}
+
+.hero-button,
+.control-button,
+.primary-button,
+.outline-button,
+.banner-button,
+.subtle-button,
+.editor-link-button,
+.heatmap-edit-button,
+.danger-button,
+.image-remove-button {
+  min-height: 38px;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.hero-button:hover,
+.control-button:hover,
+.primary-button:hover,
+.outline-button:hover,
+.banner-button:hover,
+.subtle-button:hover,
+.editor-link-button:hover,
+.heatmap-edit-button:hover,
+.danger-button:hover,
+.image-remove-button:hover {
+  transform: translateY(-1px);
+}
+
+.metrics-grid,
+.dashboard-grid,
+.lower-grid {
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.metric-card {
+  min-height: 126px;
+  padding: 16px;
+  border-color: rgba(220, 235, 234, .9);
+  box-shadow: 0 8px 22px rgba(36, 57, 84, .045);
+}
+
+.metric-value {
+  margin-top: 16px;
+}
+
+.panel {
+  border-color: var(--line-soft);
+  box-shadow: 0 10px 28px rgba(36, 57, 84, .045);
+}
+
+.panel-heading h2 {
+  line-height: 1.15;
+}
+
+.text-button,
+.heatmap-tab,
+.editor-screen-tab,
+.inspector-history button,
+.sensor-side-tabs button,
+.sensor-position-tabs button,
+.foot-position-tabs button {
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+/* Bilateral map: make the sensor identity clear before showing the value. */
+.bilateral-heatmap-panel {
+  overflow: hidden;
+}
+
+.heatmap-heading-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.heatmap-mode-switch {
+  min-height: 42px;
+  align-items: center;
+}
+
+.heatmap-tab {
+  min-width: 48px;
+  min-height: 32px;
+  padding: 7px 11px;
+}
+
+.heatmap-edit-button {
+  padding: 8px 12px;
+}
+
+.foot-pair-map {
+  width: min(100%, 620px);
+  aspect-ratio: 1.88 / 1;
+  margin-top: 18px;
+  padding: 3.5% 11%;
+  border-color: #d6e9e6;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, .92), transparent 58%),
+    linear-gradient(135deg, #fbfffe, #eef9f6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .82);
+}
+
+.foot-map-figure {
+  width: 31%;
+  height: 92%;
+}
+
+.foot-map-figure .foot-side-label {
+  top: -5%;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  box-shadow: 0 4px 10px rgba(36, 57, 84, .05);
+}
+
+.heat-spot {
+  width: 33px;
+  height: 33px;
+}
+
+.heat-spot i {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
+  color: #fff;
+  font: 800 9px/1 var(--font-ui);
+  font-style: normal;
+  opacity: .92;
+}
+
+.heat-spot b {
+  top: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  gap: 4px;
+  min-height: 17px;
+  padding: 2px 5px;
+  border: 1px solid rgba(220, 235, 234, .9);
+  border-radius: 999px;
+  color: #496a6c;
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 3px 8px rgba(36, 57, 84, .08);
+  font-size: 8px;
+}
+
+.heat-spot b em {
+  font-size: 8px;
+}
+
+.heat-spot b span {
+  font-size: 8px;
+}
+
+/* Keep the value badge outside each foot on wider screens. The numbered
+   marker stays on the sensor, while the value reads as a separate annotation
+   and remains easier to scan when the two feet sit close together. */
+@media (min-width: 801px) {
+  .foot-map-left .heat-spot b {
+    top: 50%;
+    left: auto;
+    right: calc(50% + 15px);
+    transform: translateY(-50%);
+  }
+
+  .foot-map-right .heat-spot b {
+    top: 50%;
+    left: calc(50% + 15px);
+    transform: translateY(-50%);
+  }
+}
+
+.heatmap-legend {
+  min-height: 22px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.heatmap-legend small {
+  font-size: 11px;
+}
+
+.heatmap-summary {
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.heatmap-summary span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.heatmap-summary b {
+  font-size: 18px;
+}
+
+.research-badge {
+  min-height: 32px;
+  padding: 8px 11px;
+  line-height: 1.25;
+  font-size: 10px;
+}
+
+.safety-notice {
+  align-items: flex-start;
+  padding: 13px 15px;
+}
+
+.safety-notice p {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+/* The live preview and inspector should read as one product surface. */
+.editor-shell {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(255, 255, 255, .54), transparent 35%),
+    var(--canvas);
+}
+
+.editor-topbar {
+  border-bottom-color: rgba(140, 192, 190, .28);
+  background: rgba(255, 255, 255, .65);
+  backdrop-filter: blur(14px);
+}
+
+.editor-side-heading p,
+.editor-inspector-heading p,
+.editor-workspace-heading p,
+.sensor-position-help,
+.editor-direct-note span {
+  color: var(--text-secondary);
+}
+
+.editor-workspace {
+  padding-top: 16px;
+}
+
+.editor-screen-nav {
+  box-shadow: 0 6px 18px rgba(36, 57, 84, .035);
+}
+
+.editor-screen-tab {
+  min-height: 38px;
+  padding: 9px 12px;
+}
+
+.editor-canvas-wrap {
+  border-color: #cae1df;
+  background: rgba(255, 255, 255, .48);
+  box-shadow: 0 12px 28px rgba(36, 57, 84, .05);
+}
+
+.editor-live-preview-shell,
+.editor-live-preview-frame {
+  border-color: #cfe5e2;
+}
+
+.editor-inspector {
+  background: rgba(255, 255, 255, .82);
+  backdrop-filter: blur(12px);
+}
+
+.palette-item,
+.inspector-form input,
+.inspector-form textarea,
+.inspector-form select,
+.sensor-position-row,
+.foot-position-fields input {
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.palette-item {
+  min-height: 54px;
+}
+
+.palette-item:hover {
+  box-shadow: 0 6px 16px rgba(36, 57, 84, .06);
+}
+
+.inspector-form label,
+.inspector-section-label,
+.sensor-position-heading b,
+.foot-position-fields label {
+  font-size: 10px;
+}
+
+.inspector-form input,
+.inspector-form textarea,
+.inspector-form select {
+  min-height: 38px;
+  padding: 9px 10px;
+  font-size: 12px;
+}
+
+.inspector-history button,
+.sensor-side-tabs button,
+.sensor-position-tabs button,
+.foot-position-tabs button {
+  min-height: 36px;
+  padding: 8px 6px;
+}
+
+.sensor-position-editor,
+.foot-position-editor {
+  padding-top: 16px;
+}
+
+.sensor-position-row {
+  min-height: 38px;
+}
+
+.sensor-position-row > button {
+  width: 24px;
+  height: 24px;
+}
+
+.sensor-position-row > span {
+  font-size: 9px;
+}
+
+.sensor-position-row input,
+.foot-position-fields input {
+  min-height: 30px;
+  font-size: 10px;
+}
+
+.layout-summary {
+  border-top-color: var(--line-soft);
+}
+
+.editor-preview-app .editor-direct-target:hover {
+  outline-color: rgba(88, 189, 154, .86);
+  box-shadow: 0 0 0 2px rgba(88, 189, 154, .1);
+}
+
+.editor-preview-app .editor-direct-target.is-selected {
+  outline-width: 2px;
+  box-shadow: 0 0 0 5px rgba(239, 119, 119, .14);
+}
+
+/* Shared mobile rhythm: show the product, not empty gutters. */
+@media (max-width: 800px) {
+  .content-area {
+    padding-top: 4px;
+  }
+
+  .welcome-row {
+    gap: 15px;
+    margin-bottom: 16px;
+  }
+
+  .welcome-row h1,
+  .subpage-heading h1 {
+    font-size: clamp(29px, 8vw, 36px);
+  }
+
+  .status-hero {
+    padding: 23px;
+  }
+
+  .status-hero-copy p {
+    max-width: 310px;
+  }
+
+  .metrics-grid {
+    gap: 9px;
+  }
+
+  .metric-card {
+    min-height: 120px;
+    padding: 14px;
+  }
+
+  .metric-value {
+    margin-top: 13px;
+  }
+
+  .heatmap-heading-actions {
+    justify-content: stretch;
+  }
+
+  .foot-pair-map {
+    width: min(100%, 460px);
+    aspect-ratio: 1.48 / 1;
+    padding: 5% 9%;
+  }
+
+  .heat-spot {
+    transform: translate(-50%, -50%) scale(.9);
+  }
+
+  .foot-map-left .heat-spot b,
+  .foot-map-right .heat-spot b {
+    top: 25px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+
+  .heatmap-summary b {
+    font-size: 16px;
+  }
+
+  .heatmap-summary span,
+  .heatmap-legend,
+  .heatmap-legend small {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 520px) {
+  .topbar {
+    height: 60px;
+  }
+
+  .content-area {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .panel {
+    padding: 15px;
+  }
+
+  .panel-heading h2 {
+    font-size: 20px;
+  }
+
+  .foot-pair-map {
+    aspect-ratio: 1.38 / 1;
+    padding: 7% 7%;
+  }
+
+  .foot-map-figure {
+    width: 34%;
+    height: 90%;
+  }
+
+  .heat-spot {
+    transform: translate(-50%, -50%) scale(.78);
+  }
+
+  .heatmap-summary {
+    gap: 8px;
+  }
+
+  .heatmap-summary b {
+    font-size: 15px;
+  }
+
+  .heatmap-summary span {
+    font-size: 9px;
+  }
+
+  .editor-canvas-wrap {
+    box-shadow: none;
+  }
+}
+
+/* Final type pass: the first pass improved contrast, but the small legacy
+   labels were still too easy to miss on a phone or tablet. Keep the visual
+   hierarchy while lifting the minimum readable sizes across every route. */
+.sidebar-section-label {
+  font-size: 11px;
+  letter-spacing: .12em;
+}
+
+.nav-item b {
+  font-size: 13px;
+}
+
+.nav-item small,
+.topbar-context {
+  font-size: 11px;
+}
+
+.welcome-row p,
+.subpage-heading p,
+.panel-description {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.panel-kicker,
+.eyebrow,
+.hero-label,
+.metric-label {
+  font-size: 11px;
+}
+
+.metric-value {
+  font-size: 31px;
+}
+
+.metric-value small {
+  font-size: 11px;
+}
+
+.metric-description,
+.metric-delta,
+.hero-note p,
+.hardware-note,
+.medical-disclaimer {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.event-copy b,
+.sensor-row b,
+.output-row b,
+.pipeline-step b,
+.note-list b,
+.hardware-list b,
+.cue-recommendation b,
+.output-control b {
+  font-size: 13px;
+}
+
+.event-copy small,
+.sensor-row small,
+.output-row small,
+.pipeline-step small,
+.note-list small,
+.hardware-list small,
+.output-control small {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.status-hero-copy p,
+.live-state-main p,
+.report-summary p,
+.device-hero p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.live-state-main > strong {
+  font-size: 29px;
+}
+
+.live-state-stats b {
+  font-size: 25px;
+}
+
+.live-state-stats small,
+.chart-meta > span:not(.chart-change),
+.chart-change,
+.chart-period,
+.event-time {
+  font-size: 11px;
+}
+
+.heatmap-tab,
+.heatmap-edit-button,
+.chart-labels,
+.heatmap-legend,
+.heatmap-legend small {
+  font-size: 11px;
+}
+
+.foot-map-figure .foot-side-label {
+  font-size: 11px;
+}
+
+.heat-spot i {
+  width: 25px;
+  height: 25px;
+  font-size: 10px;
+}
+
+.heat-spot b,
+.heat-spot b em,
+.heat-spot b span {
+  font-size: 10px;
+}
+
+.heat-spot b em,
+.heat-spot b span {
+  font-size: 9px;
+}
+
+.heatmap-summary span {
+  font-size: 12px;
+}
+
+.heatmap-summary b {
+  font-size: 20px;
+}
+
+.report-summary h2 {
+  font-size: 31px;
+}
+
+.report-score span,
+.report-score i,
+.device-battery span,
+.device-battery small,
+.output-status,
+.camera-status {
+  font-size: 10px;
+}
+
+.report-card p,
+.report-stat label,
+.report-stat small,
+.report-progress-label,
+.report-progress-value {
+  font-size: 11px;
+}
+
+.device-hero h2 {
+  font-size: 25px;
+}
+
+.device-battery strong {
+  font-size: 29px;
+}
+
+.research-badge,
+.algorithm-pill {
+  font-size: 11px;
+}
+
+.safety-notice p,
+.thermal-overview span,
+.thermal-head,
+.threshold-line,
+.algorithm-disclaimer,
+.fog-score-row > div:last-child p,
+.feature-row,
+.cue-recommendation p,
+.cue-test-row > span,
+.algorithm-footer,
+.switch-label {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.thermal-row,
+.thermal-row b,
+.thermal-row strong,
+.fog-score-row > div:last-child b,
+.feature-row b {
+  font-size: 11px;
+}
+
+.thermal-row small {
+  font-size: 10px;
+}
+
+.thermal-overview strong,
+.fog-score strong {
+  font-size: 24px;
+}
+
+.personal-form label,
+.retention-row label,
+.confidence-row label,
+.personal-toggle b {
+  font-size: 12px;
+}
+
+.personal-form input,
+.personal-form select,
+.retention-row select {
+  font-size: 13px;
+}
+
+.personal-toggle small,
+.camera-placeholder small,
+.camera-privacy p,
+.retention-row p,
+.mediapipe-hero p {
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.camera-placeholder b {
+  font-size: 14px;
+}
+
+/* The editor gets the same scale, including the controls that are used while
+   positioning independent left/right sensors. */
+.editor-screen-tab,
+.editor-workspace-context,
+.editor-workspace-heading p,
+.editor-side-heading p,
+.editor-inspector-heading p,
+.editor-ghost-button,
+.editor-primary-button,
+.editor-workspace-actions button,
+.inspector-history button,
+.palette-item b,
+.inspector-form label,
+.inspector-section-label,
+.sensor-position-heading b,
+.foot-position-fields label,
+.sensor-side-tabs button,
+.sensor-position-tabs button,
+.foot-position-tabs button {
+  font-size: 11px;
+}
+
+.editor-screen-tab small,
+.palette-item small,
+.sensor-position-help,
+.sensor-position-row > span,
+.sensor-position-row label,
+.layout-summary,
+.summary-heading,
+.editor-canvas-footer,
+.editor-direct-note span {
+  font-size: 10px;
+}
+
+.editor-widget-kicker {
+  font-size: 10px;
+}
+
+.editor-widget p,
+.editor-hero-widget p,
+.editor-text-widget p,
+.editor-notice-widget p,
+.editor-direct-note {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.editor-widget h3,
+.editor-text-widget h3,
+.editor-notice-widget h3 {
+  font-size: 18px;
+}
+
+.inspector-selection h2 {
+  font-size: 21px;
+}
+
+.inspector-form input,
+.inspector-form textarea,
+.inspector-form select,
+.sensor-position-row input,
+.foot-position-fields input {
+  font-size: 12px;
+}
+
+.sensor-position-row > button {
+  font-size: 10px;
+}
+
+.editor-image-caption,
+.editor-image-badge,
+.image-upload-field input[type="file"],
+.image-upload-field small,
+.image-remove-button,
+.editor-image-placeholder strong,
+.editor-image-placeholder small,
+.sub-element-control b,
+.sub-element-control > small,
+.sub-element-toggle,
+.editor-toast {
+  font-size: 10px;
+}
+
+.summary-heading span,
+.layout-summary li,
+.layout-summary li small,
+.inspector-size-grid small {
+  font-size: 9px;
+}
+
+.form-label,
+.radio-row,
+.select-card b,
+.cue-choice b,
+.start-button,
+.preview-features b {
+  font-size: 12px;
+}
+
+.form-label small,
+.select-card small,
+.cue-choice small,
+.onboarding-actions p,
+.onboarding-preview > p,
+.preview-summary span,
+.preview-summary strong,
+.preview-features small,
+.onboarding-disclaimer {
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.text-input {
+  font-size: 13px;
+}
+
+/* Prevent long Korean labels from establishing a wider grid column than the
+   phone can provide. Ellipsis is already used by these rows, so the content
+   should be allowed to shrink before it is clipped. */
+.event-row,
+.sensor-row,
+.output-row,
+.event-copy,
+.sensor-row > div,
+.output-row > div,
+.cue-recommendation > div,
+.panel-heading > div,
+.subpage-heading > div {
+  min-width: 0;
+}
+
+@media (max-width: 800px) {
+  .nav-item b {
+    font-size: 12px;
+  }
+
+  .nav-item small {
+    font-size: 10px;
+  }
+
+  .welcome-row p,
+  .subpage-heading p,
+  .panel-description,
+  .status-hero-copy p,
+  .report-summary p,
+  .device-hero p {
+    font-size: 13px;
+  }
+
+  .metric-label,
+  .panel-kicker,
+  .eyebrow {
+    font-size: 11px;
+  }
+
+  .metric-value {
+    font-size: 27px;
+  }
+
+  .metric-description,
+  .metric-delta,
+  .event-copy small,
+  .sensor-row small,
+  .output-row small,
+  .hardware-list small,
+  .output-control small {
+    font-size: 11px;
+  }
+
+  .panel-heading h2 {
+    font-size: 22px;
+  }
+
+  .status-hero-copy h2 {
+    font-size: 30px;
+  }
+
+  .live-state-main > strong {
+    font-size: 27px;
+  }
+
+  .live-state-stats b {
+    font-size: 22px;
+  }
+
+  .report-summary h2 {
+    font-size: 28px;
+  }
+
+  .device-hero h2 {
+    font-size: 23px;
+  }
+
+  .editor-workspace-heading h1,
+  .editor-side-heading h1,
+  .editor-inspector-heading h1 {
+    font-size: 27px;
+  }
+
+  .editor-screen-tab,
+  .sensor-side-tabs button,
+  .sensor-position-tabs button,
+  .foot-position-tabs button {
+    font-size: 12px;
+  }
+
+  /* The 8000 preview lives inside 8001. Remove the extra shell padding at
+     narrow widths so the preview gets the full available phone width. */
+  .editor-live-preview-shell {
+    padding-right: 0;
+    padding-left: 0;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .editor-live-preview-heading {
+    margin-right: 10px;
+    margin-left: 10px;
+  }
+
+  .editor-live-preview-frame {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .panel-heading h2 {
+    font-size: 21px;
+  }
+
+  .metric-value {
+    font-size: 25px;
+  }
+
+  .heatmap-summary b {
+    font-size: 17px;
+  }
+
+  .editor-widget h3,
+  .editor-text-widget h3,
+  .editor-notice-widget h3 {
+    font-size: 17px;
+  }
+}
+
+/* Mobile navigation and embedded editor preview fixes. The dashboard uses a
+   compact bottom navigation, while the editor contains a nested 8000 preview;
+   the preview must not attach its fixed navigation to the real viewport. */
+.nav-item-mobile-label {
+  display: none;
+}
+
+@media (max-width: 800px) {
+  .status-hero .hero-orbit {
+    display: none;
+  }
+
+  .primary-nav {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    overflow: hidden;
+  }
+
+  .nav-item {
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
+  }
+
+  .nav-item b,
+  .nav-item small {
+    display: none;
+  }
+
+  .nav-item-mobile-label {
+    display: block;
+    overflow: hidden;
+    color: inherit;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .editor-live-preview-frame .editor-preview-app {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 74px;
+  }
+
+  .editor-live-preview-frame .editor-preview-app .sidebar {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .editor-live-preview-frame .editor-preview-app .page-shell {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  /* Show all six editor screen links without a clipped horizontal strip. */
+  .editor-screen-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .editor-screen-tab {
+    min-width: 0;
+    justify-content: center;
+  }
+}
