@@ -24,6 +24,8 @@ import { renderTrendsView } from "./views/trends-view.js";
 import { mountTrendWorkspace } from "./trends/trend-controller.js";
 import { emptyPressure } from "./data/sensor-config.js";
 import { captureViewContinuity, restoreViewContinuity } from "./utils/view-continuity.js";
+import { captureInsoleControls, restoreInsoleControls, isEditingInsole } from "./utils/insole-ui.js";
+import { updateInsoleReadings } from "./components/insole-connection.js";
 
 const app = document.querySelector("#app");
 const profileStorageKey = "stepon-cap-web-profile";
@@ -80,29 +82,35 @@ let trendWorkspace = null;
 let esp32RequestInFlight = false;
 let aiRequestInFlight = false;
 let renderedView = null;
+let toastMessage = '';
+let toastTimer;
+const toastMarkup = () => `<div class="toast-region" aria-live="polite">${toastMessage ? `<div class="toast">${escapeHtml(toastMessage)}</div>` : ''}</div>`;
 
-function renderView() {
+function renderView(force = false) {
   if (isEditorMode) {
     return;
   }
-  // Preserve an address being typed while connection status polls in the background.
-  if (activeView === 'devices' && app.querySelector('[data-insole-form]')?.contains(document.activeElement)) return;
+  // Native dropdowns and both address forms must survive background polling.
+  if (!force && renderedView === activeView && !showOnboarding && isEditingInsole(app)) {
+    updateInsoleReadings(app, state);
+    return;
+  }
   // Never replace a running video element when sensor/editor polling refreshes the app.
   if (romWorkspace && activeView === "mediapipe" && !showOnboarding) return;
   if (trendWorkspace && activeView === "trends" && !showOnboarding) return;
   if (romWorkspace) { romWorkspace.destroy(); romWorkspace = null; }
   if (trendWorkspace) { trendWorkspace.destroy(); trendWorkspace = null; }
   if (showOnboarding) {
-    app.innerHTML = `${isMobileUi ? renderMobileOnboarding(state) : renderOnboarding(state)}<div class="toast-region" aria-live="polite"></div>`;
+    app.innerHTML = `${isMobileUi ? renderMobileOnboarding(state) : renderOnboarding(state)}${toastMarkup()}`;
     return;
   }
   const viewState = { ...state, aiEnabled, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
   const continuity = renderedView === activeView ? captureViewContinuity(app) : null;
-  const expandedInsoles = [...app.querySelectorAll('[data-insole-card] details[open]')].map((el) => el.closest('[data-insole-card]').dataset.insoleCard);
-  app.innerHTML = `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}<div class="toast-region" aria-live="polite"></div>`;
-  for (const side of expandedInsoles) { const details = app.querySelector(`[data-insole-card="${side}"] details`); if (details) details.open = true; }
+  const insoleControls = renderedView === activeView ? captureInsoleControls(app) : null;
+  app.innerHTML = `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${toastMarkup()}`;
   applySafeTextOverrides();
   restoreViewContinuity(app, continuity);
+  restoreInsoleControls(app, insoleControls);
   renderedView = activeView;
   if (activeView === "mediapipe") romWorkspace = mountRomWorkspace(app.querySelector("[data-rom-root]"));
   if (activeView === "trends") trendWorkspace = mountTrendWorkspace(app.querySelector("[data-trends-root]"), () => state);
@@ -118,10 +126,15 @@ function applySafeTextOverrides() {
 }
 
 function showToast(message) {
+  toastMessage = message;
+  window.clearTimeout(toastTimer);
   const region = document.querySelector(".toast-region");
-  if (!region) return;
-  region.innerHTML = `<div class="toast">${escapeHtml(message)}</div>`;
-  window.setTimeout(() => region.innerHTML = "", 2600);
+  if (region) region.innerHTML = `<div class="toast">${escapeHtml(message)}</div>`;
+  toastTimer = window.setTimeout(() => {
+    toastMessage = '';
+    const currentRegion = document.querySelector('.toast-region');
+    if (currentRegion) currentRegion.innerHTML = '';
+  }, 2600);
 }
 
 async function refreshSharedEditorState() {
@@ -328,9 +341,20 @@ app.addEventListener("click", (event) => {
 app.addEventListener("submit", (event) => {
   if (event.target.matches('[data-insole-form]')) {
     event.preventDefault();
-    const fields = new FormData(event.target);
-    void hubRequest('config', { side: event.target.dataset.insoleForm, url: String(fields.get('url')).trim() })
-      .then(() => { document.activeElement?.blur(); showToast('주소를 등록했어요. 펌웨어의 좌우 구분을 확인 중입니다.'); return refreshEsp32State(true); })
+    const form = event.target, input = form.elements.namedItem('url');
+    const side = form.dataset.insoleForm, url = input.value.trim();
+    void hubRequest('config', { side, url })
+      .then(() => {
+        // A completed submission must not erase another address typed meanwhile.
+        const currentForm = app.querySelector(`[data-insole-form="${side}"]`);
+        const currentInput = currentForm?.elements.namedItem('url');
+        if (currentInput?.value.trim() === url) {
+          currentInput.defaultValue = currentInput.value;
+          if (currentForm.contains(document.activeElement)) document.activeElement.blur();
+        }
+        showToast('주소를 등록했어요. 펌웨어의 좌우 구분을 확인 중입니다.');
+        return refreshEsp32State(true);
+      })
       .catch((error) => showToast(`등록 실패: ${error.message}`));
     return;
   }
@@ -366,7 +390,7 @@ app.addEventListener("change", (event) => {
     const key = rehabTarget.dataset.rehabSetting;
     const value = rehabTarget.type === "number" || rehabTarget.type === "range" ? Number(rehabTarget.value) : rehabTarget.value;
     state = { ...state, rehab: { ...state.rehab, config: { ...state.rehab.config, [key]: value } } };
-    renderView();
+    renderView(true);
     showToast("재활 설정을 저장했어요.");
     return;
   }
