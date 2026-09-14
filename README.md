@@ -40,7 +40,7 @@ Git 없이 GitHub **Code → Download ZIP**으로 받아도 됩니다. 전체 �
 ## 추가 프로그램이 필요한 경우
 
 - **저장된 CSV 분석:** 전체 실행 후 `/data/`. 보정 25초(5초 정지 + 20초 일반 보행)와 같은 착용 상태의 측정 CSV를 선택합니다. 별도 센서나 핫스팟은 필요하지 않습니다.
-- **실시간 무선 깔창:** 처음에 [04 STA 펌웨어](firmware/stepon_c3/04_sta_bilateral/README.md)를 업로드합니다. 이후 PC 2.4GHz 핫스팟, 보드 전원, 웹의 기기 연결·개인 IMU 보정이 필요합니다. Arduino IDE를 계속 켜둘 필요는 없습니다.
+- **실시간 무선 깔창:** 처음에 C3는 [04 STA 펌웨어](firmware/stepon_c3/04_sta_bilateral/README.md), WROOM-32/WROOM-DA는 [4-2 STA 펌웨어](firmware/stepon_c3/04_2_sta_bilateral_wroom/README.md)를 업로드합니다. WROOM 핀은 SDA21·SCL22, 압력 ADC34이며 배선표를 확인하세요. 이후 PC 2.4GHz 핫스팟, 보드 전원, 웹의 기기 연결·개인 IMU 보정이 필요합니다. Arduino IDE를 계속 켜둘 필요는 없습니다.
 - **USB로 새 데이터 기록:** [06 WROOM 수집기](firmware/stepon_c3/06_bmi270_csv_wroom/README.md)의 `record.bat --install`을 처음 한 번 실행합니다. 측정할 때 `record.bat --port 실제COM포트 ...`를 추가 실행하고, 기록 CSV를 웹에 넣습니다.
 - **카메라 관찰:** 웹에서 카메라 권한을 허용하고 시작합니다. 별도 MediaPipe 서버를 실행하지 않습니다.
 

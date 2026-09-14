@@ -66,6 +66,18 @@ test('private IPv4 targets only, strict firmware identity and four-channel contr
   assert.throws(() => validateFrame(frame('left', 1, { pressure_channels: [0, 1, 2, 3] }), 'left'), /layout/);
   assert.throws(() => validateFrame(frame('left'), 'left', 'another'), /device_id/);
 });
+test('C3 and WROOM STA frames share the sensor contract without accepting other firmware', () => {
+  for (const firmware of ['04_sta_bilateral', '04_2_sta_bilateral_wroom']) {
+    const payload = frame('right', 2, { firmware, device_id: 'wroom-right' });
+    assert.equal(validateFrame(payload, 'right', 'wroom-right'), payload);
+    assert.throws(() => validateFrame({ ...payload, wifi_mode: 'AP' }, 'right'), /sta_firmware/);
+    assert.throws(() => validateFrame({ ...payload, pressure_channels: [0, 1, 2, 3] }, 'right'), /layout/);
+    assert.throws(() => validateFrame({ ...payload, accel: { x: NaN, y: 0, z: 1 } }, 'right'), /invalid_imu/);
+  }
+  for (const firmware of ['03_final', '06_bmi270_csv_wroom', '04_2_unknown', null]) {
+    assert.throws(() => validateFrame(frame('left', 1, { firmware }), 'left'), /sta_firmware/);
+  }
+});
 test('independent collectors detect frozen frames, loss, reboot and reconnection; commands target one foot', async (t) => {
   const source = { left: { n: 0 }, right: { n: 0 } }, calls = [];
   const hub = createInsoleHub({ pollIntervalMs: 5, staleMs: 100, fetchImpl: async (url) => {
@@ -113,12 +125,16 @@ test('automatic registration uses the requesting board address, not a supplied U
   const server = http.createServer(createInsoleHandler({ register: (args) => registrations.push(args) }));
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   t.after(() => { server.closeAllConnections(); server.close(); });
-  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/insoles/register`, {
+  const register = (firmware) => fetch(`http://127.0.0.1:${server.address().port}/api/insoles/register`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ firmware: '04_sta_bilateral', foot_side: 'left', device_id: 'TEST-left', url: 'http://example.com' }),
+    body: JSON.stringify({ firmware, foot_side: 'left', device_id: 'TEST-left', url: 'http://example.com' }),
   });
-  assert.equal(response.status, 200);
-  assert.deepEqual(registrations, [{ side: 'left', deviceId: 'TEST-left', url: 'http://127.0.0.1', automatic: true }]);
+  for (const firmware of ['04_sta_bilateral', '04_2_sta_bilateral_wroom']) {
+    assert.equal((await register(firmware)).status, 200);
+    assert.deepEqual(registrations.at(-1), { side: 'left', deviceId: 'TEST-left', url: 'http://127.0.0.1', automatic: true });
+  }
+  assert.equal((await register('06_bmi270_csv_wroom')).status, 400);
+  assert.equal(registrations.length, 2);
 });
 test('connection cards escape untrusted values and never print hotspot credentials', () => {
   const p = both(); p.feet.left.base_url = '<img src=x>'; p.feet.left.last_error = '<script>alert(1)</script>';

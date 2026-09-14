@@ -16,7 +16,7 @@ const listen=async(server)=>{await new Promise(r=>server.listen(0,'127.0.0.1',r)
 const freePort=async()=>{const s=http.createServer();const port=await listen(s);await new Promise(r=>s.close(r));return port;};
 const waitFor=async(fn,ms=45000)=>{const until=Date.now()+ms;let error;while(Date.now()<until){try{const value=await fn();if(value)return value;}catch(e){error=e;}await delay(100);}throw new Error(`condition timeout: ${error?.message??''}`);};
 
-test('real RF/CNN results travel from sensor history through Python and the web proxy', {timeout:75000}, async(t)=>{
+test('C3 and WROOM sensor histories reach real RF/CNN through Python and the web proxy', {timeout:75000}, async(t)=>{
   const temp=await fs.mkdtemp(path.join(os.tmpdir(),'stepon-synthetic-e2e-'));
   const processes=[]; let logs='';
   t.after(async()=>{for(const child of processes)child.kill();await delay(300);assert.ok(path.resolve(temp).startsWith(path.resolve(os.tmpdir())+path.sep));await fs.rm(temp,{recursive:true,force:true});});
@@ -26,7 +26,7 @@ test('real RF/CNN results travel from sensor history through Python and the web 
   const hub=createInsoleHub({fetchImpl:async(url)=>{
     const side=url.includes('.2/')?'left':'right'; if(!active[side])throw new Error('synthetic_device_offline');
     const n=Math.floor((performance.now()-began)*64/1000), t=n/64;
-    return new Response(JSON.stringify({firmware:'04_sta_bilateral',wifi_mode:'STA',device_id:`synthetic-${side}`,boot_id:'synthetic-boot',foot_side:side,frame:n,millis:n*1000/64,
+    return new Response(JSON.stringify({firmware:side==='right'?'04_2_sta_bilateral_wroom':'04_sta_bilateral',wifi_mode:'STA',device_id:`synthetic-${side}`,boot_id:'synthetic-boot',foot_side:side,frame:n,millis:n*1000/64,
       pressure_count:4,pressure_layout:'stepon-pressure-4-v1',pressure_channels:[0,2,4,6],pressure:[10,20,30,40],
       shtc3_channels:[3,4,5,6],temperature:[30,30,30,30],humidity:[40,40,40,40],shtc3_ready:[true,true,true,true],imu_ready:true,
       accel:{x:0.2*Math.sin(2*Math.PI*1.5*t),y:0.06*Math.cos(2*Math.PI*1.5*t),z:1+0.12*Math.sin(2*Math.PI*3*t)},gyro:{x:0,y:0,z:0}}));

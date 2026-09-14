@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { PRESSURE_LAYOUT_ID, PRESSURE_CHANNELS, THERMAL_CHANNELS } from '../src/data/sensor-config.js';
 export const SIDES = ['left', 'right'];
 export const HUB_SERVICE = 'stepon-bilateral-v1';
+const STA_FIRMWARES = new Set(['04_sta_bilateral', '04_2_sta_bilateral_wroom']);
 const cleanIp = (value = '') => value.replace(/^::ffff:/, '');
 const localIp = (ip, loopback = false) => {
   if (isIP(ip) !== 4) return false;
@@ -20,7 +21,7 @@ const vector = (v) => ['x', 'y', 'z'].every((k) => typeof v?.[k] === 'number' &&
 export function validateFrame(p, side, deviceId) {
   if (!p || p.foot_side !== side) throw new Error('foot_side_mismatch');
   if (!identity(p.device_id) || (deviceId && p.device_id !== deviceId)) throw new Error('device_id_mismatch');
-  if (p.firmware !== '04_sta_bilateral' || p.wifi_mode !== 'STA' || !identity(p.boot_id)) throw new Error('sta_firmware_required');
+  if (!STA_FIRMWARES.has(p.firmware) || p.wifi_mode !== 'STA' || !identity(p.boot_id)) throw new Error('sta_firmware_required');
   if (!Number.isInteger(p.frame) || p.frame < 0 || !Number.isFinite(p.millis)) throw new Error('invalid_frame_clock');
   if (p.pressure_count !== 4 || p.pressure_layout !== PRESSURE_LAYOUT_ID || JSON.stringify(p.pressure_channels) !== JSON.stringify(PRESSURE_CHANNELS)) throw new Error('pressure_layout_mismatch');
   if (!Array.isArray(p.pressure) || p.pressure.length !== 4 || !p.pressure.every((v) => Number.isFinite(v) && v >= 0 && v <= 100)) throw new Error('invalid_pressure');
@@ -149,7 +150,7 @@ export function createInsoleHandler(hub) {
       if (!String(req.headers['content-type']).startsWith('application/json')) return reply(res, 415, { error: 'json_required' });
       const body = await jsonBody(req);
       if (pathname === '/api/insoles/register') {
-        if (body.firmware !== '04_sta_bilateral') throw new Error('sta_firmware_required');
+        if (!STA_FIRMWARES.has(body.firmware)) throw new Error('sta_firmware_required');
         hub.register({ side: body.foot_side, deviceId: body.device_id, url: `http://${cleanIp(req.socket.remoteAddress)}`, automatic: true });
         return reply(res, 200, { ok: true });
       }

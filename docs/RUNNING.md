@@ -82,9 +82,9 @@ AI 8787은 웹 화면이 아니라 Python API입니다. 일반 사용에서는 8
 
 `setup-ai.bat` 최초 설치 → `run.bat` → `/data/`만 사용합니다. ESP32, Arduino IDE, 핫스팟, USB 기록 프로그램을 켤 필요가 없습니다. 같은 참가자·회차·발·장치·부착 상태의 **25초 보정 CSV와 측정 CSV**를 선택합니다. [CSV 형식과 수집 동작](DATA_PIPELINE.md)을 참고하세요.
 
-### 실시간 무선 깔창 데이터를 분석할 때 — 04 STA
+### 실시간 무선 깔창 데이터를 분석할 때 — 04 C3 / 4-2 WROOM STA
 
-1. 처음 보드를 준비할 때만 Arduino IDE에서 [`04_sta_bilateral`](../firmware/stepon_c3/04_sta_bilateral/README.md)을 업로드합니다. 왼발/오른발 설정, 실제 핫스팟 정보가 들어갈 `wifi_secrets.h`, 보드·라이브러리 설정은 펌웨어 안내를 따릅니다. 실제 Wi-Fi 암호 파일은 GitHub에 포함되지 않습니다.
+1. 처음 보드를 준비할 때만 Arduino IDE에서 C3는 [`04_sta_bilateral`](../firmware/stepon_c3/04_sta_bilateral/README.md), WROOM-32/WROOM-DA는 [`04_2_sta_bilateral_wroom`](../firmware/stepon_c3/04_2_sta_bilateral_wroom/README.md)을 업로드합니다. **C3와 WROOM의 배선과 보드 선택은 다릅니다.** 왼발/오른발 설정, 실제 핫스팟 정보가 들어갈 `wifi_secrets.h`, 보드·라이브러리 설정은 해당 펌웨어 안내를 따릅니다. 실제 Wi-Fi 암호 파일은 GitHub에 포함되지 않습니다. 기존 웹을 실행 중이면 이번 WROOM 지원을 적용할 때 작업을 마친 후 `run-web.bat --restart`로 갱신합니다.
 2. PC의 **2.4GHz 모바일 핫스팟**을 켜고 깔창 보드에 전원을 공급합니다. 두 보드가 이 네트워크에 연결되어야 합니다.
 3. `run.bat`을 실행하고 웹 **기기 연결**에서 좌우 발과 IMU 수신을 확인합니다.
 4. 웹 **보행 분석 센터 → 해당 발 개인 IMU 보정**을 실행합니다. 3초 준비 후 5초 정지, 이어서 20초 일반 보행입니다.
@@ -96,7 +96,7 @@ AI 8787은 웹 화면이 아니라 Python API입니다. 일반 사용에서는 8
 
 ### USB로 새 CSV를 수집할 때 — 06 WROOM
 
-[`06_bmi270_csv_wroom`](../firmware/stepon_c3/06_bmi270_csv_wroom/README.md)은 일반 ESP32-WROOM-32의 USB 수집 경로입니다. 04 ESP32-C3 STA 경로와 보드·펌웨어가 다릅니다. 사용 중인 하드웨어에 맞는 경로를 선택합니다.
+[`06_bmi270_csv_wroom`](../firmware/stepon_c3/06_bmi270_csv_wroom/README.md)은 일반 ESP32-WROOM-32의 USB 수집 경로입니다. Wi-Fi 웹 연결에는 C3용 04 또는 WROOM용 4-2를 사용하고, USB CSV 기록에는 06을 사용합니다. 사용 중인 하드웨어와 수집 방식에 맞는 경로를 선택합니다.
 
 처음에는 06 펌웨어를 보드에 업로드하고 해당 폴더에서 수집기 의존성을 설치합니다.
 
