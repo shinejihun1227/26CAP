@@ -1,24 +1,22 @@
-import { icon } from "../components/icons.js";
-import { renderTopbar } from "../components/topbar.js";
-
-function statusLabel(ready) {
-  return ready ? "정상" : "확인 필요";
-}
-
-function hardwareItem(iconName, label, detail, ready) {
-  return `<div><span class="hardware-icon">${icon(iconName)}</span><b>${label}</b><small>${detail}</small><em class="${ready ? "is-ready" : "is-warning"}">${statusLabel(ready)}</em></div>`;
-}
-
+import { icon } from '../components/icons.js';
+import { renderTopbar } from '../components/topbar.js';
+import { renderInsoleConnections } from '../components/insole-connection.js';
+import { escapeHtml } from '../utils/text.js';
+function item(label, detail, ready) { return `<div><b>${label}</b><small>${detail}</small><em class="${ready ? 'is-ready' : 'is-warning'}">${ready ? '정상' : '확인 필요'}</em></div>`; }
 export function renderDevicesView(state) {
-  const sensors = state.hardware?.sensors ?? {};
-  const pressureReady = sensors.pressure?.ready ?? true;
-  const thermalReady = sensors.thermal?.ready ?? true;
-  const imuReady = sensors.imu?.ready ?? true;
-  const thermalCount = sensors.thermal?.count ?? 4;
-  const connected = state.dataSource !== "esp32" || state.connected;
-  const connectionLabel = connected ? "CONNECTED" : "OFFLINE";
-  const connectionClass = connected ? "" : "is-disconnected";
-  const battery = Number.isFinite(Number(state.device.battery)) ? Number(state.device.battery) : 0;
-
-  return `<div class="page-shell">${renderTopbar(state)}<main class="content-area"><section class="subpage-heading"><div><span class="eyebrow">HARDWARE & CONNECTION</span><h1>기기 관리</h1><p>연결 상태와 센서 구성을 확인하고, 필요한 테스트를 실행하세요.</p></div><button class="control-button" data-action="scan">${icon("plus")} 새 기기 연결</button></section><section class="device-hero"><div class="device-visual"><div class="device-glow"></div>${icon("shoe")}</div><div><span class="live-badge ${connectionClass}"><i></i> ${connectionLabel}</span><h2>${state.device.name}</h2><p>마지막 동기화 ${state.device.lastSync} · 배터리 ${battery}%</p><div class="device-actions"><button class="primary-button" data-action="refresh">연결 테스트 ${icon("arrow")}</button><button class="outline-button" data-action="settings">기기 설정</button></div></div><div class="device-battery"><span>BATTERY</span><strong>${battery}%</strong><div class="battery-track"><i style="width:${battery}%"></i></div><small>배터리 정보가 없는 보드에서는 0%로 표시됩니다.</small></div></section><section class="device-grid"><article class="panel"><div class="panel-heading"><div><span class="panel-kicker">HARDWARE MAP · PER INSOLE</span><h2>센서 구성</h2></div></div><div class="hardware-list">${hardwareItem("shoe", "압력 센서", "FSR406 8개 · 아날로그 MUX", pressureReady)}${hardwareItem("sun", `온·습도 센서 · ${thermalCount}/4`, "SHTC3 · I²C MUX", thermalReady)}${hardwareItem("activity", "움직임 센서", "BMI270 1개 · 6축 IMU", imuReady)}</div><p class="hardware-note">${state.hardware?.bilateralAvailable ? "양발 데이터가 연결되어 좌우 비교 중입니다." : "현재 한쪽 깔창 기준으로 측정 중입니다. 양발을 연결하면 좌우 비교가 가능합니다."}</p></article><article class="panel setup-panel"><div class="panel-heading"><div><span class="panel-kicker">OUTPUT CUEING</span><h2>안내 출력 테스트</h2></div></div><div class="output-row"><span class="output-dot coral"></span><div><b>레이저 모듈</b><small>다음 발 디딤 기준점 안내</small></div><span class="output-status">${state.outputs.laser ? "켜짐" : "대기"}</span></div><div class="output-row"><span class="output-dot lavender"></span><div><b>진동 모터</b><small>사용자에게 촉각 경고</small></div><span class="output-status">${sensors.drv2605?.ready ? (state.outputs.vibration ? "켜짐" : "대기") : "미감지"}</span></div><button class="text-button" data-action="learn-more">출력 동작 원리 보기 ${icon("arrow")}</button></article></section></main></div>`;
+  const sensors = state.hardware?.sensors ?? {}, demo = state.dataSource !== 'esp32';
+  const thermalCount = sensors.thermal?.count ?? (demo ? 4 : 0), total = sensors.thermal?.total ?? 4;
+  const connected = demo || state.connected;
+  const battery = typeof state.device.battery === 'number' && Number.isFinite(state.device.battery) ? state.device.battery : null;
+  const side = state.rehab?.config?.activeFoot === 'right' ? '오른발' : '왼발';
+  return `<div class="page-shell">${renderTopbar(state)}<main class="content-area">
+    <section class="subpage-heading"><div><span class="eyebrow">HARDWARE & CONNECTION</span><h1>기기 관리</h1><p>한 발당 압력 4개·온습도 4개·IMU 1개를 확인합니다.</p></div><button class="control-button" data-action="refresh">${icon('activity')} 새로고침</button></section>
+    ${renderInsoleConnections(state, { configure: true })}
+    <section class="device-hero"><div class="device-visual"><div class="device-glow"></div>${icon('shoe')}</div><div><span class="live-badge ${connected ? '' : 'is-disconnected'}"><i></i>${demo ? 'DEMO' : connected ? 'CONNECTED' : 'OFFLINE'}</span><h2>${escapeHtml(state.device.name)}</h2><p>마지막 동기화 ${escapeHtml(state.device.lastSync)} · 분석·출력 대상 ${side}</p></div><div class="device-battery"><span>BATTERY</span><strong>${battery === null ? '--' : `${battery}%`}</strong><small>${battery === null ? '배터리 잔량 측정 회로 미연결' : '배터리 잔량'}</small></div></section>
+    <section class="device-grid"><article class="panel"><div class="panel-heading"><div><span class="panel-kicker">SENSOR CHECK</span><h2>센서 구성</h2></div></div><div class="hardware-list">
+      ${item(`${side} 압력 센서`, '한 발 4개 · MUX C0·2·4·6', sensors.pressure?.ready ?? demo)}
+      ${item(`온·습도 유효값 · ${thermalCount}/${total}`, '한 발 4개 · I²C MUX CH3·4·5·6', sensors.thermal?.ready ?? demo)}
+      ${item(`${side} 움직임 센서`, 'BMI270 · 6축 IMU', sensors.imu?.ready ?? demo)}</div><p class="hardware-note">${state.hardware?.bilateralAvailable ? '양발 압력값으로 좌우 비교 중입니다. 정확한 체중이 아닌 상대 압력입니다.' : '양발 압력값이 모두 유효해야 좌우 비교가 가능합니다.'}</p></article>
+      <article class="panel setup-panel"><div class="panel-heading"><div><span class="panel-kicker">OUTPUT CUEING</span><h2>${side} 안내 출력</h2></div></div><p>테스트 명령은 선택한 발에만 전달합니다. 연결이 끊긴 발에는 명령을 보내지 않습니다.</p><div class="device-actions"><button class="outline-button" data-action="test-vibration">진동 테스트</button><button class="outline-button" data-action="test-laser">레이저 테스트</button></div><p class="hardware-note">04번의 레이저는 안전을 위해 기본 비활성화되어 있습니다. 자동 진동은 RF/CNN 결과가 아닌 프로토타입 규칙이며 기본 꺼짐입니다.</p></article></section>
+    </main></div>`;
 }

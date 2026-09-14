@@ -1,3 +1,4 @@
+import { PRESSURE_COUNT, PRESSURE_LAYOUT_ID, PRESSURE_ZONES, PRESSURE_POSITIONS as SENSOR_POSITIONS, validPressure } from './sensor-config.js';
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 
 export const thermalSites = [
@@ -23,35 +24,15 @@ export const rehabDefaults = {
   asymmetryTolerancePct: 15,
   supportTimeTolerancePct: 10,
   vibrationStrength: 60,
-  contactThreshold: 16,
+  contactThreshold: 8, // Four-channel summed relative units; not force.
   repeatRequired: 3,
   windowSize: 5,
   clearRequired: 3,
   cooldownMs: 5000,
 };
 
-const PRESSURE_ZONES = {
-  toe: [0],
-  forefoot: [0, 1, 2, 3],
-  midfoot: [4],
-  heel: [5, 6, 7],
-  medial: [0, 1, 5],
-  lateral: [3, 4, 6],
-};
-
-// Approximate sole coordinates: x=-1 is medial, x=1 lateral,
-// y=-1 is rear heel, y=1 is toe. These are for feedback/visualization,
-// not anatomical joint-angle measurement.
-const SENSOR_POSITIONS = [
-  [-0.08, 1.00], // P1 big toe
-  [-0.16, 0.72], // P2 1st metatarsal
-  [0.02, 0.70],  // P3 3rd metatarsal
-  [0.36, 0.66],  // P4 5th metatarsal
-  [0.54, 0.05],  // P5 lateral midfoot
-  [-0.26, -0.62], // P6 medial heel
-  [0.28, -0.62],  // P7 lateral heel
-  [0.04, -0.96], // P8 rear heel
-];
+// Four sparse pressure coordinates/regions are defined in sensor-config.js.
+// CoP is a relative estimate, not a calibrated plantar-pressure map.
 
 function finite(value) {
   if (value === null || value === undefined || value === "") return null;
@@ -59,12 +40,12 @@ function finite(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function validArray(values, length = 8) {
-  return Array.isArray(values) && values.length === length && values.some((value) => finite(value) !== null);
+function validArray(values) {
+  return validPressure(values);
 }
 
 function numericPressure(values) {
-  return Array.from({ length: 8 }, (_, index) => Math.max(0, finite(values?.[index]) ?? 0));
+  return Array.from({ length: PRESSURE_COUNT }, (_, index) => Math.max(0, finite(values?.[index]) ?? 0));
 }
 
 function zoneSum(values, zone) {
@@ -160,6 +141,7 @@ export function createDefaultRehabState(realSensor = false) {
     mode: "rehabilitation",
     config: { ...rehabDefaults },
     calibration: {
+      pressureLayout: PRESSURE_LAYOUT_ID,
       status: realSensor ? "needed" : "ready",
       capturedAt: null,
       baseline: null,
@@ -243,8 +225,8 @@ export function analyzeFog({ imu, pressure, cadence }) {
   const cadenceDropScore = clamp((100 - (finite(cadence) ?? 96)) / 35);
   const safePressure = numericPressure(pressure);
   const totalPressure = safePressure.reduce((sum, value) => sum + value, 0);
-  const leftRightPressureDelta = Math.abs((safePressure[0] + safePressure[1] + safePressure[2] + safePressure[3]) - (safePressure[4] + safePressure[5] + safePressure[6] + safePressure[7]));
-  const pressureStallScore = clamp(leftRightPressureDelta / Math.max(totalPressure * 0.32, 1));
+  const frontHeelPressureDelta = Math.abs(safePressure[0] - safePressure[3]);
+  const pressureStallScore = clamp(frontHeelPressureDelta / Math.max(totalPressure * 0.32, 1));
   const gyroBurstScore = clamp(vectorMagnitude(imu?.gyro) / 16);
   const score = Number((freezeBandScore * 0.5 + cadenceDropScore * 0.2 + pressureStallScore * 0.2 + gyroBurstScore * 0.1).toFixed(2));
   const state = score >= 0.62 ? "freeze" : score >= 0.36 ? "caution" : "walking";
@@ -284,7 +266,7 @@ function recentCount(observations, predicate, windowSize, required) {
 }
 
 function baselineFor(calibration, side) {
-  return calibration?.baseline?.[side] ?? null;
+  return calibration?.pressureLayout === PRESSURE_LAYOUT_ID ? calibration?.baseline?.[side] ?? null : null;
 }
 
 function updateTracker(tracker, metrics, now) {
@@ -321,7 +303,7 @@ export function captureRehabCalibration(state, now = Date.now()) {
   const baseline = {};
   if (left.available) baseline.left = { total: left.total, heelLandingScore: left.heelLandingScore, propulsionScore: left.propulsionScore, footLiftScore: left.footLiftScore, lateralLoadPct: left.lateralLoadPct, cop: left.cop };
   if (right.available) baseline.right = { total: right.total, heelLandingScore: right.heelLandingScore, propulsionScore: right.propulsionScore, footLiftScore: right.footLiftScore, lateralLoadPct: right.lateralLoadPct, cop: right.cop };
-  return { status: Object.keys(baseline).length ? "ready" : "needed", capturedAt: now, baseline: Object.keys(baseline).length ? baseline : null };
+  return { pressureLayout: PRESSURE_LAYOUT_ID, status: Object.keys(baseline).length ? "ready" : "needed", capturedAt: now, baseline: Object.keys(baseline).length ? baseline : null };
 }
 
 function makeHistory(previous = {}) {
@@ -366,7 +348,7 @@ function buildRehabMetrics(left, right, activeFoot, history, now, config) {
     lateralLoad: { left: left.lateralLoadPct, right: right.lateralLoadPct, active: active.lateralLoadPct },
     cop: { left: left.cop, right: right.cop, active: active.cop },
     activeTotal: active.total,
-    activeRelativePressure: active.total !== null ? Number((active.total / 8).toFixed(1)) : null,
+    activeRelativePressure: active.total !== null ? Number((active.total / PRESSURE_COUNT).toFixed(1)) : null,
     activeLoadPct: null,
     loadScaleReady: false,
     stepCount: history.steps.left.length + history.steps.right.length,
@@ -442,6 +424,10 @@ function calculateFatigueScore(observations) {
 }
 
 export function analyzeRehabFrame({ state, history: previousHistory, now = Date.now() }) {
+  if (state.rehab?.calibration?.baseline && state.rehab.calibration.pressureLayout !== PRESSURE_LAYOUT_ID) {
+    state = { ...state, rehab: { ...state.rehab, calibration: { pressureLayout: PRESSURE_LAYOUT_ID, status: 'needed', baseline: null, capturedAt: null }, feedback: null } };
+    previousHistory = {};
+  }
   const config = { ...rehabDefaults, ...(state.rehab?.config ?? {}) };
   const history = makeHistory(previousHistory);
   const left = calculateFootMetrics(sidePressure(state, "left"), sideImu(state, "left"), config);

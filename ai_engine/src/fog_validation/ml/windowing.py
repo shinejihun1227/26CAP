@@ -34,8 +34,10 @@ from numpy.lib.stride_tricks import sliding_window_view
 
 from fog_validation.ml.config import (
     FOG_LABEL_RATIO,
+    FOGSTAR_SITSTAND_ACTIVITY_CODES,
     FOGSTAR_STOP_ACTIVITY_CODES,
     HOP_SAMPLES,
+    HUGADB_SITSTAND_ACTIVITY_CODES,
     HUGADB_STOP_ACTIVITY_CODES,
     WINDOW_SAMPLES,
 )
@@ -48,6 +50,22 @@ _STOP_CODES_BY_DATASET = {
     "hugadb": HUGADB_STOP_ACTIVITY_CODES,
     "daphnet": frozenset(),  # no activity sub-label - see module docstring
     "own": FOGSTAR_STOP_ACTIVITY_CODES,  # own_data_schema.md uses the same code scheme
+}
+
+# 4-class label (walk/stop/sit-stand/fog) - see assign_4class_labels /
+# label_4class_from_3class below and scripts/sitstand_classification_
+# investigation.py for why this exists. Deliberately a SEPARATE integer
+# namespace from LABEL_WALK/LABEL_STOP/LABEL_FOG above (LABEL_FOG=2 there,
+# LABEL4_FOG=3 here) rather than renumbering the 3-class constants in place -
+# every already-saved train/val/test.npz's y_3class column, and every script
+# that imports LABEL_FOG expecting value 2, stays valid and untouched.
+LABEL4_WALK, LABEL4_STOP, LABEL4_SITSTAND, LABEL4_FOG = 0, 1, 2, 3
+
+_SITSTAND_CODES_BY_DATASET = {
+    "fogstar": FOGSTAR_SITSTAND_ACTIVITY_CODES,
+    "hugadb": HUGADB_SITSTAND_ACTIVITY_CODES,
+    "daphnet": frozenset(),  # no activity sub-label - see module docstring
+    "own": FOGSTAR_SITSTAND_ACTIVITY_CODES,
 }
 
 
@@ -107,6 +125,59 @@ def assign_3class_labels(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["label_3class"] = label3
     df["label_binary_fog"] = is_fog.astype(int)
+    return df
+
+
+def label_4class_from_3class(label3: np.ndarray, dataset: np.ndarray, dominant_activity: np.ndarray) -> np.ndarray:
+    """Refines the 3-class stop label into stop/sit-stand, using the SAME
+    ground-truth activity codes already used to build it (a strict subset
+    split: FOGSTAR_SITSTAND_ACTIVITY_CODES/HUGADB_SITSTAND_ACTIVITY_CODES
+    are subsets of the STOP code sets assign_3class_labels already uses -
+    see config.py). walk/fog windows are NEVER touched - only windows the
+    3-class label already called "stop" can become "sit-stand" here.
+
+    Operates on plain arrays (not a windows dataframe) so it can be applied
+    identically to (a) a freshly-built windows dataframe (via
+    assign_4class_labels below) and (b) columns already saved to
+    train/val/test.npz (y_3class, dataset_id, activity_code) - the two are
+    equivalent because npz's dataset_id/activity_code/y_3class ARE exactly
+    the columns assign_3class_labels/build_windows computed before
+    build_dataset.py exported them, so applying this to the npz columns
+    never re-derives ground truth, only re-reads it. Used by
+    scripts/sitstand_classification_investigation.py so there is exactly
+    ONE implementation of this label scheme regardless of entry point.
+    """
+    label3 = np.asarray(label3)
+    dataset = np.asarray(dataset)
+    dominant_activity = np.asarray(dominant_activity)
+
+    is_stop = label3 == LABEL_STOP
+    is_sitstand = np.zeros(len(label3), dtype=bool)
+    for ds, codes in _SITSTAND_CODES_BY_DATASET.items():
+        if not codes:
+            continue
+        mask = (dataset == ds) & np.isin(dominant_activity, list(codes))
+        is_sitstand |= mask
+    is_sitstand &= is_stop  # sit-stand is carved OUT of stop only, never out of walk/fog
+
+    label4 = np.select(
+        [label3 == LABEL_FOG, label3 == LABEL_WALK, is_sitstand],
+        [LABEL4_FOG, LABEL4_WALK, LABEL4_SITSTAND],
+        default=LABEL4_STOP,
+    )
+    return label4.astype(np.int64)
+
+
+def assign_4class_labels(df: pd.DataFrame) -> pd.DataFrame:
+    """Dataframe-level wrapper around label_4class_from_3class - reuses
+    assign_3class_labels rather than reimplementing fog/stop logic, then
+    only refines the "stop" rows. Adds `label_4class`; leaves
+    `label_3class`/`label_binary_fog` untouched so callers that still want
+    the 3-class label keep getting it from the same dataframe."""
+    df = assign_3class_labels(df)
+    df = df.copy()
+    df["label_4class"] = label_4class_from_3class(
+        df["label_3class"].to_numpy(), df["dataset"].to_numpy(), df["dominant_activity"].to_numpy())
     return df
 
 

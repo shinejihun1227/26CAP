@@ -4,3 +4,9 @@
 *.png binary
 *.bat text eol=crlf
 *.ps1 text eol=crlf
+
+# Preserve the deployment config byte-for-byte with its bundled weights.
+ai_engine/data/processed/ml/model_artifact/deploy_config.json -text
+
+# Vendored MediaPipe bytes are covered by a SHA-256 manifest.
+cap_web/vendor/** -text -diff -whitespace

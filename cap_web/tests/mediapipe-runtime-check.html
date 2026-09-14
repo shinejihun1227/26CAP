@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<title>MediaPipe 로컬 실행 검증</title>
+<style>body{font:17px/1.6 system-ui;max-width:900px;margin:40px auto;padding:20px}button{padding:12px;font:inherit}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f0f4f7;padding:20px}</style>
+<h1>MediaPipe 로컬 실행 검증</h1>
+<p>웹캠·마이크·저장 API를 사용하지 않습니다. 실제 모델과 운영용 Worker에 단색 테스트 프레임 3개를 전달합니다. 사람 인식 정확도 검증은 아닙니다.</p>
+<button id="run">카메라 없이 모델 검사</button>
+<pre id="result" role="status">검사 대기</pre>
+<script type="module">
+const button = document.querySelector('#run'), output = document.querySelector('#result');
+let worker, watchdog;
+const lines = [];
+const log = (value) => { lines.push(typeof value === 'string' ? value : JSON.stringify(value)); output.textContent = lines.join('\n'); };
+const stop = () => { clearTimeout(watchdog); worker?.terminate(); worker = null; button.disabled = false; };
+window.addEventListener('pagehide', stop);
+button.addEventListener('click', () => {
+  lines.length = 0; button.disabled = true;
+  log({ secureContext: window.isSecureContext, worker: typeof Worker, imageBitmap: typeof createImageBitmap, offscreenCanvas: typeof OffscreenCanvas, cameraApi: typeof navigator.mediaDevices?.getUserMedia, userAgent: navigator.userAgent });
+  const started = performance.now(); let sent = 0, sentAt = 0;
+  const sendFrame = async () => {
+    const canvas = new OffscreenCanvas(960, 720);
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#808080'; context.fillRect(0, 0, 960, 720);
+    const bitmap = await createImageBitmap(canvas);
+    if (!worker) { bitmap.close(); return; }
+    sentAt = performance.now(); sent++;
+    worker.postMessage({ type: 'frame', bitmap, timestamp: sentAt }, [bitmap]);
+  };
+  watchdog = setTimeout(() => { log('FAIL: 30초 내 실행 완료되지 않음'); stop(); }, 30000);
+  try {
+    worker = new Worker('/src/mediapipe/pose-worker.js');
+    worker.onerror = (event) => { log({ status: 'FAIL', message: event.message, filename: event.filename, line: event.lineno }); stop(); };
+    worker.onmessage = async ({ data }) => {
+      try {
+        if (data.type === 'error') { log({ status: 'FAIL', message: data.message }); stop(); }
+        else if (data.type === 'ready') { log({ status: 'MODEL_READY', initializationMs: Math.round(performance.now() - started) }); await sendFrame(); }
+        else if (data.type === 'result') {
+          log({ status: 'FRAME_RESULT', frame: sent, inferenceRoundTripMs: Math.round(performance.now() - sentAt), poseCount: data.poses?.length, timestampEchoValid: data.timestamp === sentAt });
+          if (!Array.isArray(data.poses) || data.poses.length !== 0 || data.timestamp !== sentAt) { log('FAIL: 단색 프레임 응답이 예상과 다름'); stop(); return; }
+          if (sent < 3) await sendFrame();
+          else { log('PASS: 실제 모델 초기화 및 단색 프레임 3개 추론 완료. 실제 인체/웹캠은 미검증.'); stop(); }
+        }
+      } catch (error) { log({ status: 'FAIL', message: String(error) }); stop(); }
+    };
+    worker.postMessage({ type: 'init' });
+  } catch (error) { log({ status: 'FAIL', message: String(error) }); stop(); }
+});
+</script>
+</html>

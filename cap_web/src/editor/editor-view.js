@@ -1,4 +1,5 @@
 import { icon } from "../components/icons.js";
+import { PRESSURE_POINTS, PRESSURE_SITES, PRESSURE_CHANNELS, THERMAL_SITES, THERMAL_CHANNELS } from '../data/sensor-config.js';
 import { renderSidebar } from "../components/sidebar.js";
 import { escapeHtml } from "../utils/text.js";
 import { renderOverview } from "../views/overview-view.js";
@@ -7,6 +8,7 @@ import { renderSafetyView } from "../views/safety-view.js";
 import { renderReportsView } from "../views/reports-view.js";
 import { renderDevicesView } from "../views/devices-view.js";
 import { renderMediaPipeView } from "../views/mediapipe-view.js";
+import { renderTrendsView } from "../views/trends-view.js";
 import { loadSensorLayout, normalizeSensorLayout, persistSensorLayout } from "../data/sensor-layout.js";
 import { FOOT_LAYOUT_MODES, loadFootLayout, normalizeFootLayout, persistFootLayout } from "../data/foot-layout.js";
 
@@ -15,25 +17,21 @@ const LAYOUTS_STORAGE_KEY = "stepon-cap-web-editor-layouts-v2";
 const DIRECT_TEXT_STORAGE_KEY = "stepon-cap-web-editor-direct-text-v1";
 const GRID_COLUMNS = 12;
 const DEFAULT_KICKERS = { hero: "TODAY'S GAIT STATUS", pressure: "PRESSURE INSIGHT", chart: "WEEKLY RHYTHM", sensor: "SENSOR HEALTH", notice: "TODAY'S INSIGHT", text: "CUSTOM BLOCK" };
-const PRESSURE_SENSOR_POINTS = [
-  [37, 17], [50, 13], [63, 19],
-  [42, 43], [58, 52],
-  [37, 68], [50, 80], [63, 89],
-];
 
 const SCREEN_DEFS = [
   { id: "overview", label: "오늘 요약", short: "Today", description: "처음 들어왔을 때 보는 핵심 상태" },
   { id: "live", label: "실시간 측정", short: "Live", description: "센서 흐름과 현재 신호" },
   { id: "safety", label: "분석 센터", short: "Analysis", description: "FoG·압력·온습도 판단 근거" },
   { id: "reports", label: "보행 리포트", short: "Reports", description: "일간·주간 보행 기록" },
+  { id: "trends", label: "변화 추이", short: "Trends", description: "같은 조건의 개인 기록과 날짜별 비교" },
   { id: "devices", label: "기기 관리", short: "Devices", description: "ESP32와 센서 연결 상태" },
-  { id: "mediapipe", label: "개인화 설정", short: "Personalize", description: "개인 기준과 카메라 설정" },
+  { id: "mediapipe", label: "관절 움직임", short: "MediaPipe", description: "웹캠 각도 기록과 개인 기준 비교" },
 ];
 
 const COMPONENT_CATALOG = [
   { type: "hero", label: "상태 히어로", description: "오늘 보행 상태", icon: "activity", width: 8, height: 4, tone: "ink" },
   { type: "metric", label: "측정 카드", description: "걸음·균형·온도", icon: "activity", width: 3, height: 2, tone: "mint" },
-  { type: "pressure", label: "압력 맵", description: "FSR406 8채널", icon: "shoe", width: 6, height: 5, tone: "mint" },
+  { type: "pressure", label: "압력 맵", description: "FSR406 4채널", icon: "shoe", width: 6, height: 5, tone: "mint" },
   { type: "chart", label: "활동 차트", description: "보행 리듬 추이", icon: "chart", width: 6, height: 4, tone: "coral" },
   { type: "sensor", label: "센서 상태", description: "연결·배터리 상태", icon: "check", width: 5, height: 4, tone: "sky" },
   { type: "notice", label: "알림 배너", description: "사용자 안내 문구", icon: "cue", width: 8, height: 2, tone: "coral" },
@@ -41,21 +39,27 @@ const COMPONENT_CATALOG = [
   { type: "image", label: "참고 이미지", description: "내 이미지 등록", icon: "image", width: 6, height: 5, tone: "plain" },
 ];
 
-const PREVIEW_RENDERERS = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView };
+const PREVIEW_RENDERERS = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView };
 
 // The editor preview deliberately points at the real 8000 DOM instead of a second
 // design-only canvas. Each entry connects one persisted editor block to the
 // corresponding block in the actual screen renderer.
 const DIRECT_PREVIEW_BLOCKS = {
+  trends: [
+    { id: "trends-heading", selector: ".trends-heading", fields: { title: "h1", description: "p" } },
+    { id: "trends-rom", selector: ".trends-rom", fields: { title: "h2" } },
+    { id: "trends-sensors", selector: ".trends-sensors", fields: { title: "h2" } },
+    { id: "trends-history", selector: ".trends-history", fields: { title: "h2" } },
+  ],
   overview: [
     { id: "hero-1", selector: ".clarity-status-card", fields: { title: ".clarity-status-main h2", description: ".clarity-status-main p" } },
-    { id: "focus-1", selector: ".clarity-next-card", fields: { kicker: ".clarity-card-kicker", title: "h2", description: "p" } },
+    { id: "focus-1", selector: ".overview-start-card", fields: { title: "h2" } },
     { id: "metric-steps", selector: ".metrics-grid .metric-card:nth-child(1)", fields: { title: ".metric-label", description: ".metric-foot > span:last-child" } },
     { id: "metric-balance", selector: ".metrics-grid .metric-card:nth-child(2)", fields: { title: ".metric-label", description: ".metric-foot > span:last-child" } },
     { id: "metric-temp", selector: ".metrics-grid .metric-card:nth-child(3)", fields: { title: ".metric-label", description: ".metric-foot > span:last-child" } },
-    { id: "metric-cadence", selector: ".metrics-grid .metric-card:nth-child(4)", fields: { title: ".metric-label", description: ".metric-foot > span:last-child" } },
+    { id: "metric-humidity", selector: ".metrics-grid .metric-card:nth-child(4)", fields: { title: ".metric-label", description: ".metric-foot > span:last-child" } },
     { id: "notice-1", selector: ".clarity-events-card", fields: { kicker: ".panel-kicker", title: ".panel-heading h2" } },
-    { id: "sensor-1", selector: ".clarity-how-card", fields: { kicker: ".panel-kicker", title: ".panel-heading h2" } },
+    { id: "sensor-1", selector: ".overview-details", fields: { title: "summary b", description: "summary small" } },
   ],
   live: [
     { id: "hero-1", selector: ".clarity-live-hero", fields: { title: "h2", description: "p" } },
@@ -84,10 +88,11 @@ const DIRECT_PREVIEW_BLOCKS = {
     { id: "notice-1", selector: ".setup-panel", fields: { kicker: ".panel-kicker", title: ".panel-heading h2" } },
   ],
   mediapipe: [
-    { id: "hero-1", selector: ".mediapipe-hero", fields: { title: ".mediapipe-hero h2", description: ".mediapipe-hero p" } },
-    { id: "pressure-1", selector: ".mediapipe-camera-card", fields: { kicker: ".panel-kicker", title: ".panel-heading h2" } },
-    { id: "sensor-1", selector: ".personalization-card", fields: { kicker: ".panel-kicker", title: ".panel-heading h2" } },
-    { id: "notice-1", selector: ".personalization-options", fields: { kicker: ".panel-kicker", title: ".panel-heading h2" } },
+    { id: "rom-heading", selector: ".rom-heading", fields: { kicker: ".rom-eyebrow", title: "h1", description: "p" } },
+    { id: "rom-camera", selector: ".rom-camera-panel", fields: { title: ".rom-panel-head h2" } },
+    { id: "rom-setup", selector: ".rom-setup-panel", fields: { title: ".rom-panel-head h2" } },
+    { id: "rom-validation", selector: ".rom-validation-panel", fields: { kicker: ".rom-eyebrow", title: "h2" } },
+    { id: "rom-history", selector: ".rom-history-panel", fields: { kicker: ".rom-eyebrow", title: ".rom-panel-head h2" } },
   ],
 };
 
@@ -129,9 +134,11 @@ const MOBILE_DIRECT_TEXT_BLOCKS = {
     { id: "notice-1", selector: ".mobile-output-card", fields: { kicker: ".mobile-card-kicker", title: ".mobile-panel-heading h2" } },
   ],
   mediapipe: [
-    { id: "hero-1", selector: ".mobile-personal-hero", fields: { title: "h2", description: "p" } },
-    { id: "pressure-1", selector: ".mobile-personal-form", fields: { kicker: ".mobile-card-kicker", title: ".mobile-panel-heading h2" } },
-    { id: "notice-1", selector: ".mobile-analysis-options", fields: { kicker: ".mobile-card-kicker", title: ".mobile-panel-heading h2" } },
+    { id: "rom-heading", selector: ".rom-heading", fields: { kicker: ".rom-eyebrow", title: "h1", description: "p" } },
+    { id: "rom-camera", selector: ".rom-camera-panel", fields: { title: ".rom-panel-head h2" } },
+    { id: "rom-setup", selector: ".rom-setup-panel", fields: { title: ".rom-panel-head h2" } },
+    { id: "rom-validation", selector: ".rom-validation-panel", fields: { kicker: ".rom-eyebrow", title: "h2" } },
+    { id: "rom-history", selector: ".rom-history-panel", fields: { kicker: ".rom-eyebrow", title: ".rom-panel-head h2" } },
   ],
 };
 
@@ -157,7 +164,8 @@ const OVERVIEW_LAYOUT = {
   elements: DEFAULT_LAYOUT.elements.filter((element) => OVERVIEW_LAYOUT_IDS.has(element.id)).map((element) => ({
     ...element,
     ...(element.id === "hero-1" ? { label: "오늘의 보행 상태", title: "오늘 보행 상태", description: "현재 상태와 주의 점수를 간단히 보여줍니다." } : {}),
-    ...(element.id === "focus-1" ? { label: "지금 할 일", title: "현재 흐름을 유지하세요", description: "다음 행동과 분석 센터로 이동하는 안내입니다." } : {}),
+    ...(element.id === "focus-1" ? { label: "시작 안내", title: "이 순서로 시작하세요", description: "깔창 연결, 실시간 측정, 기록 비교로 안내합니다." } : {}),
+    ...(element.id === "metric-cadence" ? { id: "metric-humidity", label: "깔창 평균 습도", title: "깔창 평균 습도", value: "48", unit: "%", description: "신발 안의 습한 정도" } : {}),
     ...(element.id === "notice-1" ? { label: "최근 알림", title: "최근 알림", description: "최근에 감지된 주요 신호를 보여줍니다." } : {}),
     ...(element.id === "sensor-1" ? { label: "이 화면 읽는 법", title: "이 화면 읽는 법", description: "요약·AI·핵심 수치를 순서대로 확인합니다." } : {}),
   })),
@@ -212,14 +220,27 @@ function normalizeLayout(layout) {
   return { version: 1, elements: source.elements.map(normalizeElement) };
 }
 
+function normalizeScreenLayout(layout, screenId) {
+  const normalized = normalizeLayout(layout ?? defaultLayoutFor(screenId));
+  if (screenId !== 'overview') return normalized;
+  // Retain saved positions and other edits; the new humidity metric must not
+  // inherit a cadence caption (or its spm unit) from an older overview.
+  const humidity = OVERVIEW_LAYOUT.elements.find((element) => element.id === 'metric-humidity');
+  const hasHumidity = normalized.elements.some((element) => element.id === 'metric-humidity');
+  if (!hasHumidity) normalized.elements = normalized.elements.map((element) => element.id === 'metric-cadence'
+    ? { ...element, id: humidity.id, label: humidity.label, title: humidity.title, value: humidity.value, unit: humidity.unit, description: humidity.description }
+    : element);
+  return normalized;
+}
+
 function loadLayouts() {
   try {
     const savedLayouts = JSON.parse(window.localStorage.getItem(LAYOUTS_STORAGE_KEY) ?? "null");
     if (savedLayouts?.screens && typeof savedLayouts.screens === "object") {
-      return { version: 2, screens: Object.fromEntries(SCREEN_DEFS.map((screen) => [screen.id, normalizeLayout(savedLayouts.screens[screen.id] ?? defaultLayoutFor(screen.id))])) };
+      return { version: 2, screens: Object.fromEntries(SCREEN_DEFS.map((screen) => [screen.id, normalizeScreenLayout(savedLayouts.screens[screen.id], screen.id)])) };
     }
     const legacy = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "null");
-    return { version: 2, screens: Object.fromEntries(SCREEN_DEFS.map((screen) => [screen.id, normalizeLayout(screen.id === "overview" ? legacy : defaultLayoutFor(screen.id))])) };
+    return { version: 2, screens: Object.fromEntries(SCREEN_DEFS.map((screen) => [screen.id, normalizeScreenLayout(screen.id === "overview" ? legacy : defaultLayoutFor(screen.id), screen.id)])) };
   } catch {
     return { version: 2, screens: Object.fromEntries(SCREEN_DEFS.map((screen) => [screen.id, clone(defaultLayoutFor(screen.id))])) };
   }
@@ -354,7 +375,7 @@ function createElement(type, elements) {
 }
 
 function renderEditorMiniFoot(side) {
-  const dots = PRESSURE_SENSOR_POINTS.map(([left, top], index) => `<i class="editor-pressure-dot editor-pressure-${side} editor-pressure-dot-${index + 1}" style="left:${left}%;top:${top}%" aria-hidden="true"></i>`).join("");
+  const dots = PRESSURE_POINTS[side].map(([left, top], index) => `<i class="editor-pressure-dot editor-pressure-${side} editor-pressure-dot-${index + 1}" style="left:${left}%;top:${top}%" aria-hidden="true"></i>`).join("");
   return `<span class="editor-mini-foot editor-mini-foot-${side}"><img src="/assets/foot-${side}-silhouette.png" alt="" draggable="false" /><span class="editor-pressure-dots">${dots}</span></span>`;
 }
 
@@ -381,7 +402,7 @@ function renderWidget(element, selectedPart = null) {
     return `<div class="editor-widget editor-chart-widget"><div class="editor-widget-row"><div><span class="editor-widget-kicker editor-inline-text" data-inline-field="kicker" contenteditable="true" spellcheck="false">${kicker}</span><h3 class="editor-inline-text" data-inline-field="title" contenteditable="true" spellcheck="false">${title}</h3></div><span class="editor-mini-icon">${icon("chart")}</span></div><p class="editor-inline-text" data-inline-field="description" contenteditable="true" spellcheck="false">${description}</p><div class="editor-bars"><i style="height:34%"></i><i style="height:54%"></i><i style="height:42%"></i><i style="height:76%"></i><i style="height:62%"></i><i style="height:88%"></i><i style="height:70%"></i><i style="height:96%"></i></div><div class="editor-axis"><span>06:00</span><span>10:00</span><span>14:00</span><span>18:00</span></div></div>`;
   }
   if (element.type === "sensor") {
-    return `<div class="editor-widget editor-sensor-widget"><div class="editor-widget-row"><div><span class="editor-widget-kicker editor-inline-text" data-inline-field="kicker" contenteditable="true" spellcheck="false">${kicker}</span><h3 class="editor-inline-text" data-inline-field="title" contenteditable="true" spellcheck="false">${title}</h3></div><span class="editor-mini-icon">${icon("check")}</span></div><p class="editor-inline-text" data-inline-field="description" contenteditable="true" spellcheck="false">${description}</p><ul><li><i></i><span>FSR406 × 8</span><b>정상</b></li><li><i></i><span>SHTC3 × 4</span><b>정상</b></li><li><i></i><span>BMI270 × 1</span><b>정상</b></li></ul></div>`;
+    return `<div class="editor-widget editor-sensor-widget"><div class="editor-widget-row"><div><span class="editor-widget-kicker editor-inline-text" data-inline-field="kicker" contenteditable="true" spellcheck="false">${kicker}</span><h3 class="editor-inline-text" data-inline-field="title" contenteditable="true" spellcheck="false">${title}</h3></div><span class="editor-mini-icon">${icon("check")}</span></div><p class="editor-inline-text" data-inline-field="description" contenteditable="true" spellcheck="false">${description}</p><ul><li><i></i><span>FSR406 × 4</span><b>정상</b></li><li><i></i><span>SHTC3 × 4</span><b>정상</b></li><li><i></i><span>BMI270 × 1</span><b>정상</b></li></ul></div>`;
   }
   if (element.type === "notice") {
     return `<div class="editor-widget editor-notice-widget tone-${tone}"><span class="editor-notice-symbol">✦</span><div><span class="editor-widget-kicker editor-inline-text" data-inline-field="kicker" contenteditable="true" spellcheck="false">${kicker}</span><h3 class="editor-inline-text" data-inline-field="title" contenteditable="true" spellcheck="false">${title}</h3><p class="editor-inline-text" data-inline-field="description" contenteditable="true" spellcheck="false">${description}</p></div><span class="editor-notice-arrow">${icon("arrow")}</span></div>`;
@@ -434,8 +455,8 @@ function renderLayoutSummary(layout) {
 }
 
 const SENSOR_POSITION_LABELS = {
-  pressure: ["위쪽 1", "위쪽 2", "위쪽 3", "아치 1", "아치 2", "밑쪽 1", "밑쪽 2", "밑쪽 3"],
-  thermal: ["뒤꿈치", "아치", "앞발", "발끝"],
+  pressure: PRESSURE_SITES.map((site, i) => `${site} · C${PRESSURE_CHANNELS[i]}`),
+  thermal: THERMAL_SITES.map((site, i) => `${site} · CH${THERMAL_CHANNELS[i]}`),
 };
 
 function renderSensorPositionEditor(sensorLayout, sensorEditKind, selectedSensorIndex, sensorEditSide = "left", selectedSensorSide = null) {
@@ -444,7 +465,7 @@ function renderSensorPositionEditor(sensorLayout, sensorEditKind, selectedSensor
   const points = sensorLayout[sensorEditKind]?.[side] ?? [];
   const labels = SENSOR_POSITION_LABELS[sensorEditKind] ?? [];
   const isPressure = sensorEditKind === "pressure";
-  return `<section class="sensor-position-editor"><div class="sensor-position-heading"><div><span class="editor-widget-kicker">SENSOR POSITION EDITOR</span><b>${isPressure ? "압력센서 위치" : "온·습도센서 위치"}</b></div><span>${sideLabel} · ${isPressure ? "FSR406 × 8" : "SHTC3 × 4"}</span></div><p class="sensor-position-help">현재 ${sideLabel} 센서만 편집합니다. 미리보기의 센서 점을 직접 드래그하거나 아래 X·Y 값을 입력하세요. 왼발과 오른발 좌표는 각각 따로 저장됩니다.</p><div class="sensor-side-tabs"><button type="button" class="${side === "left" ? "is-active" : ""}" data-sensor-editor-side="left">왼발 센서</button><button type="button" class="${side === "right" ? "is-active" : ""}" data-sensor-editor-side="right">오른발 센서</button></div><div class="sensor-position-tabs"><button type="button" class="${isPressure ? "is-active" : ""}" data-sensor-editor-kind="pressure">압력 8개</button><button type="button" class="${!isPressure ? "is-active" : ""}" data-sensor-editor-kind="thermal">온·습도 4개</button></div><div class="sensor-position-list">${points.map(([x, y], index) => `<div class="sensor-position-row ${selectedSensorSide === side && selectedSensorIndex === index ? "is-selected" : ""}"><button type="button" data-sensor-select="${side}:${sensorEditKind}:${index}" aria-label="${sideLabel} ${labels[index] ?? `센서 ${index + 1}`} 선택">${index + 1}</button><span>${labels[index] ?? `센서 ${index + 1}`}</span><label>X<input type="number" min="0" max="100" step="0.5" data-sensor-field="${side}:${sensorEditKind}:${index}:x" value="${x}" /></label><label>Y<input type="number" min="0" max="100" step="0.5" data-sensor-field="${side}:${sensorEditKind}:${index}:y" value="${y}" /></label></div>`).join("")}</div></section>`;
+  return `<section class="sensor-position-editor"><div class="sensor-position-heading"><div><span class="editor-widget-kicker">SENSOR POSITION EDITOR</span><b>${isPressure ? "압력센서 위치" : "온·습도센서 위치"}</b></div><span>${sideLabel} · ${isPressure ? "FSR406 × 4" : "SHTC3 × 4"}</span></div><p class="sensor-position-help">현재 ${sideLabel} 센서만 편집합니다. 미리보기의 센서 점을 직접 드래그하거나 아래 X·Y 값을 입력하세요. 왼발과 오른발 좌표는 각각 따로 저장됩니다.</p><div class="sensor-side-tabs"><button type="button" class="${side === "left" ? "is-active" : ""}" data-sensor-editor-side="left">왼발 센서</button><button type="button" class="${side === "right" ? "is-active" : ""}" data-sensor-editor-side="right">오른발 센서</button></div><div class="sensor-position-tabs"><button type="button" class="${isPressure ? "is-active" : ""}" data-sensor-editor-kind="pressure">압력 4개</button><button type="button" class="${!isPressure ? "is-active" : ""}" data-sensor-editor-kind="thermal">온·습도 4개</button></div><div class="sensor-position-list">${points.map(([x, y], index) => `<div class="sensor-position-row ${selectedSensorSide === side && selectedSensorIndex === index ? "is-selected" : ""}"><button type="button" data-sensor-select="${side}:${sensorEditKind}:${index}" aria-label="${sideLabel} ${labels[index] ?? `센서 ${index + 1}`} 선택">${index + 1}</button><span>${labels[index] ?? `센서 ${index + 1}`}</span><label>X<input type="number" min="0" max="100" step="0.5" data-sensor-field="${side}:${sensorEditKind}:${index}:x" value="${x}" /></label><label>Y<input type="number" min="0" max="100" step="0.5" data-sensor-field="${side}:${sensorEditKind}:${index}:y" value="${y}" /></label></div>`).join("")}</div></section>`;
 }
 
 function renderFootPositionEditor(footLayout, selectedFootSide, footMode = "pressure") {

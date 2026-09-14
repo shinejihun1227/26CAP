@@ -24,9 +24,9 @@ for (const source of sources.filter((file) => /\.(mjs|js)$/.test(file))) {
   }
 }
 assert.equal(calculateFootMetrics(null, {}).available, false);
-assert.equal(calculateFootMetrics(Array(8).fill(0), {}).loaded, false);
-assert.equal(calculateFootMetrics(Array(8).fill(2), {}).loaded, true);
-assert.equal(calculateFootMetrics(Array(8).fill(10), {}).total, 80);
+assert.equal(calculateFootMetrics(Array(4).fill(0), {}).loaded, false);
+assert.equal(calculateFootMetrics(Array(4).fill(2), {}).loaded, true);
+assert.equal(calculateFootMetrics(Array(4).fill(10), {}).total, 40);
 
 const probe = net.createServer();
 await new Promise((resolve, reject) => { probe.once("error", reject); probe.listen(0, "127.0.0.1", resolve); });

@@ -10,12 +10,15 @@ export function getAiBridgeUrl() {
   if (fromQuery) return trimBaseUrl(fromQuery);
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved) return trimBaseUrl(saved);
+    if (saved) {
+      const old = new URL(saved);
+      const local = ['127.0.0.1', 'localhost', window.location.hostname].includes(old.hostname);
+      if (!(local && old.port === '8787')) return trimBaseUrl(saved);
+    }
   } catch {
     // Local storage is optional.
   }
-  const host = window.location.hostname || "127.0.0.1";
-  return `${window.location.protocol}//${host}:8787`;
+  return window.location.origin;
 }
 
 export function saveAiBridgeUrl(value) {
@@ -24,7 +27,7 @@ export function saveAiBridgeUrl(value) {
   return url;
 }
 
-async function request(path, { timeoutMs = 1200, signal } = {}) {
+async function request(path, { timeoutMs = 1800, signal, method = 'GET', body } = {}) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   if (signal) {
@@ -35,6 +38,9 @@ async function request(path, { timeoutMs = 1200, signal } = {}) {
     const response = await fetch(`${getAiBridgeUrl()}${path}`, {
       cache: "no-store",
       signal: controller.signal,
+      method,
+      headers: body ? { 'content-type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
     });
     if (!response.ok) throw new Error(`AI bridge HTTP ${response.status}`);
     return await response.json();
@@ -54,27 +60,45 @@ export function fetchAiEvents(options) {
   return request("/api/ai/events", options);
 }
 
+export function calibrateAi(side, action = 'start') {
+  return request(`/api/ai/calibration/${action}`, { method: 'POST', body: { side }, timeoutMs: 9000 });
+}
+
 export function markAiUnavailable(previous, error) {
   return {
     ...previous,
     available: false,
     ready: false,
+    score: null,
+    rawScore: null,
+    state: null,
+    windowReady: false,
+    deviceConnected: false,
+    feet: {},
     status: "unavailable",
     lastError: error?.message ?? "AI 브리지 연결 실패",
   };
 }
 
 export function normalizeAiState(payload, previous = {}) {
-  const score = payload?.fog_score === null || payload?.fog_score === undefined
-    ? null
-    : Number(payload.fog_score);
+  if (payload?.service !== 'stepon-ai-bridge') throw new Error('AI 응답 형식이 올바르지 않습니다.');
+  const ready = Boolean(payload.detector_loaded && payload.device_connected && payload.window_ready && ['normal', 'warning', 'confirmed'].includes(payload.state));
+  const numeric = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+  const rawScore = numeric(payload.fog_score);
+  const score = numeric(payload.api_version >= 2 ? payload.decision_score : payload.fog_score);
   return {
     ...previous,
     available: true,
-    ready: Boolean(payload?.detector_loaded && payload?.device_connected),
+    ready,
     status: String(payload?.status ?? "unavailable"),
-    state: payload?.state ?? null,
-    score: Number.isFinite(score) ? score : null,
+    state: ready ? payload.state : null,
+    score: ready ? score : null,
+    rawScore: ready ? rawScore : null,
+    selectedFoot: payload.selected_foot ?? null,
+    coverage: payload.coverage ?? 0,
+    artifactId: payload.artifact_id ?? null,
+    diagnostics: ready ? payload.diagnostics ?? {} : {},
+    feet: payload.feet ?? {},
     model: String(payload?.model ?? "ensemble"),
     deviceConnected: Boolean(payload?.device_connected),
     detectorLoaded: Boolean(payload?.detector_loaded),

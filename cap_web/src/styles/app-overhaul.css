@@ -48,7 +48,7 @@ body { font-size: 15px; }
 .foot-map-left .foot-hotspots, .foot-map-right .foot-hotspots { transform: none; }
 .foot-map-figure .foot-side-label { position: absolute; top: -4%; left: 50%; z-index: 6; transform: translateX(-50%); padding: 4px 7px; border: 1px solid #d8eee8; border-radius: 6px; color: #4c8c7d; background: rgba(255,255,255,.92); font-size: 9px; font-weight: 800; white-space: nowrap; }
 .foot-hotspots { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
-.heat-spot { position: absolute; z-index: 5; display: grid; place-items: center; width: 29px; height: 29px; transform: translate(-50%, -50%); }
+.heat-spot { position: absolute; z-index: 5; display: grid; place-items: center; width: 29px; height: 29px; --heat-spot-scale: 1; transform: translate(-50%, -50%) rotate(calc(0deg - var(--foot-rotation, 0deg))) scale(var(--heat-spot-scale)); transform-origin: center; }
 .heat-spot i { display: block; width: 22px; height: 22px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 3px 9px rgba(36,57,84,.18); opacity: .55; }
 .heat-spot b { position: absolute; top: 22px; display: inline-flex; align-items: center; gap: 3px; padding: 2px 4px; border-radius: 4px; color: #597879; background: rgba(255,255,255,.9); font-size: 9px; font-weight: 800; white-space: nowrap; }
 .heat-spot b em { color: var(--coral); font-size: 8px; font-style: normal; letter-spacing: -.03em; }
@@ -98,7 +98,7 @@ body { font-size: 15px; }
 }
 
 @media (max-width: 500px) {
-  .topbar, .content-area { padding-right: 12px; padding-left: 12px; }.topbar-actions { gap: 3px; }.profile-button { padding: 7px; }.profile-button > span { display: none; }.profile-button > .icon { display: block; }.heat-spot { transform: translate(-50%, -50%) scale(.86); }.heatmap-summary b { font-size: 14px; }.heatmap-summary span { font-size: 9px; }
+  .topbar, .content-area { padding-right: 12px; padding-left: 12px; }.topbar-actions { gap: 3px; }.profile-button { padding: 7px; }.profile-button > span { display: none; }.profile-button > .icon { display: block; }.heat-spot { --heat-spot-scale: .86; }.heatmap-summary b { font-size: 14px; }.heatmap-summary span { font-size: 9px; }
 }
 .heat-spot.is-unavailable { opacity: .42; filter: grayscale(1); }
 .foot-map-figure.is-unavailable { opacity: .68; }

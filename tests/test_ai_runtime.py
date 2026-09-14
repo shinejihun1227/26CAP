@@ -95,7 +95,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(state.snapshot()["detector_loaded"])
         self.assertFalse(state.snapshot()["device_connected"])
         for i in range(300):
-            state._process_device_payload({
+            state.consume({
                 "frame": i, "millis": i * 1000 / 64,
                 "accel": {"x": np.sin(i * 0.2), "y": 0.2, "z": 1.0},
                 "gyro": {"x": 0, "y": 0, "z": 0},
@@ -112,7 +112,7 @@ class RuntimeTests(unittest.TestCase):
         snapshot = state.snapshot()
         self.assertFalse(snapshot["ok"])
         self.assertFalse(snapshot["detector_loaded"])
-        self.assertEqual(snapshot["status"], "unavailable")
+        self.assertEqual(snapshot["status"], "calibration_missing")
 
 
 if __name__ == "__main__":

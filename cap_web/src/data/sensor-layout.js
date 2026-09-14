@@ -1,19 +1,16 @@
-export const SENSOR_LAYOUT_STORAGE_KEY = "stepon-cap-web-sensor-layout-v2";
+import { PRESSURE_POINTS, PRESSURE_LAYOUT_ID } from './sensor-config.js';
+export const SENSOR_LAYOUT_STORAGE_KEY = "stepon-cap-web-sensor-layout-v3";
 export const SENSOR_SIDES = ["left", "right"];
 
-const DEFAULT_PRESSURE_POINTS = [
-  [37, 17], [50, 13], [63, 19],
-  [42, 43], [58, 52],
-  [37, 68], [50, 80], [63, 89],
-];
+const DEFAULT_PRESSURE_POINTS = PRESSURE_POINTS;
 const DEFAULT_THERMAL_POINTS = [
   [50, 85], [50, 62], [50, 38], [50, 16],
 ];
 
 export const DEFAULT_SENSOR_LAYOUT = {
   pressure: {
-    left: DEFAULT_PRESSURE_POINTS.map((point) => [...point]),
-    right: DEFAULT_PRESSURE_POINTS.map((point) => [...point]),
+    left: DEFAULT_PRESSURE_POINTS.left.map((point) => [...point]),
+    right: DEFAULT_PRESSURE_POINTS.right.map((point) => [...point]),
   },
   thermal: {
     left: DEFAULT_THERMAL_POINTS.map((point) => [...point]),
@@ -27,6 +24,8 @@ function clampCoordinate(value, fallback) {
 }
 
 function normalizePoints(points, defaults) {
+  // Eight-point saved layouts have different anatomical meanings: do not truncate them.
+  if (!Array.isArray(points) || points.length !== defaults.length) points = defaults;
   return defaults.map((fallback, index) => {
     const point = Array.isArray(points?.[index]) ? points[index] : fallback;
     return [clampCoordinate(point[0], fallback[0]), clampCoordinate(point[1], fallback[1])];
@@ -36,11 +35,12 @@ function normalizePoints(points, defaults) {
 function normalizeSidePoints(source, defaults) {
   const legacyPoints = Array.isArray(source) ? source : null;
   const sideSource = legacyPoints ? { left: legacyPoints, right: legacyPoints } : (source ?? {});
-  return Object.fromEntries(SENSOR_SIDES.map((side) => [side, normalizePoints(sideSource[side], defaults)]));
+  return Object.fromEntries(SENSOR_SIDES.map((side) => [side, normalizePoints(sideSource[side], Array.isArray(defaults) ? defaults : defaults[side])]));
 }
 
 export function normalizeSensorLayout(layout) {
   return {
+    pressureSchema: PRESSURE_LAYOUT_ID,
     pressure: normalizeSidePoints(layout?.pressure, DEFAULT_PRESSURE_POINTS),
     thermal: normalizeSidePoints(layout?.thermal, DEFAULT_THERMAL_POINTS),
   };
@@ -49,6 +49,7 @@ export function normalizeSensorLayout(layout) {
 export function loadSensorLayout() {
   try {
     const savedRaw = window.localStorage.getItem(SENSOR_LAYOUT_STORAGE_KEY)
+      ?? window.localStorage.getItem("stepon-cap-web-sensor-layout-v2")
       ?? window.localStorage.getItem("stepon-cap-web-sensor-layout-v1");
     const saved = JSON.parse(savedRaw ?? "null");
     return normalizeSensorLayout(saved);

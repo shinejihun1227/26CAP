@@ -17,8 +17,13 @@ import { loadSensorLayout, normalizeSensorLayout } from "./data/sensor-layout.js
 import { loadFootLayout, normalizeFootLayout } from "./data/foot-layout.js";
 import { renderMobileApp, renderMobileOnboarding } from "./mobile/mobile-app.js";
 import { fetchEsp32State, markEsp32Disconnected, normalizeEsp32State } from "./services/esp32-api.js";
-import { setAutoCue, setLaser, vibrate } from "./services/esp32-api.js";
-import { fetchAiState, markAiUnavailable, normalizeAiState } from "./services/ai-api.js";
+import { setAutoCue, setLaser, vibrate, usesBilateralSta, hubRequest } from "./services/esp32-api.js";
+import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi } from "./services/ai-api.js";
+import { mountRomWorkspace } from "./mediapipe/rom-controller.js";
+import { renderTrendsView } from "./views/trends-view.js";
+import { mountTrendWorkspace } from "./trends/trend-controller.js";
+import { emptyPressure } from "./data/sensor-config.js";
+import { captureViewContinuity, restoreViewContinuity } from "./utils/view-continuity.js";
 
 const app = document.querySelector("#app");
 const profileStorageKey = "stepon-cap-web-profile";
@@ -27,11 +32,11 @@ const query = new URLSearchParams(window.location.search);
 const isEditorMode = window.location.port === "8001" || query.get("mode") === "editor";
 const isMobilePath = window.location.pathname === "/mobile" || window.location.pathname.startsWith("/mobile/");
 const isMobileUi = !isEditorMode && (isMobilePath || query.get("mobile") === "1" || (query.get("mobile") !== "0" && window.matchMedia?.("(max-width: 800px)").matches));
-const esp32Enabled = !isEditorMode && (["1", "true"].includes(query.get("esp32")) || (() => {
+const esp32Enabled = !isEditorMode && !["0", "false"].includes(query.get("esp32")) && (["1", "true"].includes(query.get("esp32")) || (() => {
   try { return window.localStorage.getItem("stepon-esp32-enabled") === "true"; } catch { return false; }
 })());
-const aiEnabled = !isEditorMode && esp32Enabled && !["0", "false"].includes(query.get("ai"));
-const viewRenderers = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView };
+const aiEnabled = !isEditorMode && esp32Enabled && !['0', 'false'].includes(query.get('ai'));
+const viewRenderers = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView };
 const validViews = new Set(Object.keys(viewRenderers));
 
 function loadProfile() {
@@ -49,11 +54,13 @@ let state = {
   rehab: createDefaultRehabState(esp32Enabled),
   rehabLog: loadRehabLog(),
   connected: esp32Enabled ? false : initialState.connected,
-  device: esp32Enabled ? { ...initialState.device, lastSync: "연결 중", signal: "ESP32 연결 중" } : initialState.device,
-  pressure: esp32Enabled ? Array.from({ length: 8 }, () => null) : initialState.pressure,
-  bilateralPressure: esp32Enabled ? { left: Array.from({ length: 8 }, () => null), right: Array.from({ length: 8 }, () => null) } : initialState.bilateralPressure,
+  device: esp32Enabled ? { ...initialState.device, battery: null, lastSync: "연결 중", signal: "ESP32 연결 중" } : initialState.device,
+  pressure: esp32Enabled ? emptyPressure() : initialState.pressure,
+  bilateralPressure: esp32Enabled ? { left: emptyPressure(), right: emptyPressure() } : initialState.bilateralPressure,
   thermal: esp32Enabled ? { left: initialState.thermal.left.map((item) => ({ ...item, temp: null, humidity: null, available: false })), right: initialState.thermal.right.map((item) => ({ ...item, temp: null, humidity: null, available: false })) } : initialState.thermal,
-  metrics: esp32Enabled ? { ...initialState.metrics, balance: null, temperature: null, humidity: null } : initialState.metrics,
+  metrics: esp32Enabled ? { risk: null, steps: 0, cadence: null, stride: null, balance: null, temperature: null, humidity: null } : initialState.metrics,
+  events: esp32Enabled ? [] : initialState.events,
+  hardware: esp32Enabled && usesBilateralSta() ? { transport: 'sta', feet: {}, sensors: {} } : undefined,
   profile: { ...initialState.profile, ...(storedProfile ?? {}) },
   outputs: { ...initialState.outputs, ...(storedProfile?.outputs ?? {}) },
 };
@@ -68,18 +75,46 @@ let showOnboarding = !storedProfile?.configured && !previewDashboard && !esp32En
 let sharedDirectTextOverrides = {};
 let sharedSensorLayout = loadSensorLayout();
 let sharedFootLayout = loadFootLayout();
+let romWorkspace = null;
+let trendWorkspace = null;
+let esp32RequestInFlight = false;
+let aiRequestInFlight = false;
+let renderedView = null;
 
 function renderView() {
   if (isEditorMode) {
     return;
   }
+  // Preserve an address being typed while connection status polls in the background.
+  if (activeView === 'devices' && app.querySelector('[data-insole-form]')?.contains(document.activeElement)) return;
+  // Never replace a running video element when sensor/editor polling refreshes the app.
+  if (romWorkspace && activeView === "mediapipe" && !showOnboarding) return;
+  if (trendWorkspace && activeView === "trends" && !showOnboarding) return;
+  if (romWorkspace) { romWorkspace.destroy(); romWorkspace = null; }
+  if (trendWorkspace) { trendWorkspace.destroy(); trendWorkspace = null; }
   if (showOnboarding) {
     app.innerHTML = `${isMobileUi ? renderMobileOnboarding(state) : renderOnboarding(state)}<div class="toast-region" aria-live="polite"></div>`;
     return;
   }
-  const viewState = { ...state, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
-  app.innerHTML = `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView)}${viewRenderers[activeView](viewState)}</div>`}<div class="toast-region" aria-live="polite"></div>`;
+  const viewState = { ...state, aiEnabled, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
+  const continuity = renderedView === activeView ? captureViewContinuity(app) : null;
+  const expandedInsoles = [...app.querySelectorAll('[data-insole-card] details[open]')].map((el) => el.closest('[data-insole-card]').dataset.insoleCard);
+  app.innerHTML = `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}<div class="toast-region" aria-live="polite"></div>`;
+  for (const side of expandedInsoles) { const details = app.querySelector(`[data-insole-card="${side}"] details`); if (details) details.open = true; }
+  applySafeTextOverrides();
+  restoreViewContinuity(app, continuity);
+  renderedView = activeView;
+  if (activeView === "mediapipe") romWorkspace = mountRomWorkspace(app.querySelector("[data-rom-root]"));
+  if (activeView === "trends") trendWorkspace = mountTrendWorkspace(app.querySelector("[data-trends-root]"), () => state);
+}
+
+function applySafeTextOverrides() {
+  // Real connection/measurement status must not be replaced by a saved static
+  // editor caption (e.g. "stream normal" while both feet are disconnected).
+  const dynamicSelector = '.clarity-live-hero h2, .clarity-live-hero p, .clarity-status-main h2, .clarity-status-main p, [data-live-copy]';
+  const dynamicText = esp32Enabled ? [...app.querySelectorAll(dynamicSelector)].map((el) => [el, el.textContent]) : [];
   applyDirectTextOverrides(app, activeView, sharedDirectTextOverrides);
+  for (const [el, text] of dynamicText) el.textContent = text;
 }
 
 function showToast(message) {
@@ -109,7 +144,7 @@ async function refreshSharedEditorState() {
     sharedFootLayout = nextFootLayout;
     if (!isEditorMode && !showOnboarding) {
       if (sensorChanged || footChanged) renderView();
-      else applyDirectTextOverrides(app, activeView, sharedDirectTextOverrides);
+      else applySafeTextOverrides();
     }
   } catch {
     // The dashboard remains usable when the optional local sync endpoint is unavailable.
@@ -159,8 +194,9 @@ function updateRehabLog(log, result) {
 
 function syncEsp32Output(key, enabled) {
   if (!esp32Enabled) return;
-  const request = key === "laser" ? setLaser(enabled) : key === "vibration" && enabled ? vibrate() : key === "auto" ? setAutoCue(enabled) : null;
-  if (request) void request.catch(() => showToast("ESP32 출력 연결을 확인하세요."));
+  const side = state.rehab?.config?.activeFoot ?? 'left';
+  const request = key === "laser" ? setLaser(enabled, side) : key === "vibration" && enabled ? vibrate(47, side) : key === "auto" ? setAutoCue(enabled, side) : null;
+  if (request) void request.catch(() => showToast("선택한 발의 연결과 출력 설정을 확인하세요."));
 }
 
 function applyRehabAnalysis(nextState) {
@@ -170,13 +206,28 @@ function applyRehabAnalysis(nextState) {
     ? { ...nextState.metrics, steps: result.rehab.metrics.stepCount }
     : nextState.metrics;
   const stateWithRehab = { ...nextState, metrics: liveMetrics, rehab: result.rehab, rehabLog: updateRehabLog(nextState.rehabLog, result) };
-  if (result.triggeredAlert && esp32Enabled && stateWithRehab.outputs?.vibration && result.feedback?.vibrationCount) {
-    void vibrate().catch(() => showToast("진동 출력 연결을 확인하세요."));
+  if (result.triggeredAlert && esp32Enabled && stateWithRehab.outputs?.vibration && (!usesBilateralSta() || stateWithRehab.outputs?.auto) && result.feedback?.vibrationCount) {
+    void vibrate(47, result.feedback?.side ?? stateWithRehab.rehab?.config?.activeFoot ?? 'left').catch(() => showToast("진동 출력 연결을 확인하세요."));
   }
   return stateWithRehab;
 }
 
-function handleAction(action) {
+async function handleAction(action, actionTarget) {
+  if (action === 'connect-sta') { window.location.href = '/?view=devices&esp32=1&transport=sta&ai=1&mobile=0'; return; }
+  if (action === 'ai-calibrate' || action === 'ai-calibration-cancel') {
+    const side = actionTarget?.dataset.aiSide;
+    try {
+      const payload = await calibrateAi(side, action === 'ai-calibrate' ? 'start' : 'cancel');
+      state = { ...state, ai: { ...normalizeAiState(payload, state.ai), actionError: null } };
+    } catch (error) { state = { ...state, ai: { ...state.ai, actionError: error.message } }; }
+    renderView();
+    return;
+  }
+  if (action === 'forget-left' || action === 'forget-right') {
+    void hubRequest('forget', { side: action.slice(7) }).then(() => refreshEsp32State(true)).catch((e) => showToast(e.message)); return;
+  }
+  if (romWorkspace && ["profile", "open-editor"].includes(action) && !romWorkspace.canLeave()) return;
+  if (trendWorkspace && ["profile", "open-editor"].includes(action) && !trendWorkspace.canLeave()) return;
   const messages = {
     notifications: "새로운 보행 인사이트가 도착했어요.",
     profile: "프로필 설정은 다음 단계에서 연결할 예정이에요.",
@@ -224,8 +275,9 @@ function handleAction(action) {
       showToast(speakCue(message) ? "음성 안내를 재생했어요." : "이 브라우저는 음성 안내를 지원하지 않아요.");
     } else {
       if (esp32Enabled) {
-        const request = key === "laser" ? setLaser(true) : vibrate();
-        void request.then(() => { if (key === "laser") window.setTimeout(() => void setLaser(false), 650); }).catch(() => showToast("ESP32 출력 연결을 확인하세요."));
+        const side = state.rehab?.config?.activeFoot ?? 'left';
+        const request = key === "laser" ? setLaser(true, side) : vibrate(47, side);
+        void request.then(() => { if (key === "laser") window.setTimeout(() => void setLaser(false, side).catch(() => {}), 650); }).catch(() => showToast("선택한 발의 연결과 출력 활성화 설정을 확인하세요."));
       }
       showToast(`${key === "laser" ? "레이저" : "진동"} 출력 테스트를 실행했어요.`);
     }
@@ -249,19 +301,21 @@ app.addEventListener("click", (event) => {
   const viewTarget = event.target.closest("[data-view]");
   if (viewTarget) {
     if (!validViews.has(viewTarget.dataset.view)) return;
+    if (viewTarget.dataset.view !== activeView && romWorkspace && !romWorkspace.canLeave()) return;
+    if (viewTarget.dataset.view !== activeView && trendWorkspace && !trendWorkspace.canLeave()) return;
     activeView = viewTarget.dataset.view;
-    if (isMobileUi) {
+    {
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.set("view", activeView);
       if (isMobilePath) nextUrl.pathname = "/mobile";
-      else nextUrl.searchParams.set("mobile", "1");
+      else if (isMobileUi) nextUrl.searchParams.set("mobile", "1");
       window.history.replaceState({}, "", nextUrl);
     }
     renderView();
     return;
   }
   const actionTarget = event.target.closest("[data-action]");
-  if (actionTarget) handleAction(actionTarget.dataset.action);
+  if (actionTarget) void handleAction(actionTarget.dataset.action, actionTarget);
   const outputTarget = event.target.closest("[data-output]");
   if (outputTarget && outputTarget.tagName === "BUTTON") {
     const key = outputTarget.dataset.output;
@@ -272,6 +326,14 @@ app.addEventListener("click", (event) => {
 });
 
 app.addEventListener("submit", (event) => {
+  if (event.target.matches('[data-insole-form]')) {
+    event.preventDefault();
+    const fields = new FormData(event.target);
+    void hubRequest('config', { side: event.target.dataset.insoleForm, url: String(fields.get('url')).trim() })
+      .then(() => { document.activeElement?.blur(); showToast('주소를 등록했어요. 펌웨어의 좌우 구분을 확인 중입니다.'); return refreshEsp32State(true); })
+      .catch((error) => showToast(`등록 실패: ${error.message}`));
+    return;
+  }
   if (event.target.id !== "profile-form") return;
   event.preventDefault();
   const formData = new FormData(event.target);
@@ -328,27 +390,46 @@ app.addEventListener("change", (event) => {
 }
 
 async function refreshEsp32State(force = false) {
-  if (!esp32Enabled || showOnboarding || (state.paused && !force)) return;
+  if (!esp32Enabled || showOnboarding || esp32RequestInFlight || (state.paused && !force)) return;
+  esp32RequestInFlight = true;
   try {
     const payload = await fetchEsp32State();
-    state = applyRehabAnalysis(normalizeEsp32State(payload, state));
+    const sensorFrameChanged = payload.frame !== undefined && payload.frame !== state.hardware?.raw?.frame;
+    const nextState = normalizeEsp32State(payload, state);
+    if (payload.service === 'stepon-bilateral-v1') {
+      const topology = (feet) => ['left', 'right'].map((s) => `${feet?.[s]?.connected}:${feet?.[s]?.state?.boot_id ?? ''}:${feet?.[s]?.device_id ?? ''}`).join('|');
+      const topologyChanged = topology(state.hardware?.feet) !== topology(payload.feet);
+      if (topologyChanged) rehabHistory = {};
+      const side = nextState.rehab?.config?.activeFoot ?? 'left';
+      const prior = state.hardware?.feet?.[side]?.state, incoming = payload.feet?.[side]?.state;
+      const changed = topologyChanged || !nextState.connected || !incoming || incoming.frame !== prior?.frame || incoming.boot_id !== prior?.boot_id;
+      state = changed ? applyRehabAnalysis(nextState) : nextState;
+    } else state = applyRehabAnalysis(nextState);
+    state.sensorReceivedAt = state.connected ? Date.now() : null;
+    if (payload.service === 'stepon-bilateral-v1') {
+      const foot = payload.feet?.[state.rehab?.config?.activeFoot ?? 'left'];
+      state.sensorAdvancedAt = foot?.connected ? Date.now() - (foot.age_ms ?? 999999) : null;
+    } else if (sensorFrameChanged) state.sensorAdvancedAt = state.sensorReceivedAt;
     esp32LastError = null;
     if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
   } catch (error) {
     esp32LastError = error;
-    if (state.dataSource === "esp32" && state.connected) {
+    if (state.dataSource === "esp32") {
       state = markEsp32Disconnected(state, error);
       if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
     }
+  } finally {
+    esp32RequestInFlight = false;
   }
 }
 
 async function refreshAiState(force = false) {
-  if (!aiEnabled || showOnboarding || (state.paused && !force)) return;
+  if (!aiEnabled || showOnboarding || aiRequestInFlight || (state.paused && !force)) return;
+  aiRequestInFlight = true;
   try {
     const payload = await fetchAiState();
     const nextAi = normalizeAiState(payload, state.ai);
-    const decisionChanged = nextAi.state && nextAi.state !== state.ai?.state;
+    const decisionChanged = nextAi.ready && nextAi.state && nextAi.state !== state.ai?.state;
     const nextEvents = decisionChanged
       ? [{
         time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
@@ -366,7 +447,7 @@ async function refreshAiState(force = false) {
       state = { ...state, ai: nextAi };
       if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
     }
-  }
+  } finally { aiRequestInFlight = false; }
 }
 
 if (isEditorMode) {
@@ -376,7 +457,7 @@ if (isEditorMode) {
   void refreshSharedEditorState();
   window.setInterval(refreshSharedEditorState, 1200);
   void refreshEsp32State();
-  window.setInterval(refreshEsp32State, 750);
+  window.setInterval(refreshEsp32State, usesBilateralSta() ? 250 : 750);
   void refreshAiState();
   window.setInterval(refreshAiState, 750);
   window.setInterval(() => {

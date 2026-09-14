@@ -5,8 +5,9 @@ export const navItems = [
   { id: "live", label: "Live", korean: "실시간 측정", icon: "activity" },
   { id: "safety", label: "Analysis", korean: "분석 센터", icon: "shield" },
   { id: "reports", label: "Reports", korean: "보행 리포트", icon: "report" },
+  { id: "trends", label: "Trends", korean: "변화 추이", icon: "chart" },
   { id: "devices", label: "Devices", korean: "기기 관리", icon: "device" },
-  { id: "mediapipe", label: "Personalize", korean: "개인화 설정", icon: "camera" },
+  { id: "mediapipe", label: "MediaPipe", korean: "관절 움직임", icon: "camera" },
 ];
 
 export const observationGoals = [
@@ -77,10 +78,10 @@ export const initialState = {
   },
   outputs: { auto: true, laser: true, vibration: true, voice: true },
   heatmapMode: "pressure",
-  pressure: [72, 54, 68, 44, 38, 81, 63, 49],
+  pressure: [72, 44, 38, 81],
   bilateralPressure: {
-    left: [72, 54, 68, 44, 38, 81, 63, 49],
-    right: [66, 58, 74, 51, 43, 76, 61, 55],
+    left: [72, 44, 38, 81],
+    right: [66, 51, 43, 76],
   },
   activity: [36, 42, 39, 54, 48, 65, 58, 71, 63, 77, 68, 74],
   events: [
@@ -134,6 +135,7 @@ export function evolveState(state) {
 }
 
 export function riskLabel(risk) {
+  if (risk === null || risk === undefined || !Number.isFinite(Number(risk))) return { label: '측정 대기', tone: 'lavender' };
   if (risk >= 55) return { label: "관찰 필요", tone: "coral" };
   if (risk >= 30) return { label: "가벼운 주의", tone: "orange" };
   return { label: "안정적", tone: "mint" };

@@ -22,9 +22,11 @@ constexpr uint8_t TCA9548A_ADDRESS_LOW = 0x70;
 constexpr uint8_t TCA9548A_ADDRESS_HIGH = 0x71;
 constexpr uint8_t BMI270_ADDRESS = 0x68;
 constexpr uint8_t DRV2605_ADDRESS = 0x5A;
-constexpr uint8_t PRESSURE_COUNT = 8;
+constexpr uint8_t PRESSURE_COUNT = 4;
 constexpr uint8_t THERMAL_COUNT = 4;
-constexpr uint8_t PRESSURE_CHANNELS[PRESSURE_COUNT] = {0, 2, 4, 6, 8, 10, 12, 14};
+constexpr uint8_t PRESSURE_CHANNELS[PRESSURE_COUNT] = {0, 2, 4, 6};
+// P1 front, P2 middle-medial, P3 middle-lateral, P4 heel.
+constexpr const char *PRESSURE_LAYOUT = "stepon-pressure-4-v1";
 constexpr uint8_t THERMAL_CHANNELS[THERMAL_COUNT] = {3, 4, 5, 6};
 constexpr int PRESSURE_RAW_MIN = 0;
 constexpr int PRESSURE_RAW_MAX = 4095;
@@ -236,6 +238,13 @@ inline String frameToJson(const SensorFrame &frame) {
     if (i) json += ',';
     json += THERMAL_CHANNELS[i];
   }
+  json += "]";
+  json += ",\"pressure_count\":";
+  json += PRESSURE_COUNT;
+  json += ",\"pressure_layout\":\"";
+  json += PRESSURE_LAYOUT;
+  json += "\",\"pressure_channels\":[";
+  for (uint8_t i = 0; i < PRESSURE_COUNT; i++) { if (i) json += ','; json += PRESSURE_CHANNELS[i]; }
   json += "]";
   json += ",\"pressure\":[";
   for (uint8_t i = 0; i < PRESSURE_COUNT; i++) { if (i) json += ','; json += frame.pressure[i]; }

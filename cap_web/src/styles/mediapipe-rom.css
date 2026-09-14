@@ -1,0 +1,105 @@
+.rom-workspace { color: #21334a; font-size: 1rem; line-height: 1.65; min-width: 0; }
+.rom-workspace *, .rom-workspace *::before, .rom-workspace *::after { box-sizing: border-box; }
+.rom-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin: 0 0 20px; }
+.rom-workspace h1 { font-size: clamp(1.7rem, 2.4vw, 2.25rem); line-height: 1.3; margin: 6px 0 10px; letter-spacing: -.035em; }
+.rom-workspace h2 { font-size: 1.16rem; line-height: 1.4; margin: 0; letter-spacing: -.02em; }
+.rom-workspace p { margin: 8px 0 14px; font-size: 1rem; line-height: 1.7; color: #526477; }
+.rom-eyebrow { color: #137b75; font-size: .78rem; font-weight: 750; letter-spacing: .1em; }
+.rom-local-badge { border: 1px solid #b7deda; border-radius: 24px; background: #edf8f5; color: #176d66; padding: 9px 14px; font-size: .85rem; flex-shrink: 0; }
+.rom-notice { padding: 12px 16px; border: 1px solid #ccdae4; border-radius: 12px; background: #f2f6fa; margin-bottom: 20px; font-size: .95rem; overflow-wrap: anywhere; }
+.rom-notice.is-error { background: #fff1ed; border-color: #e9bfb0; color: #8e351d; }
+.rom-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: 22px; align-items: start; }
+.rom-camera-panel, .rom-setup-panel, .rom-validation-panel, .rom-history-panel, .rom-details { padding: 22px; border: 1px solid #d7e3e7; border-radius: 18px; background: white; box-shadow: 0 3px 14px #1c455208; min-width: 0; }
+.rom-panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.rom-panel-head > span { font-size: .85rem; color: #586d7e; }
+.rom-video-stage { position: relative; aspect-ratio: 4 / 3; background: #152536; border-radius: 12px; overflow: hidden; }
+.rom-video-stage video, .rom-video-stage > canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
+.rom-video-stage.is-mirrored video, .rom-video-stage.is-mirrored > canvas { transform: scaleX(-1); }
+.rom-video-empty { position: absolute; inset: 0; display: flex; justify-content: center; align-items: center; flex-direction: column; text-align: center; padding: 20px; color: #f1f8ff; background: #152536; }
+.rom-video-empty[hidden] { display: none; }
+.rom-video-empty > span { font-size: 3rem; color: #8ac9c3; }
+.rom-video-empty p { font-size: .92rem; color: #bed2e2; }
+.rom-video-label { position: absolute; bottom: 12px; left: 12px; color: white; background: #132333cb; border-radius: 6px; padding: 5px 10px; font-size: .8rem; }
+.rom-camera-tools, .rom-buttons { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.rom-camera-tools { margin: 16px 0; }
+.rom-camera-tools > span { margin-left: auto; color: #677789; font-size: .8rem; }
+.rom-workspace button { min-height: 42px; border: 1px solid #bacdd4; border-radius: 9px; background: white; color: #273f54; padding: 9px 14px; font: inherit; font-size: .9rem; font-weight: 650; cursor: pointer; line-height: 1.4; }
+.rom-workspace button.rom-primary { background: #176d68; border-color: #176d68; color: white; }
+.rom-workspace button.rom-danger { color: #a6362b; border-color: #e7b9af; }
+.rom-workspace button:disabled { opacity: .42; cursor: not-allowed; }
+.rom-workspace button:not(:disabled):hover { filter: brightness(.94); }
+.rom-workspace :focus-visible { outline: 3px solid #17a69b; outline-offset: 3px; }
+.rom-consent, .rom-check { display: flex; align-items: flex-start; gap: 9px; color: #44586c; font-size: .9rem; }
+.rom-workspace input[type=checkbox], .rom-workspace input[type=radio] { width: 18px; height: 18px; margin: 4px 0 0; accent-color: #176d68; flex-shrink: 0; }
+.rom-quality { padding: 12px; border-left: 3px solid #aebdc7; background: #f2f5f8; }
+.rom-quality.is-ready { border-color: #15927f; background: #edf8f4; color: #156451; }
+.rom-live-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rom-metric { padding: 13px; border-radius: 11px; border: 1px solid #dce5ec; background: #f8fafc; }
+.rom-metric.is-selected { background: #eaf6f3; border-color: #9dcfc5; }
+.rom-metric span { display: block; font-size: .85rem; color: #536579; }
+.rom-metric strong { font-size: 1.75rem; letter-spacing: -.03em; color: #18334b; }
+.rom-trace { margin-top: 16px; }
+.rom-trace canvas { width: 100%; height: 130px; display: block; background: #f5f8fb; border-radius: 10px; }
+.rom-trace small, .rom-help { color: #65768a; font-size: .82rem; line-height: 1.65; display: block; }
+.rom-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 12px; }
+.rom-joint-field { grid-column: 1 / -1; }
+.rom-workspace .rom-participant-help { padding: 13px 15px; margin: 8px 0 20px; border-left: 3px solid #318d80; background: #edf7f4; border-radius: 0 10px 10px 0; font-size: .9rem; }
+.rom-workspace .rom-joint-help { font-size: .9rem; color: #405b70; margin: 6px 0 16px; }
+.rom-joint-guide { padding: 15px; border: 1px solid #cbdde5; border-radius: 12px; background: #f8fbfd; margin: 14px 0; }
+.rom-joint-guide-heading { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; }
+.rom-joint-guide-heading strong { font-size: 1rem; }
+.rom-joint-guide-heading span { color: #176d68; font-size: .9rem; font-weight: 650; }
+.rom-workspace .rom-joint-guide p, .rom-joint-guide dl { font-size: .9rem; margin: 12px 0; }
+.rom-joint-guide dt { color: #29495e; font-weight: 700; margin-top: 9px; }
+.rom-joint-guide dd { margin: 3px 0 0; color: #526477; overflow-wrap: anywhere; }
+.rom-joint-guide small { display: block; font-size: .82rem; line-height: 1.65; color: #63768a; }
+.rom-workspace .rom-clinical-note { border-left: 3px solid #bc8840; padding: 10px 12px; background: #fff8ed; font-size: .9rem; }
+.rom-form-grid label, .rom-confidence, .rom-validation-form > label:not(.rom-check) { display: flex; flex-direction: column; gap: 6px; font-size: .9rem; font-weight: 600; }
+.rom-workspace input:not([type=checkbox]):not([type=radio]), .rom-workspace select { width: 100%; min-width: 0; min-height: 42px; border: 1px solid #bfd0d9; border-radius: 8px; color: #24394d; background: #fff; padding: 9px 10px; font: inherit; font-size: .95rem; }
+.rom-directions { border: 0; padding: 0; margin: 20px 0 16px; display: flex; gap: 8px; }
+.rom-directions legend { font-size: .9rem; font-weight: 650; padding: 0 0 8px; }
+.rom-directions label { position: relative; flex: 1; }
+.rom-directions input { position: absolute; left: 10px; top: 10px; }
+.rom-directions span { display: block; border: 1px solid #c8d8df; border-radius: 10px; padding: 12px 5px 12px 34px; font-size: .95rem; text-align: center; }
+.rom-directions input:checked + span { background: #e8f5f2; border-color: #318d80; color: #115f52; font-weight: 750; }
+.rom-view-guide { background: #f1f6fa; border-radius: 9px; padding: 12px; font-size: .9rem !important; }
+.rom-confidence { margin-top: 16px; }
+.rom-record-box { margin: 20px 0 15px; padding: 16px; background: #f3f7f9; border-radius: 12px; }
+.rom-record-box > div:first-child { display: flex; justify-content: space-between; gap: 8px; }
+.rom-record-box p { font-size: .85rem; }
+.rom-record-box progress { width: 100%; height: 9px; accent-color: #168679; margin: 12px 0 2px; }
+.rom-result, .rom-comparison { font-size: .92rem; margin: 14px 0; }
+.rom-result strong { font-size: 1.7rem; color: #16665d; }
+.rom-result small { display: block; color: #5a6c7e; }
+.rom-validation-panel, .rom-history-panel, .rom-details { margin-top: 22px; }
+.rom-validation-form { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; }
+.rom-validation-form > label { max-width: 220px; }
+.rom-validation-form output { padding-bottom: 10px; color: #166b61; font-weight: 750; }
+.rom-validation-summary { margin-top: 16px; padding: 12px; border-radius: 10px; background: #f2f6fa; font-size: .92rem; }
+.rom-view-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.rom-view-summary > div { background: #f2f7f8; padding: 12px; border-radius: 10px; font-size: .9rem; }
+.rom-view-summary strong { display: block; font-size: 1.2rem; }
+.rom-history { overflow: auto; }
+.rom-workspace table { width: 100%; border-collapse: collapse; font-size: .88rem; white-space: nowrap; }
+.rom-workspace th, .rom-workspace td { text-align: left; padding: 11px 9px; border-bottom: 1px solid #e3eaf0; }
+.rom-workspace th { background: #f4f7fa; color: #486071; font-weight: 650; }
+.rom-workspace td button { font-size: .8rem; padding: 6px 9px; min-height: 34px; }
+.rom-baseline-tag { color: #126d5c; font-weight: 700; }
+.rom-details summary { cursor: pointer; font-size: 1rem; font-weight: 650; }
+.rom-details p { font-size: .9rem; }
+.rom-details a { color: #176b82; text-decoration: underline; }
+.rom-set-panel, .rom-set-report { padding: 22px; border: 1px solid #bed9da; border-radius: 18px; background: #fff; min-width: 0; }
+.rom-set-panel { margin-bottom: 22px; border-top: 4px solid #176d68; }
+.rom-set-report { margin-top: 22px; }
+.rom-set-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.rom-set-toolbar label { display: flex; flex-direction: column; gap: 6px; flex: 1 1 220px; font-size: .9rem; }
+.rom-set-views { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rom-set-view { padding: 13px; background: #f2f7fa; border: 1px solid #d4e2e8; border-radius: 11px; display: flex; flex-direction: column; gap: 6px; }
+.rom-set-view.is-recorded { background: #eaf7f2; border-color: #8ccab7; }
+.rom-set-view span { font-size: .9rem; color: #526477; }
+.rom-set-view button { align-self: flex-start; }
+.rom-set-warning { padding: 12px; background: #fff4e6; border-left: 3px solid #ce8b37; font-size: .95rem; }
+.rom-set-status { font-size: 1rem; color: #176d68; }
+@media (max-width: 640px) { .rom-set-panel, .rom-set-report { padding: 15px; } .rom-set-views { grid-template-columns: 1fr; } .rom-set-view { display: grid; grid-template-columns: 1fr auto; } .rom-set-view button { grid-column: 2; grid-row: 1 / span 2; align-self: center; } }
+@media (max-width: 1150px) { .rom-layout { grid-template-columns: 1fr; } .rom-camera-panel { max-width: 100%; } }
+@media (max-width: 640px) { .rom-heading { display: block; } .rom-local-badge { display: inline-block; margin-top: 8px; } .rom-camera-panel, .rom-setup-panel, .rom-validation-panel, .rom-history-panel, .rom-details { padding: 15px; border-radius: 13px; } .rom-form-grid { grid-template-columns: 1fr; } .rom-workspace button { min-height: 44px; } .rom-camera-tools > span { margin-left: 0; } .rom-workspace h1 { font-size: 1.6rem; } .rom-view-summary { gap: 6px; } .rom-view-summary > div { padding: 9px; } .rom-panel-head > .rom-buttons { width: 100%; } }

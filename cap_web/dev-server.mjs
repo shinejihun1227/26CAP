@@ -2,15 +2,26 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRomHandler } from "./server/rom-store.mjs";
+import { createTrendHandler } from "./server/trend-store.mjs";
+import { createInsoleHub, createInsoleHandler, forwardInsoleRequest } from "./server/insole-hub.mjs";
+import { createAiHandler } from "./server/ai-proxy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const port = Number(process.argv[2] || 8000);
 const host = process.argv[3] || "127.0.0.1";
+const insoleHub = port === 8001 ? null : createInsoleHub();
+const handleInsoles = insoleHub ? createInsoleHandler(insoleHub) : forwardInsoleRequest;
+const handleAi = createAiHandler();
 const sharedEditorStatePath = path.join(root, ".stepon-editor-state.json");
-const defaultEditorStatePath = path.join(root, "editor-state.default.json");
+const handleRom = createRomHandler(process.env.STEPON_ROM_DATA_DIR || path.resolve(root, "..", ".stepon-data", "mediapipe"));
+const handleTrends = createTrendHandler(process.env.STEPON_TREND_DATA_DIR || path.resolve(root, "..", ".stepon-data", "trends"));
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".wasm": "application/wasm",
+  ".task": "application/octet-stream",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
@@ -28,7 +39,7 @@ function resolveFile(requestUrl) {
   if (pathname === "/mobile" || pathname.startsWith("/mobile/")) return path.join(root, "index.html");
   const requested = pathname.endsWith("/") ? `${pathname}index.html` : pathname;
   const target = path.resolve(root, `.${requested}`);
-  return target.startsWith(root) ? target : null;
+  return target.startsWith(root + path.sep) ? target : null;
 }
 
 function sendJson(response, statusCode, payload) {
@@ -43,25 +54,28 @@ function sendJson(response, statusCode, payload) {
 }
 
 function readSharedEditorState(callback) {
-  const parseState = (error, contents) => {
-    if (error) return callback(null, {});
+  fs.readFile(sharedEditorStatePath, "utf8", (error, contents) => {
+    if (error) {
+      fs.readFile(path.join(root, 'editor-state.default.json'), 'utf8', (fallbackError, fallback) => {
+        try { callback(null, fallbackError ? {} : JSON.parse(fallback)); } catch { callback(null, {}); }
+      });
+      return;
+    }
     try {
       const parsed = JSON.parse(contents);
       callback(null, parsed && typeof parsed === "object" ? parsed : {});
     } catch {
       callback(null, {});
     }
-  };
-  fs.readFile(sharedEditorStatePath, "utf8", (error, contents) => {
-    // Share the reviewed design snapshot, not personal/local session state.
-    // Once an editor saves, its local file takes precedence over this default.
-    if (error?.code === "ENOENT") return fs.readFile(defaultEditorStatePath, "utf8", parseState);
-    parseState(error, contents);
   });
 }
 
 const server = http.createServer((request, response) => {
   const pathname = new URL(request.url || "/", `http://${host}`).pathname;
+  if (pathname.startsWith('/api/ai/')) { void handleAi(request, response); return; }
+  if (pathname.startsWith('/api/insoles/')) { void handleInsoles(request, response); return; }
+  if (pathname === "/api/rom") { void handleRom(request, response); return; }
+  if (pathname === "/api/trends") { void handleTrends(request, response); return; }
   if (pathname === "/api/editor-state") {
     if (request.method === "OPTIONS") {
       sendJson(response, 204, {});
@@ -110,5 +124,5 @@ const server = http.createServer((request, response) => {
 });
 
 server.listen(port, host, () => {
-  console.log(`StepOn local server listening at http://${host}:${port}/`);
+  console.log(`StepOn local server listening at http://${host}:${server.address().port}/`);
 });

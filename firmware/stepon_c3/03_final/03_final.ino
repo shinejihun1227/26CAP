@@ -54,11 +54,13 @@ float gyroMagnitude() {
 }
 
 bool fogCandidate() {
-  return pressureTotal() > 80 && gyroMagnitude() > 55;
+  // Preserve the original per-sensor scale when changing from 8 to 4 sensors.
+  // This is a prototype heuristic, not the PC RF/CNN model.
+  return pressureTotal() / StepOn::PRESSURE_COUNT > 10.0f && gyroMagnitude() > 55;
 }
 
 uint8_t observationRisk() {
-  return static_cast<uint8_t>(constrain((pressureTotal() > 250 ? 25 : 0) +
+  return static_cast<uint8_t>(constrain((pressureTotal() / StepOn::PRESSURE_COUNT > 31.25f ? 25 : 0) +
                                          (fogCandidate() ? 60 : 8), 0, 100));
 }
 
@@ -95,7 +97,7 @@ String stateJson() {
   json += ",\"gyro_magnitude\":";
   json += String(gyroMagnitude(), 2);
   json += ",\"foot_loaded\":";
-  json += (total > 18 ? "true" : "false");
+  json += (total / StepOn::PRESSURE_COUNT > 2.25f ? "true" : "false");
   json += ",\"fog_candidate\":";
   json += (fog ? "true" : "false");
   json += ",\"fog_state\":\"";

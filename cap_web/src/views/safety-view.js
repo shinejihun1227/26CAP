@@ -55,9 +55,9 @@ export function renderSafetyView(state) {
           <div class="threshold-line"><span>정상 &lt; 1.0°C</span><i></i><span>관찰 1–2°C</span><i></i><span>우선 &gt; 2°C</span></div><small class="algorithm-disclaimer">${thermal.disclaimer}</small>
         </article>
         <article class="panel algorithm-card fog-algorithm">
-          <div class="panel-heading"><div><span class="panel-kicker">보행동결 02 · BMI270 + FSR406</span><h2>보행동결 가능성</h2></div>${stagePill(fog.stateLabel, fog.stateTone)}</div>
-          <p class="panel-description">움직임의 동결 대역, 보행 리듬, 좌우 압력 정체를 함께 보고 가능성을 계산합니다.</p>
-          <div class="fog-score-row"><div class="fog-score"><strong>${Math.round(fog.score * 100)}</strong><span>/ 100</span></div><div><b>${fog.state === "walking" ? "현재 보행 흐름이 안정적이에요" : "걸음의 변화를 관찰하고 있어요"}</b><p>Freeze Index <strong>${fog.features.freezeIndex}</strong><br />${fog.method}</p></div></div>
+          <div class="panel-heading"><div><span class="panel-kicker">보행동결 02 · BMI270 + FSR406</span><h2>센서 규칙 참고 지표</h2></div>${stagePill(fog.stateLabel, fog.stateTone)}</div>
+          <p class="panel-description">움직임·보행 리듬·압력의 규칙 기반 참고값입니다. 최종 AI 판단은 위 모델 카드에 표시됩니다.</p>
+          <div class="fog-score-row"><div class="fog-score"><strong>${state.dataSource === "esp32" ? "—" : Math.round(fog.score * 100)}</strong><span>/ 100</span></div><div><b>${fog.state === "walking" ? "현재 보행 흐름이 안정적이에요" : "걸음의 변화를 관찰하고 있어요"}</b><p>Freeze Index <strong>${fog.features.freezeIndex}</strong><br />${fog.method}</p></div></div>
           <div class="feature-list">${featureRow("동결 대역 비율", fog.features.freezeBandScore, "lavender")}${featureRow("보행 리듬 저하", fog.features.cadenceDrop, "coral")}${featureRow("압력 이동 정체", fog.features.pressureStall, "mint")}${featureRow("회전 움직임 변화", fog.features.gyroBurst, "sky")}</div><small class="algorithm-disclaimer">${fog.disclaimer}</small>
         </article>
       </section>

@@ -32,3 +32,7 @@ ai_engine/data/**
 !ai_engine/data/processed/ml/model_artifact/cnn_model.pt
 !ai_engine/data/processed/ml/model_artifact/deploy_config.json
 ai_engine/results/
+
+.venv-ai/
+.stepon-data/
+firmware/stepon_c3/04_sta_bilateral/wifi_secrets.h

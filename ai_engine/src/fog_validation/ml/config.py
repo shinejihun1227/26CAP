@@ -53,6 +53,16 @@ HUGADB_STOP_ACTIVITY_CODES = {5, 6, 7, 8}     # sitting, sitting_down, standing_
 HUGADB_WALK_ACTIVITY_CODES = {1}              # walking only - running/stairs/cycling/
                                                # elevator/car are excluded (see loaders.py)
 
+# 4-class label refinement (see windowing.assign_4class_labels /
+# label_4class_from_3class and scripts/sitstand_classification_
+# investigation.py): the Sit-to-Stand/Stand-to-Sit POSTURAL-TRANSITION
+# subset of the codes above, carved OUT of the 3-class "stop" label into its
+# own class. Strict subsets of FOGSTAR_STOP_ACTIVITY_CODES/
+# HUGADB_STOP_ACTIVITY_CODES above - no new ground truth invented, just a
+# finer split of the same already-established stop-family codes.
+FOGSTAR_SITSTAND_ACTIVITY_CODES = {4, 5}      # Sit-to-Stand, Stand-to-Sit
+HUGADB_SITSTAND_ACTIVITY_CODES = {6, 7}       # sitting_down, standing_up
+
 # Human-readable activity names, per dataset. The integer codes COLLIDE across
 # datasets (code 5 = "Stand-to-Sit" in FoG-STAR but "sitting" in HuGaDB), so
 # any cross-dataset activity analysis MUST namespace by dataset.

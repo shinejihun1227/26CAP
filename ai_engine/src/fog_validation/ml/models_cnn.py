@@ -51,9 +51,17 @@ def train_cnn(
     n_epochs: int = 20, batch_size: int = 64, lr: float = 1e-3,
     device: str = "cpu", verbose: bool = True, seed: int = RANDOM_SEED,
     augment_rng: np.random.Generator | None = None, augment_kwargs: dict | None = None,
-    sample_weight: np.ndarray | None = None,
+    sample_weight: np.ndarray | None = None, n_classes: int | None = None,
 ) -> tuple[FogCNN, list[dict]]:
-    """augment_rng: opt-in only (default None = unchanged behavior, see
+    """n_classes: opt-in only (default None infers int(y_train.max())+1, which
+    equals 3 for every existing caller's 3-class y - so this is a strictly
+    additive, backward-compatible change, not a behavior change for any
+    caller that doesn't pass it). Added so a 4-class target (see
+    windowing.assign_4class_labels / scripts/sitstand_classification_
+    investigation.py) can train the SAME architecture with a 4-unit output
+    head and 4-class weights, without a second copy of this function.
+
+    augment_rng: opt-in only (default None = unchanged behavior, see
     augment.py). When given, each minibatch gets a FRESH random augmentation
     every epoch (unlike train_baseline's static expanded set) - X_val is
     NEVER augmented, same rule as everywhere else in this project.
@@ -79,8 +87,9 @@ def train_cnn(
     # check this session), which is not acceptable for a demo or a poster
     # number that needs to be reproducible.
     torch.manual_seed(seed)
-    model = FogCNN(n_channels=X_train.shape[2]).to(device)
-    weights = class_weights_from_labels(y_train).to(device)
+    n_classes = n_classes if n_classes is not None else int(y_train.max()) + 1
+    model = FogCNN(n_channels=X_train.shape[2], n_classes=n_classes).to(device)
+    weights = class_weights_from_labels(y_train, n_classes=n_classes).to(device)
     criterion_mean = nn.CrossEntropyLoss(weight=weights)
     use_sample_weight = sample_weight is not None
     if use_sample_weight:
