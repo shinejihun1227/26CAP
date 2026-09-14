@@ -1,3 +1,5 @@
+> 최신 Windows 실행은 저장소 루트의 `setup-ai.bat`(최초 1회) → `run.bat`입니다. [통합 실행 안내](../../docs/RUNNING.md)를 먼저 참고하세요.
+
 # StepOn AI bridge v2
 
 현재 실행·보정·CSV 분석 안내: [AI 통합 가이드](../../docs/AI_INTEGRATION.md).
