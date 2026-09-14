@@ -24,6 +24,7 @@ const mimeTypes = {
   ".task": "application/octet-stream",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".csv": "text/csv; charset=utf-8",
   ".webmanifest": "application/manifest+json; charset=utf-8",
   ".png": "image/png",
   ".jpg": "image/jpeg",

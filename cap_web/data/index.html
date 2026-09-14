@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>StepOn · 데이터 수집과 CSV 분석</title>
+  <link rel="stylesheet" href="./data.css" />
+</head>
+<body>
+  <header><a class="brand" href="/?view=safety&esp32=1&ai=1">StepOn <span>RESEARCH</span></a><a href="/?view=safety&esp32=1&ai=1">실시간 분석으로 돌아가기 ↗</a></header>
+  <main>
+    <div class="intro"><span class="eyebrow">YOUR DATA → MODEL DECISION</span><h1>우리 센서 데이터로<br />보행 신호 분석하기</h1><p>보정 25초와 측정 CSV를 연결하면, 저장된 RF·CNN 모델이 4초 구간마다 점수와 상태를 계산합니다.</p><span id="connection" role="status">AI 프로그램 연결 확인 중</span></div>
+    <ol class="steps"><li><b>01</b>같은 발·부착 위치로 수집</li><li><b>02</b>시간·단위·보정 검사</li><li><b>03</b>모델 분석과 결과 저장</li></ol>
+    <section class="panel"><h2>1. 이번 측정 정보</h2><p>한 파일에는 한 사람, 한 회차, 한쪽 발, 한 장치의 데이터만 넣어 주세요. 양발은 각각 분석합니다.</p>
+      <form id="context" class="fields">
+        <label>참가자 코드<input name="participant_id" required maxlength="80" placeholder="예: P001 (실명 대신 코드)" /></label>
+        <label>측정 회차<input name="session_id" required maxlength="80" placeholder="예: 20260914_S01" /></label>
+        <label>측정 발<select name="side"><option value="left">왼발 · left</option><option value="right">오른발 · right</option></select></label>
+        <label>부착 위치<select name="placement"><option value="shoe">신발 고정 · shoe</option><option value="insole">깔창 고정 · insole</option><option value="ankle">발목 고정 · ankle</option><option value="shank">정강이 고정 · shank</option></select></label>
+      </form><p class="note">참가자·센서 부착·위치가 바뀌면 보정부터 다시 기록하세요. 업로드 파일에 있는 정보와 여기 입력한 정보가 다르면 분석을 중단합니다.</p>
+    </section>
+    <div class="columns">
+      <section class="panel"><h2>2. 데이터 준비</h2><p>웹에 연결된 실제 IMU를 기록하거나, 기존 USB 수집기의 CSV 파일을 사용하세요.</p>
+        <div class="capture-box"><h3>웹 센서에서 CSV 기록</h3><p>선택한 발의 센서를 기기 연결 화면에서 연결한 뒤 시작하세요. 시작 버튼을 누르면 <b>3초 준비 시간</b>을 줍니다.</p>
+          <div class="actions"><button id="record-calibration" type="button">보정 25초 기록</button><button id="record-measurement" class="secondary" type="button">측정 기록</button></div>
+          <label class="duration">측정 시간(초)<input id="duration" type="number" min="10" max="600" step="1" value="60" /></label>
+          <p><b>보정 동작:</b> 첫 5초 가만히 서기 → 이어서 20초 평소처럼 걷기. 보정 중 센서 방향을 바꾸지 마세요.</p>
+          <div id="capture-status" class="status" aria-live="polite">아직 기록을 시작하지 않았습니다.</div>
+          <button id="record-stop" type="button" class="secondary" hidden>기록 끝내기</button>
+          <div id="capture-downloads" class="downloads"></div>
+        </div>
+        <details><summary>USB로 이미 수집 중이라면</summary><p><code>06_bmi270_csv_wroom</code>의 <code>record.bat</code>으로 만든 CSV를 수정 없이 넣을 수 있습니다. 아래 COM7은 예시이며 실제 포트를 사용하세요.</p><pre>record.bat --port COM7 --seconds 25 --label calibration --side left --placement shoe
+record.bat --port COM7 --seconds 60 --label walking --side left --placement shoe</pre><p>첫 명령의 <b>첫 유효 샘플부터</b> 5초 정지, 20초 보행을 진행하세요. USB 수집기 자체에는 이 페이지의 3초 준비 시간이 없습니다. <code>recordings/</code>의 보정 파일과 측정 파일을 각각 선택합니다.</p></details>
+        <details><summary>CSV에 들어갈 항목과 단위</summary><p>UTF-8 CSV, 첫 행은 열 이름, 이후 한 행은 한 시점의 원시 센서값입니다. 권장 64~100 Hz, 최소 32 Hz. 실제 장치 시각을 보존해 주세요.</p>
+          <div class="table-scroll"><table><thead><tr><th>표준 열</th><th>값 / 단위</th></tr></thead><tbody>
+            <tr><td>timestamp_ms</td><td>장치 경과 시간, 밀리초, 엄격히 증가</td></tr>
+            <tr><td>raw_acc_x, raw_acc_y, raw_acc_z</td><td>중력 포함 가속도, g</td></tr>
+            <tr><td>raw_gyro_x, raw_gyro_y, raw_gyro_z</td><td>각속도, °/s</td></tr>
+            <tr><td>device_id, boot_id</td><td>장치 식별자, 부팅 식별자</td></tr>
+            <tr><td>side, participant_id, session_id, placement</td><td>left/right, 참가자 코드, 회차, 부착 위치</td></tr>
+            <tr><td>label</td><td>선택 메모: walking, turning, unlabeled 등</td></tr>
+          </tbody></table></div><p>USB의 <code>device_time_us</code>는 ms로 변환하고, <code>ax_g…gz_dps</code>는 표준 6축 열로 자동 연결합니다. 참가자·회차가 없는 USB 파일에는 위 정보를 붙입니다.</p>
+          <a href="./imu-template.csv" download>빈 CSV 양식 다운로드 ↓</a><p class="note">양식에는 가짜 센서값이 없습니다. 압력·온습도·카메라 값은 현재 IMU 모델 점수에 합산하지 않습니다.</p>
+        </details>
+      </section>
+      <section class="panel"><h2>3. CSV 연결과 분석</h2><p>같은 참가자·회차·발·장치·부착 위치의 두 파일을 선택하세요. 보정 파일은 앞 25초를 사용합니다.</p>
+        <form id="analysis-form">
+          <label class="file-label">보정 CSV · 5초 정지 + 20초 일반 보행<input id="calibration-file" type="file" accept=".csv,text/csv" /><span id="calibration-name">파일을 선택하거나 웹 기록을 연결하세요.</span></label>
+          <label class="file-label">측정 CSV · 권장 30~60초 이상<input id="measurement-file" type="file" accept=".csv,text/csv" /><span id="measurement-name">최소 4초 · 최대 10분 / 60,001행 / 파일당 8 MiB</span></label>
+          <div class="actions"><button id="validate" class="secondary" type="button">데이터 검사</button><button id="analyze" type="submit">모델 분석 시작 →</button></div>
+        </form>
+        <div id="validation" class="status" aria-live="polite">파일을 선택하면 형식·시간 간격·보정 동작을 검사할 수 있습니다.</div>
+        <div id="job-status" class="status" aria-live="polite"></div>
+        <div id="result"></div>
+        <p class="note">CSV는 이 PC의 비공개 데이터 폴더에 저장됩니다. 이 분석용 보정은 실시간 화면의 개인 보정값을 바꾸지 않습니다. 새 데이터로 가중치를 재학습하는 기능은 포함하지 않습니다.</p>
+      </section>
+    </div>
+    <section class="panel"><div class="section-top"><h2>최근 기록과 분석</h2><button id="refresh-history" class="secondary" type="button">새로고침</button></div><p>이 PC에 저장된 최근 20개 작업입니다. 보정·측정 기록을 다시 선택하거나 결과를 내려받을 수 있습니다.</p><div id="history"></div></section>
+    <p id="error" role="alert"></p>
+    <footer>점수는 해당 시간 구간의 모델 출력입니다. label은 수집자 메모이며 정답 판정이나 정확도로 사용하지 않습니다. 실제 보행동결 정답 구간이 있어야 성능 평가와 재학습을 별도로 진행할 수 있습니다.</footer>
+  </main>
+  <script type="module" src="./data.js"></script>
+</body>
+</html>

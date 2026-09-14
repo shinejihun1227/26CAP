@@ -56,7 +56,7 @@ function mobileAiCard(state) {
   const { ai, meta, score } = aiPresentation(state);
   const scoreLabel = score === null ? "--" : Math.round(score * 100);
   const connection = ai.available ? (ai.ready ? "실시간 추론 연결됨" : "브리지 연결됨") : "AI 브리지 연결 대기";
-  return `<section class="mobile-panel mobile-ai-card"><div class="mobile-panel-heading"><div><span class="mobile-card-kicker">AI FOG DETECTOR · ${escapeHtml((ai.model ?? "ensemble").toUpperCase())}</span><h2>AI 보행동결 최종 판단</h2></div><span class="mobile-stage-pill tone-${meta.tone}">${meta.label}</span></div><div class="mobile-ai-summary"><strong>${scoreLabel}</strong><div><b>${meta.detail}</b><small>${connection} · ${ai.windowSec ?? 4}초 창 · ${ai.hopSec ?? 0.5}초 간격</small></div></div><div class="mobile-ai-track"><i style="width:${score === null ? 0 : Math.round(score * 100)}%"></i></div>${renderAiDetails(state)}<small class="mobile-algorithm-disclaimer">연구용 모델 결과이며 의료적 진단이 아닙니다.</small></section>`;
+  return `<section class="mobile-panel mobile-ai-card"><div class="mobile-panel-heading"><div><span class="mobile-card-kicker">AI FOG DETECTOR · ${escapeHtml((ai.model ?? "ensemble").toUpperCase())}</span><h2>AI 보행동결 최종 판단</h2></div><span class="mobile-stage-pill tone-${meta.tone}">${meta.label}</span></div><div class="mobile-ai-summary"><strong>${scoreLabel}</strong><div><b>${meta.detail}</b><small>${connection} · ${ai.windowSec ?? 4}초 창 · ${ai.hopSec ?? 0.5}초 간격</small></div></div><div class="mobile-ai-track"><i style="width:${score === null ? 0 : Math.round(score * 100)}%"></i></div><p><a class="mobile-link-button" href="/data/">데이터 수집 · CSV 분석 →</a></p>${renderAiDetails(state)}<small class="mobile-algorithm-disclaimer">연구용 모델 결과이며 의료적 진단이 아닙니다.</small></section>`;
 }
 
 function mobileOverview(state) {

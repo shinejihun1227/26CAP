@@ -1,3 +1,5 @@
+> **센서 데이터 수집·CSV 분석:** `run.bat` 실행 후 http://127.0.0.1:8000/data/ — [수집 항목·CSV 형식·연결 안내](docs/DATA_PIPELINE.md)
+
 # StepOn — 양발 웹 · RF/CNN AI 통합
 
 2026-09-14: 첨부 `ai_engine_updated_20260909.zip`의 엔진으로 교체하고 최신 양발 STA 웹과 연결했습니다.

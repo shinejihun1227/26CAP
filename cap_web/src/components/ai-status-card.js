@@ -84,6 +84,7 @@ export function renderAiStatusCard(state, { compact = false } = {}) {
       <div class="ai-score-block"><strong data-live-copy>${displayScore(score)}</strong><span>/ 100 · 판정 점수</span></div>
       <div class="ai-status-copy"><b data-live-copy>${detail}</b><p data-live-copy>${disabled ? 'AI 분석 꺼짐' : `${connection} · 최근 ${ai.windowSec ?? 4}초 분석`}</p><div class="ai-score-track"><i style="width:${score === null ? 0 : Math.round(score * 100)}%"></i></div></div>
     </div>
+    <p><a class="outline-button" href="/data/">데이터 수집 · CSV 분석 →</a></p>
     ${renderAiDetails(state)}
     <small class="algorithm-disclaimer">연구용 모델 결과이며 의료적 진단이 아닙니다. 센서 연결 전에는 기존 시연 데이터와 별도로 표시됩니다.</small>
   </article>`;

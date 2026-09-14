@@ -19,10 +19,11 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+if not __package__:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(REPOSITORY_ROOT / 'ai_engine' / 'src'))
 import numpy as np
 import torch
-from fog_validation.ml.calibration import calibrate
 from fog_validation.ml.config import TARGET_FS_HZ
 from fog_validation.ml.live_detector import LiveFogDetector, load_axis_calibration
 
@@ -35,6 +36,12 @@ MIN_INPUT_HZ = 32.0
 STALE_S = 2.0
 CSV_COLUMNS = ['timestamp_ms', 'raw_acc_x', 'raw_acc_y', 'raw_acc_z', 'raw_gyro_x', 'raw_gyro_y', 'raw_gyro_z']
 torch.set_num_threads(1)
+if __package__:
+    from .csv_pipeline import calibration_from_rows
+    from .datasets import DatasetService, BODY_LIMIT
+else:
+    from csv_pipeline import calibration_from_rows
+    from datasets import DatasetService, BODY_LIMIT
 
 
 def vector(value):
@@ -242,24 +249,7 @@ class FootRuntime:
             return
         try:
             rows = np.asarray(self.capture_rows)
-            times = (rows[:, 0] - rows[0, 0]) / 1000
-            if (len(rows) - 1) / times[-1] < MIN_INPUT_HZ or np.diff(times).max() > MAX_GAP_S:
-                raise ValueError('calibration_sample_quality')
-            uniform = np.arange(0, times[-1], 1 / TARGET_HZ)
-            signals = np.column_stack([np.interp(uniform, times, rows[:, i]) for i in range(1, 7)])
-            still = signals[:int(5 * TARGET_HZ), :3]
-            if not 0.7 <= np.linalg.norm(still.mean(axis=0)) <= 1.3 or still.std(axis=0).max() > 0.1:
-                raise ValueError('calibration_still_phase_or_g_units_invalid')
-            cal = calibrate(signals[:, :3], fs=TARGET_HZ, still_end_s=5, raw_gyro=signals[:, 3:])
-            if not np.isfinite([cal.vertical_confidence, cal.forward_confidence]).all() or min(cal.vertical_confidence, cal.forward_confidence) < 0.3:
-                raise ValueError('calibration_low_confidence')
-            names = ['raw_acc_x', 'raw_acc_y', 'raw_acc_z']
-            result = {'foot_side': self.side, 'device_id': self.identity[0], 'fs_hz': TARGET_HZ,
-                      'source_received_hz': (len(rows) - 1) / times[-1], 'still_end_s': 5,
-                      'vertical_channel': names[cal.vertical_idx], 'vertical_sign': cal.vertical_sign,
-                      'forward_channel': names[cal.forward_idx], 'lateral_channel': names[cal.lateral_idx],
-                      'vertical_confidence': cal.vertical_confidence, 'forward_confidence': cal.forward_confidence,
-                      'gyro_yaw_channel': None, 'zscore_mean_vfl': cal.mean.tolist(), 'zscore_std_vfl': cal.std.tolist()}
+            result = calibration_from_rows(rows, self.side, self.identity[0])
             self.data_dir.mkdir(parents=True, exist_ok=True)
             stamp = time.time_ns()
             self.capture_path = self.data_dir / f'{self.side}-{stamp}.csv'
@@ -335,11 +325,13 @@ class BridgeState:
         self.events = deque(maxlen=200)
         self.last_decision = None
         self.source_error = None
+        self.datasets = DatasetService(data_dir, artifact_dir, self.artifact_id, model_name)
 
     def consume(self, payload):
         with self.lock:
             if self.esp32_url:
-                self.feet[self.foot].ingest(payload)
+                if self.feet[self.foot].ingest(payload):
+                    self.datasets.ingest(self.foot, payload)
             else:
                 if payload.get('service') != 'stepon-bilateral-v1' or not isinstance(payload.get('samples'), list):
                     raise ValueError('insole_history_api_required')
@@ -353,7 +345,8 @@ class BridgeState:
                     if row.get('side') in self.feet:
                         runtime = self.feet[row['side']]
                         try:
-                            runtime.ingest(row['state'], row['received_at_ms'])
+                            if runtime.ingest(row['state'], row['received_at_ms']):
+                                self.datasets.ingest(row['side'], row['state'])
                         except Exception as exc:
                             runtime.reset(f'inference_failed: {exc}')
                 self.cursor = payload['next_cursor']
@@ -388,6 +381,7 @@ class BridgeState:
                         if runtime.window_count or runtime.last_device_t is not None:
                             runtime.reset('source_unreachable')
                         runtime.last_received = None
+            self.datasets.tick()
             interval = 1 / TARGET_HZ if self.esp32_url else 0.05
             self.stop.wait(max(0.001, interval - (time.monotonic() - started)))
 
@@ -430,13 +424,34 @@ class BridgeHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         route = urlparse(self.path).path
-        if route in ('/api/ai/state', '/api/ai/ping'):
-            self.send_json(200, self.bridge.snapshot())
-        elif route == '/api/ai/events':
-            with self.bridge.lock:
-                self.send_json(200, {'events': list(self.bridge.events)})
-        else:
-            self.send_json(404, {'error': 'not_found'})
+        try:
+            if route in ('/api/ai/state', '/api/ai/ping'):
+                self.send_json(200, self.bridge.snapshot())
+            elif route == '/api/ai/events':
+                with self.bridge.lock:
+                    self.send_json(200, {'events': list(self.bridge.events)})
+            elif route == '/api/ai/datasets':
+                self.send_json(200, self.bridge.datasets.list())
+            elif route.startswith('/api/ai/datasets/'):
+                parts = route.removeprefix('/api/ai/datasets/').split('/')
+                if len(parts) == 1:
+                    self.send_json(200, self.bridge.datasets.status(parts[0]))
+                elif len(parts) == 2:
+                    data = self.bridge.datasets.download(*parts)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'text/csv; charset=utf-8' if parts[1].endswith('.csv') else 'application/json; charset=utf-8')
+                    self.send_header('Content-Disposition', f'attachment; filename="{parts[0]}-{parts[1]}"')
+                    self.send_header('Content-Length', str(len(data)))
+                    self.send_header('Cache-Control', 'no-store')
+                    self.send_header('X-Content-Type-Options', 'nosniff')
+                    self.end_headers()
+                    self.wfile.write(data)
+                else:
+                    self.send_json(404, {'error': 'not_found'})
+            else:
+                self.send_json(404, {'error': 'not_found'})
+        except (ValueError, OSError) as exc:
+            self.send_json(400, {'error': str(exc)})
 
     def do_POST(self):
         if self.headers.get('Origin') and urlparse(self.headers['Origin']).netloc != self.headers.get('Host'):
@@ -444,24 +459,38 @@ class BridgeHandler(BaseHTTPRequestHandler):
         if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
             return self.send_json(415, {'error': 'json_required'})
         try:
-            length = int(self.headers.get('Content-Length', '0'))
-            if not 0 < length <= 4096:
-                raise ValueError('invalid_body_length')
-            body = json.loads(self.rfile.read(length))
-            side = body.get('side')
             route = urlparse(self.path).path
+            limit = BODY_LIMIT if route in ('/api/ai/datasets/analyze', '/api/ai/datasets/validate') else 4096
+            length = int(self.headers.get('Content-Length', '0'))
+            if not 0 < length <= limit:
+                return self.send_json(413, {'error': 'body_too_large_or_empty'})
+            self.connection.settimeout(30)
+            body = json.loads(self.rfile.read(length))
+            if not isinstance(body, dict):
+                raise ValueError('json_object_required')
+            if route == '/api/ai/datasets/validate':
+                return self.send_json(200, self.bridge.datasets.validate(body))
+            if route == '/api/ai/datasets/analyze':
+                return self.send_json(202, self.bridge.datasets.analyze(body))
+            if route == '/api/ai/datasets/record/stop':
+                return self.send_json(200, self.bridge.datasets.finish_recording(body.get('id')))
+            side = body.get('side')
             with self.bridge.lock:
                 if side not in self.bridge.feet:
                     raise ValueError('invalid_side')
                 runtime = self.bridge.feet[side]
+                if route == '/api/ai/datasets/record/start':
+                    return self.send_json(201, self.bridge.datasets.start_recording(body, runtime))
                 if route == '/api/ai/calibration/start':
+                    if self.bridge.datasets.list()['active_recording']:
+                        raise ValueError('CSV 수집이 끝난 뒤 실시간 개인 보정을 시작하세요.')
                     runtime.start_calibration()
                 elif route == '/api/ai/calibration/cancel':
                     runtime.cancel_calibration()
                 else:
                     return self.send_json(404, {'error': 'not_found'})
                 self.send_json(200, self.bridge.snapshot())
-        except (ValueError, AttributeError) as exc:
+        except (ValueError, AttributeError, TypeError, OSError) as exc:
             self.send_json(400, {'error': str(exc)})
 
     def log_message(self, fmt, *args):
@@ -495,6 +524,7 @@ def main():
         pass
     finally:
         bridge.stop.set()
+        bridge.datasets.close()
         server.server_close()
         worker.join(timeout=2)
 
