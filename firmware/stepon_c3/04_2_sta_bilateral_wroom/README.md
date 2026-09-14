@@ -1,6 +1,8 @@
 # 4-2 — ESP32-WROOM 양발 Wi-Fi · 웹 · AI 연결
 
-`04_sta_bilateral` 옆에 추가한 **ESP32-WROOM-32 / ESP32-WROOM-DA용** 독립 스케치입니다. Arduino IDE에서 이 폴더의 `04_2_sta_bilateral_wroom.ino`를 여세요. `.ino`와 같은 폴더의 모든 `.h`를 함께 사용합니다.
+`04_sta_bilateral` 옆에 추가한 **ESP32-WROOM-32 / ESP32-WROOM-DA용** 독립 스케치입니다. 사용자 배선을 최대한 유지하고, 두 모듈의 핀 충돌을 피하도록 **CD74HC4067 S2 선만 GPIO25에서 GPIO18로 이동**합니다. Arduino IDE에서 이 폴더의 `04_2_sta_bilateral_wroom.ino`를 여세요. `.ino`와 같은 폴더의 모든 `.h`를 함께 사용합니다.
+
+![WROOM 공통 핀맵 요약도](pinmap-summary.png)
 
 ## 1. 보드와 핀 연결
 
@@ -14,15 +16,17 @@
 
 화면에 나온 `setTxTimeoutMs` 오류는 C3의 USB용 호출을 WROOM의 `HardwareSerial`에 사용해서 발생합니다. 4-2는 UART0의 `Serial.begin(115200)`을 사용합니다. `setRxTimeout`으로 바꿀 필요가 없으며 USB CDC 설정도 사용하지 않습니다. C3/S3 보드를 선택하면 잘못된 핀으로 빌드하지 않도록 오류를 표시합니다.
 
-**기존 C3 배선에서 아래 WROOM 배선으로 변경해야 합니다.** USB·배터리를 분리한 상태에서 연결하고 센서 GND를 공통으로 연결하세요. GPIO 입력은 3.3V 기준입니다.
+**사용자가 올린 표에서 MUX S2 연결 한 곳을 GPIO25 → GPIO18로 바꾼 최종 핀맵입니다.** 나머지 연결은 유지합니다. USB·배터리를 분리한 상태에서 선을 옮기고 센서 GND를 공통으로 연결하세요. GPIO 입력은 3.3V 기준입니다. 표의 숫자는 GPIO 번호이며 보드 가장자리 핀의 순서 번호가 아닙니다.
 
 | 연결 대상 | WROOM GPIO / 설정 |
 |---|---|
-| BMI270·TCA9548A·DRV2605L I²C SDA | **21** |
-| I²C SCL | **22** |
-| CD74HC4067 S0 / S1 / S2 / S3 | **16 / 17 / 18 / 19** |
+| BMI270·TCA9548A·DRV2605L I²C SDA | **13** |
+| I²C SCL | **14** |
+| CD74HC4067 S0 / S1 / S2 / S3 | **32 / 33 / 18 / 26** (S2만 이동) |
 | CD74HC4067 SIG (압력 ADC) | **34** |
-| 선택적 레이저 제어 | **23**, 기본 비활성화 |
+| 베이스 저항 → 2N2222 Base (기존 레이저 제어) | **27**, 기본 비활성화 |
+| 센서·MUX 3.3V 전원 레일 | **3V3** |
+| 공통 접지 | **GND** |
 | 압력 FSR 4개 | C0 앞쪽 / C2 가운데 안쪽 / C4 가운데 바깥쪽 / C6 뒤꿈치 |
 | SHTC3 4개 | TCA CH3 / CH4 / CH5 / CH6 |
 | TCA9548A 주소 | **0x71**: A0 High, A1/A2 Low |
@@ -30,7 +34,11 @@
 
 FSR마다 `3.3V → FSR → MUX 채널`, `MUX 채널 → 10kΩ → GND`로 연결합니다. `pressure_ready`는 ADC 읽기 상태이며 FSR의 물리적 연결 여부를 검출하지는 않습니다. SHTC3 주소는 0x70이므로 상위 TCA도 0x70이면 충돌합니다. 하드웨어 주소를 0x71로 맞추세요.
 
-GPIO34는 Wi-Fi를 쓰는 동안에도 사용할 수 있는 ADC1 입력입니다. ADC2의 Wi-Fi 사용 제한은 [Espressif GPIO 안내](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/peripherals/gpio.html)를 참고하세요. WROOM-DA의 GPIO2·25는 안테나 제어에 쓰이므로 이번 배선에서 제외했습니다. [WROOM-DA 데이터시트](https://www.espressif.com/sites/default/files/documentation/esp32-wroom-da_datasheet_en.pdf). 설치된 Arduino ESP32 2.0.11은 DA 보드를 선택하면 이 안테나 핀을 자동 설정하므로 실제 모듈에 맞는 보드를 선택합니다. 이 핀맵은 WROVER용이 아닙니다.
+GPIO34는 Wi-Fi를 쓰는 동안에도 사용할 수 있는 ADC1 입력입니다. ADC2의 Wi-Fi 사용 제한은 [Espressif GPIO 안내](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/peripherals/gpio.html)를 참고하세요. MUX 선택 핀과 GPIO27은 디지털 출력으로 사용합니다.
+
+WROOM-DA의 GPIO2·25는 안테나 제어용입니다. [WROOM-DA 데이터시트](https://www.espressif.com/sites/default/files/documentation/esp32-wroom-da_datasheet_en.pdf). 이번 공통 핀맵은 두 핀, 플래시 GPIO6~11, UART0 GPIO1·3, 부팅 설정 GPIO0·2·5·12·15를 피합니다. DA 보드로 빌드할 때 센서·출력 핀이 안테나 핀과 겹치면 컴파일 검사가 오류를 냅니다. 실제 일반 WROOM-32는 `ESP32 Dev Module`, 실제 DA는 `ESP32-WROOM-DA Module`을 선택하세요. 설치된 Arduino ESP32 2.0.11은 DA 선택 시 안테나 핀을 자동 설정합니다.
+
+GPIO27은 베이스 저항을 거쳐 기존 2N2222 출력 회로를 제어하며, `ENABLE_LASER_OUTPUT=false`를 유지했습니다. 이 요약도는 핀 연결도입니다. 전원 용량·출력 부하·저항값 등 전체 회로의 검증을 뜻하지는 않습니다.
 
 ## 2. Wi-Fi와 왼발·오른발 설정
 
