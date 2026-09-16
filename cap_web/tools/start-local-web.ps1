@@ -39,4 +39,5 @@ foreach ($webPort in @(8000, 8001)) {
   Write-Host "StepOn $webPort ready."
 }
 Write-Host 'STA insoles: http://127.0.0.1:8000/?view=live&esp32=1&transport=sta&ai=1&mobile=0'
-Write-Host 'Keep this PC hotspot on 2.4GHz. Sensor polling starts only after device registration.'
+Write-Host 'Use one shared 2.4GHz network: phone hotspot, router, or PC hotspot.'
+Write-Host 'For phone hotspots, set ESP32 PC_HOST to the laptop IPv4. Run check-network.bat to find it.'

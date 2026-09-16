@@ -44,6 +44,8 @@ GPIO27은 베이스 저항을 거쳐 기존 2N2222 출력 회로를 제어하며
 
 ## 2. Wi-Fi와 왼발·오른발 설정
 
+**휴대폰 핫스팟을 사용한다면 [휴대폰 핫스팟 연결 안내](../../../docs/PHONE_HOTSPOT.md)를 따르세요.** 노트북과 두 보드를 같은 핫스팟에 연결하고 `PC_HOST`에는 휴대폰이 아닌 노트북 IPv4를 넣습니다. `check-network.bat`이 현재 주소를 보여 줍니다.
+
 1. `wifi_secrets.example.h`를 **같은 폴더의 `wifi_secrets.h`로 복사**하고 PC 핫스팟 이름과 암호를 입력합니다. 이 PC에는 기존 04의 로컬 설정을 복사해 두었습니다. GitHub에는 예제만 포함됩니다.
 2. Windows 모바일 핫스팟을 **2.4GHz**로 켭니다. `config.h`의 `PC_HOST = ""`는 DHCP 게이트웨이를 PC 주소로 사용합니다. 일반 공유기에 함께 연결한다면 `PC_HOST`에 **PC의 LAN IPv4 주소**를 입력합니다.
 3. `config.h`의 `#define STEPON_RIGHT_FOOT 0`은 **왼발**입니다. 왼발 보드의 COM 포트를 선택해 업로드합니다.

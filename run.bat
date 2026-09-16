@@ -13,7 +13,8 @@ start "" "http://127.0.0.1:8000/?view=live&esp32=1&transport=sta&ai=1&mobile=0"
 start "" "http://127.0.0.1:8001/?mode=editor&screen=live"
 echo CSV analysis: http://127.0.0.1:8000/data/
 echo Servers run in the background. Use stop.bat when finished.
-echo For live STA sensors, keep the 2.4GHz PC hotspot enabled.
+echo Connect laptop and ESP32 to the same 2.4GHz network: phone hotspot, router, or PC hotspot.
+echo Phone hotspot: PC_HOST must be the laptop IPv4. Run check-network.bat to find it.
 echo After updating code, finish recordings and run: run.bat --restart
 pause
 exit /b 0

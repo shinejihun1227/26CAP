@@ -12,9 +12,9 @@ function connectionError(error, side) {
 export function renderInsoleConnections(state, { configure = false } = {}) {
   const sta = state.hardware?.transport === 'sta';
   if (!sta && !configure) return '';
-  if (!sta) return `<section class="panel insole-hub-panel"><h2>04번 STA 양발 연결</h2><p>노트북 핫스팟에 접속한 왼발·오른발을 실센서 모드에서 확인하세요. 시연값과 섞이지 않습니다.</p><button class="primary-button" data-action="connect-sta">STA 실센서 화면 열기</button></section>`;
+  if (!sta) return `<section class="panel insole-hub-panel"><h2>04 / 4-2 STA 양발 연결</h2><p>노트북과 왼발·오른발을 같은 휴대폰 핫스팟 또는 Wi-Fi에 연결한 뒤 실센서 모드에서 확인하세요.</p><button class="primary-button" data-action="connect-sta">STA 실센서 화면 열기</button></section>`;
   const active = state.rehab?.config?.activeFoot === 'right' ? 'right' : 'left';
-  return `<section class="insole-hub-panel" aria-label="STA 양발 연결 상태"><div class="insole-hub-heading"><div><span class="eyebrow">STA ONLY · PC HOTSPOT</span><h2>왼발과 오른발 연결</h2><p>ESP32 → PC 자동 등록 · PC가 발별 /api/state 조회 · 웹은 PC의 최신 값을 표시</p></div><label data-insole-controls>분석·출력 대상 <select data-rehab-setting="activeFoot" aria-label="분석 및 출력 대상 발"><option value="left" ${active === 'left' ? 'selected' : ''}>왼발</option><option value="right" ${active === 'right' ? 'selected' : ''}>오른발</option></select></label></div>
+  return `<section class="insole-hub-panel" aria-label="STA 양발 연결 상태"><div class="insole-hub-heading"><div><span class="eyebrow">STA · SHARED WI-FI</span><h2>왼발과 오른발 연결</h2><p>같은 Wi-Fi로 연결 · ESP32 → 노트북 자동 등록 · 노트북에서 센서 수집과 AI 처리</p></div><label data-insole-controls>분석·출력 대상 <select data-rehab-setting="activeFoot" aria-label="분석 및 출력 대상 발"><option value="left" ${active === 'left' ? 'selected' : ''}>왼발</option><option value="right" ${active === 'right' ? 'selected' : ''}>오른발</option></select></label></div>
     <div class="insole-hub-grid">${['left', 'right'].map((side) => {
       const foot = state.hardware?.feet?.[side] ?? {}, online = foot.connected === true;
       const p = online ? foot.state : null;

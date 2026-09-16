@@ -96,7 +96,7 @@ export function renderBilateralHeatmap(state) {
   const rightAvailable = !isEsp32 || (state.hardware?.transport === 'sta' ? Boolean(state.hardware.feet?.right?.connected) : Boolean(state.hardware?.bilateralAvailable) || state.hardware?.footSide === 'right');
   const description = (mode === 'pressure' ? state.hardware?.layoutWarning : null) || (mode !== 'pressure' ? '온습도 센서 4개는 TCA9548A의 CH3·4·5·6에 연결합니다. 미연결 값은 측정 대기로 표시합니다.' : leftAvailable && rightAvailable
     ? '압력 P1 앞쪽 · P2 가운데 안쪽 · P3 가운데 바깥쪽 · P4 뒤꿈치. MUX 0·2·4·6을 사용합니다.'
-    : leftAvailable || rightAvailable ? '한쪽 깔창이 연결되어 있습니다. 압력은 앞쪽 1개·가운데 2개·뒤꿈치 1개이며, 반대쪽 발은 연결 대기로 표시합니다.' : '양발 연결 대기 중입니다. ESP32를 PC 핫스팟에 연결하세요.');
+    : leftAvailable || rightAvailable ? '한쪽 깔창이 연결되어 있습니다. 압력은 앞쪽 1개·가운데 2개·뒤꿈치 1개이며, 반대쪽 발은 연결 대기로 표시합니다.' : '양발 연결 대기 중입니다. ESP32와 노트북을 같은 핫스팟 또는 Wi-Fi에 연결하세요.');
   const comparisonPoints = mode === "pressure" ? "한 발당 4개" : "한 발당 4개 부위";
 
   return `<article class="panel bilateral-heatmap-panel">

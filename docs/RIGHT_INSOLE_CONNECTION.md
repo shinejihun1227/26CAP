@@ -21,6 +21,7 @@ WROOM 보드는 [`04_2_sta_bilateral_wroom`](../firmware/stepon_c3/04_2_sta_bila
 
 - **Windows 모바일 핫스팟에 직접 연결:** 기본값 `PC_HOST = ""`는 보드가 받은 DHCP 게이트웨이를 사용합니다. 게이트웨이가 서버를 실행하는 PC일 때 맞는 설정입니다.
 - **공유기 Wi-Fi에 PC와 보드가 함께 연결:** 게이트웨이는 공유기이므로 `PC_HOST`에 **PC의 Wi-Fi IPv4 주소**를 넣고 보드에 다시 업로드합니다. `ipconfig`에서 현재 주소를 확인합니다.
+- **휴대폰 핫스팟에 PC와 보드가 함께 연결:** 게이트웨이는 휴대폰입니다. `check-network.bat`으로 확인한 **노트북 IPv4**를 `PC_HOST`에 넣습니다. [휴대폰 핫스팟 연결 안내](PHONE_HOTSPOT.md)를 참고하세요.
 
 예를 들어 PC가 `192.168.0.103`이라면:
 

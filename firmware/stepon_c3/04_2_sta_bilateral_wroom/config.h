@@ -5,8 +5,9 @@
 static_assert(STEPON_RIGHT_FOOT == 0 || STEPON_RIGHT_FOOT == 1, "Foot must be 0 or 1");
 constexpr const char *FOOT_SIDE = STEPON_RIGHT_FOOT ? "right" : "left";
 constexpr const char *DEVICE_HOSTNAME = STEPON_RIGHT_FOOT ? "stepon-wroom-right" : "stepon-wroom-left";
-// Empty = the DHCP gateway (the PC when using a Windows hotspot).
-// When using a router, set this to the PC's LAN IPv4 address instead.
+// Empty uses the DHCP gateway: valid only when the laptop hosts the hotspot.
+// Phone hotspot/router: enter the laptop's Wi-Fi IPv4, NOT the phone/gateway.
+// Run check-network.bat on the laptop to find its current address.
 constexpr const char *PC_HOST = "";
 constexpr uint16_t PC_PORT = 8000;
 constexpr bool WIFI_POWER_SAVE = false; // Low-latency polling. true trades latency for idle power saving.
