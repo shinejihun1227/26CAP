@@ -1,0 +1,35 @@
+# Local credentials and personal measurements
+**/wifi_secrets.h
+firmware/stepon_c3/04_2_sta_bilateral_wroom/wifi_secrets.h
+.env
+.env.*
+!.env.example
+.stepon-data/
+recordings/
+*.calibration.json
+*.csv
+!cap_web/data/imu-template.csv
+
+# Local environments, build products and logs
+.venv-ai/
+.venv/
+.deps/
+node_modules/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.codex-build/
+.codex-output/
+.agents/
+.codex/
+build/
+dist/
+output/
+tmp/
+*.log
+*.bin
+*.elf
+*.zip
+.idea/
+.vscode/
+cap_web/.stepon-editor-state.json

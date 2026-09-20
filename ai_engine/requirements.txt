@@ -1,0 +1,8 @@
+# Tested together on Windows, Python 3.12.14, 2026-09-08.
+# sklearn version matches the bundled RF artifact's _sklearn_version.
+numpy==2.5.3
+scipy==1.18.1
+pandas==3.0.5
+scikit-learn==1.9.0
+joblib==1.6.0
+torch==2.14.0

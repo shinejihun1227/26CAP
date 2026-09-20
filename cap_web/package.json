@@ -1,0 +1,12 @@
+{
+  "name": "stepon-cap-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/main.js",
+    "test:rom": "node --test tests/*.test.mjs",
+    "setup:mediapipe": "node tools/setup-mediapipe.mjs",
+    "test:ai": "node --test tests/ai-integration.test.mjs",
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "StepOn 보행 건강 대시보드",
+  "short_name": "StepOn",
+  "start_url": "/?view=overview",
+  "display": "standalone",
+  "background_color": "#d9f2f1",
+  "theme_color": "#d9f2f1",
+  "description": "양발 압력·온습도·보행 신호를 관찰하는 모바일 앱형 웹 화면"
+}

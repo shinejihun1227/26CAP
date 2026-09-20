@@ -1,0 +1,49 @@
+{
+  "package": "@mediapipe/tasks-vision",
+  "version": "1.0.1",
+  "model": "pose_landmarker_lite/float16/1",
+  "files": [
+    {
+      "name": "vision_bundle.mjs",
+      "url": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/vision_bundle.mjs",
+      "bytes": 155439,
+      "sha256": "d885630c297c0b20b1fe86096cb06291c4c8080876f27852e724f24ac603713f"
+    },
+    {
+      "name": "wasm/vision_wasm_internal.js",
+      "url": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm/vision_wasm_internal.js",
+      "bytes": 323377,
+      "sha256": "e170ee67dd4e16c1a6fcd8840a206687e5a59b22c20e4a902bc445b095454d73"
+    },
+    {
+      "name": "wasm/vision_wasm_internal.wasm",
+      "url": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm/vision_wasm_internal.wasm",
+      "bytes": 11756954,
+      "sha256": "8da277a733926eacd0474b8704b36742d6ec3231c57a860c5b889dff8f1df886"
+    },
+    {
+      "name": "wasm/vision_wasm_nosimd_internal.js",
+      "url": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm/vision_wasm_nosimd_internal.js",
+      "bytes": 323180,
+      "sha256": "e81d715a3d42cc3373602eb2f7aff795d164934db680e32496b65dab537f9658"
+    },
+    {
+      "name": "wasm/vision_wasm_nosimd_internal.wasm",
+      "url": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm/vision_wasm_nosimd_internal.wasm",
+      "bytes": 10960242,
+      "sha256": "a28483cd42e74e855bf5ebdb6b40d9b66a5b49e35e95020bc97669e6822a3192"
+    },
+    {
+      "name": "pose_landmarker_lite.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+      "bytes": 5777746,
+      "sha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a"
+    },
+    {
+      "name": "LICENSE",
+      "url": "https://raw.githubusercontent.com/google-ai-edge/mediapipe/master/LICENSE",
+      "bytes": 12331,
+      "sha256": "8707eef0533987efc5b155d64761eeb6e20793f50b9bd1a68dad1cf4719d0ed8"
+    }
+  ]
+}

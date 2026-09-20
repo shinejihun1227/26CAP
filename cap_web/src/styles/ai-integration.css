@@ -1,0 +1,9 @@
+.ai-decision-details { margin: 18px 0; padding: 18px; background: #f5f8fa; border-radius: 16px; color: #344653; }
+.ai-decision-details p { margin: 8px 0; font-size: 13px; line-height: 1.65; }
+.ai-decision-details small { display: block; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.ai-foot-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.ai-foot-result { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid #dbe5eb; border-radius: 12px; background: white; min-width: 0; }
+.ai-foot-result b, .ai-foot-result span { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.ai-foot-result button { margin-top: auto; white-space: normal; }
+.ai-foot-result button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 800px) { .ai-foot-results { grid-template-columns: 1fr; } .ai-decision-details { padding: 12px; } }

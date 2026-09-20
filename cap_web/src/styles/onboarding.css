@@ -1,0 +1,13 @@
+.health-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 1px;
+}
+
+.preview-dashboard-button { width: 100%; margin-top: 9px; padding: 10px 14px; border: 1px solid #cfe4e2; border-radius: 9px; color: #66898a; background: rgba(255,255,255,.72); font-size: 11px; font-weight: 800; cursor: pointer; }
+.preview-dashboard-button:hover { border-color: #91cbc4; color: var(--ink); background: #fff; }
+
+@media (max-width: 560px) {
+  .health-grid { grid-template-columns: 1fr; }
+}
