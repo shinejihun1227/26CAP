@@ -4,7 +4,7 @@
 
 **평소 실행은 `run.bat` 하나입니다.** ESP32에는 4-2 펌웨어를 올리고, RF/CNN 모델은 노트북에서 실행합니다. 새 PC에서는 `setup-ai.bat`을 먼저 실행합니다.
 
-> 이 브랜치의 4-2 핀 설정은 사용자가 변경한 **MUX S2 = GPIO12**입니다. 이전 GPIO18 그림은 포함하지 않았습니다. 아래 핀맵과 부팅 조건을 확인하세요. `PC_HOST = "172.20.10.2"`는 기존 구성의 예시 주소이며, 사용 시 노트북의 실제 IPv4로 맞춰야 합니다.
+> 현재 4-2 설정은 **SDA = GPIO13, SCL = GPIO14, MUX S2 = GPIO18**입니다. S2가 GPIO12에 연결돼 있다면 전원을 끈 뒤 GPIO18로 옮기고 각 보드에 현재 코드를 다시 업로드하세요. `PC_HOST = "172.20.10.2"`는 기존 구성의 예시 주소이며, 사용 시 노트북의 실제 IPv4로 맞춰야 합니다.
 
 ## 목차
 
@@ -129,7 +129,7 @@ py -3.12 --version
 | 공통 I²C SCL | GPIO14 |
 | CD74HC4067 S0 | GPIO32 |
 | CD74HC4067 S1 | GPIO33 |
-| **CD74HC4067 S2** | **GPIO12 — 현재 사용자 배선** |
+| **CD74HC4067 S2** | **GPIO18** |
 | CD74HC4067 S3 | GPIO26 |
 | CD74HC4067 SIG — 압력 ADC | GPIO34, ADC1 |
 | 베이스 저항 → 2N2222 Base | GPIO27, 레이저 출력 기본 비활성 |
@@ -141,7 +141,9 @@ py -3.12 --version
 
 SHTC3의 주소가 0x70이므로 상위 TCA9548A도 0x70이면 충돌합니다. 압력 채널은 `3.3V → FSR → MUX 채널`, 해당 채널에서 `10kΩ → GND` 구성입니다. 센서 GPIO는 3.3V 기준입니다.
 
-**GPIO12 부팅 조건:** 일반적인 3.3V 플래시 WROOM에서는 GPIO12가 리셋 시 LOW여야 합니다. 외부 회로가 부팅 순간 HIGH로 끌어올리지 않는지 확인하세요. `setup()`에서 LOW로 만드는 것만으로 부팅 전 조건을 해결할 수는 없습니다. 현재 연결을 유지하되 문제가 있으면 배선·풀다운을 확인하고, GPIO18로 되돌릴 경우 선과 `MUX_S2`를 함께 바꿉니다. [Espressif GPIO12 설명](https://docs.espressif.com/projects/esp-idf/en/release-v5.5/esp32/api-reference/peripherals/sd_pullup_requirements.html#mtdi-strapping-pin)
+**S2를 GPIO12에서 GPIO18로 옮기는 순서:** USB와 배터리를 모두 분리하고, CD74HC4067의 S2에서 오는 선의 ESP32 쪽 끝만 GPIO12에서 GPIO18로 옮깁니다. MUX 쪽 S2 연결은 유지합니다. GPIO12와 GPIO18을 서로 연결하지 않습니다. `config.h`의 `MUX_S2 = 18`을 확인하고 왼발은 `STEPON_RIGHT_FOOT=0`, 오른발은 `1`로 각각 업로드합니다. SDA13·SCL14 및 다른 핀은 그대로 둡니다. 웹·AI 설정 변경이나 재설치는 필요하지 않습니다.
+
+이 변경은 일반적인 3.3V 플래시 WROOM의 GPIO12가 리셋 시 LOW여야 하는 조건을 피하기 위한 것입니다. GPIO12의 부팅 전 상태는 `setup()`에서 LOW로 바꾸는 것으로 해결할 수 없습니다. [Espressif GPIO12 설명](https://docs.espressif.com/projects/esp-idf/en/release-v5.5/esp32/api-reference/peripherals/sd_pullup_requirements.html#mtdi-strapping-pin)
 
 WROOM-DA의 GPIO2·25는 안테나 핀입니다. 현재 설정은 이 두 핀을 사용하지 않습니다. 레이저는 `ENABLE_LASER_OUTPUT=false`이며 AI 점수에 의한 레이저·진동 자동 제어는 구현되어 있지 않습니다. 펌웨어의 선택적 자동 진동 규칙은 별도의 압력·자이로 규칙이고 기본값은 꺼짐입니다.
 
@@ -431,7 +433,7 @@ CSV 작업 목록은 최근 20개를 보여 주지만 이전 완료 파일도 �
 | 8000/8001/8787 포트가 이미 사용 중 | 이전 프로젝트에서 측정 종료 후 그 폴더의 `stop.bat`; 다른 프로그램이면 해당 프로그램에서 종료 |
 | Adafruit_DRV2605.h 또는 BMI270 헤더 없음 | Arduino 스케치북의 현재 라이브러리 위치에 필요한 라이브러리 설치 |
 | setTxTimeoutMs 컴파일 오류 | 예전 C3 코드가 아닌 이 브랜치의 4-2 스케치인지 확인 |
-| 업로드 후 부팅하지 않음 | 실제 보드 선택, 전원, GPIO12 리셋 시 LOW 조건 확인 |
+| 업로드 후 부팅하지 않음 | 실제 보드 선택·전원 확인, S2를 GPIO12에 남겨두지 않고 GPIO18로 옮겼는지 확인 |
 | ESP32가 핫스팟 IP를 못 받음 | 실제 SSID·암호, 2.4GHz 설정, 전원·신호 확인 |
 | 등록 HTTP가 200이 아님 | 노트북의 `run.bat`, PC_HOST, 현재 IP, TCP 8000 수신 허용 확인 |
 | 등록됐지만 device_timeout | 보드의 현재 IP·전원·API 응답과 핫스팟의 기기 간 통신 확인 |

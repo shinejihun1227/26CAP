@@ -11,11 +11,11 @@ constexpr const char *DEVICE_HOSTNAME = STEPON_RIGHT_FOOT ? "stepon-wroom-right"
 constexpr const char *PC_HOST = "172.20.10.2";
 constexpr uint16_t PC_PORT = 8000;
 constexpr bool WIFI_POWER_SAVE = false; // Low-latency polling. true trades latency for idle power saving.
-// Current user wiring: MUX S2 is GPIO12 (previously GPIO18).
-// GPIO12 must be LOW at reset on 3.3V-flash WROOM boards; see README.md.
+// MUX S2 uses GPIO18; move the existing S2 wire from GPIO12 before use.
+// GPIO18 avoids the GPIO12 flash-voltage bootstrapping condition.
 // Keep DA antenna pins 2/25, flash pins 6..11 and UART0 1/3 free.
 constexpr uint8_t I2C_SDA = 13, I2C_SCL = 14;
-constexpr uint8_t MUX_S0 = 32, MUX_S1 = 33, MUX_S2 = 12, MUX_S3 = 26;
+constexpr uint8_t MUX_S0 = 32, MUX_S1 = 33, MUX_S2 = 18, MUX_S3 = 26;
 constexpr uint8_t MUX_SIG = 34; // ADC1 input: usable while Wi-Fi runs; no internal pull-up.
 static_assert(MUX_SIG >= 32 && MUX_SIG <= 39, "Pressure input must use ADC1 with Wi-Fi");
 // SHTC3 has fixed address 0x70. The upstream TCA9548A must NOT also be 0x70.
