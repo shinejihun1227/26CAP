@@ -1,13 +1,13 @@
 // Shared contract with firmware/stepon_c3/*/sensor_core*.h.
 export const PRESSURE_LAYOUT_ID = 'stepon-pressure-4-v1';
 export const REHAB_ALGORITHM_ID = 'web-rehab-rules-pressure4-v2';
-export const PRESSURE_CHANNELS = [0, 1, 2, 3];
-export const LEGACY_PRESSURE_CHANNELS = [0, 2, 4, 6];
+export const PRESSURE_CHANNELS = [0, 2, 4, 6];
+export const CONTIGUOUS_PRESSURE_CHANNELS = [0, 1, 2, 3];
 // Both wirings use the same logical site order; retain older boards and records.
-export const validPressureChannels = (channels) => [PRESSURE_CHANNELS, LEGACY_PRESSURE_CHANNELS]
+export const validPressureChannels = (channels) => [PRESSURE_CHANNELS, CONTIGUOUS_PRESSURE_CHANNELS]
   .some((mapping) => Array.isArray(channels) && channels.length === mapping.length && mapping.every((c, i) => channels[i] === c));
 export const pressureChannelsFor = (payload) => payload?.pressure_channels === undefined
-  ? LEGACY_PRESSURE_CHANNELS : validPressureChannels(payload.pressure_channels) ? payload.pressure_channels : null;
+  ? PRESSURE_CHANNELS : validPressureChannels(payload.pressure_channels) ? payload.pressure_channels : null;
 export const THERMAL_CHANNELS = [3, 4, 5, 6];
 export const PRESSURE_COUNT = PRESSURE_CHANNELS.length;
 export const PRESSURE_SITES = ['앞쪽', '가운데 안쪽', '가운데 바깥쪽', '뒤꿈치'];

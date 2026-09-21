@@ -17,18 +17,18 @@ function frame(side, channels, pressure = [10, 20, 30, 40]) {
     shtc3_ready: [false, false, false, false], imu_ready: true, accel: { x: 0, y: 0, z: 1 }, gyro: { x: 0, y: 0, z: 0 } };
 }
 
-test('C0-C3 single-sensor input reaches exactly one matching web pressure spot', () => {
-  for (let pressed = 0; pressed < 4; pressed++) {
+test('each supported wiring sends a single-sensor input to exactly one matching web pressure spot', () => {
+  for (const channels of [[0, 2, 4, 6], [0, 1, 2, 3]]) for (let pressed = 0; pressed < 4; pressed++) {
     const pressure = [0, 0, 0, 0]; pressure[pressed] = 80;
-    const payload = frame('left', [0, 1, 2, 3], pressure);
+    const payload = frame('left', channels, pressure);
     validateFrame(payload, 'left');
     const state = normalizeEsp32State(payload, structuredClone(initialState));
     assert.deepEqual(state.pressure, pressure);
-    assert.deepEqual(state.hardware.pressureChannels, [0, 1, 2, 3]);
+    assert.deepEqual(state.hardware.pressureChannels, channels);
     const html = renderBilateralHeatmap(state);
     assert.equal((html.match(/data-pressure-state="active"/g) ?? []).length, 1);
     assert.match(html, new RegExp(`data-sensor-side="left" data-sensor-index="${pressed}" data-pressure-state="active"`));
-    assert.match(html, new RegExp(`MUX CH${pressed}`));
+    assert.match(html, new RegExp(`MUX CH${channels[pressed]}`));
   }
 });
 

@@ -115,7 +115,7 @@ test('trend conditions distinguish old layout and refuse mixed identities', () =
   s.rehab.calibration = captureRehabCalibration(s, now); s.rehab = analyzeRehabFrame({ state: s, history: {}, now }).rehab;
   const sample = buildSensorSample(s, 'P01', 'flat', now), current = sanitizeSensorSample(sample, now);
   assert.equal(current.values.pressure, 25); assert.equal(current.condition.algorithm, REHAB_ALGORITHM_ID);
-  assert.deepEqual(current.condition.pressureChannels, [0, 1, 2, 3]);
+  assert.deepEqual(current.condition.pressureChannels, [0, 2, 4, 6]);
   const old = structuredClone(sample); old.condition.algorithm = 'web-rehab-rules-v1';
   assert.throws(() => sanitizeSensorSample(old, now));
   delete old.condition.pressureLayout; delete old.condition.pressureChannels;
@@ -130,7 +130,7 @@ test('packaged WROOM firmware shares the web four-channel pressure and thermal m
   const config = fs.readFileSync(new URL('config.h', root), 'utf8');
   const sensor = fs.readFileSync(new URL('sensor_core.h', root), 'utf8');
   const sketch = fs.readFileSync(new URL('04_2_sta_bilateral_wroom.ino', root), 'utf8');
-  assert.match(config, /PRESSURE_CHANNELS\[4\] = \{0, 1, 2, 3\}/);
+  assert.match(config, /PRESSURE_CHANNELS\[4\] = \{0, 2, 4, 6\}/);
   assert.match(config, /THERMAL_CHANNELS\[4\] = \{3, 4, 5, 6\}/);
   assert.match(sensor, /pressureRaw\[4\]/);
   assert.match(sensor, /THERMAL_CHANNELS\[index\]/);
