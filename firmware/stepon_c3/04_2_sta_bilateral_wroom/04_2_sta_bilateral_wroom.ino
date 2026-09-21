@@ -59,7 +59,9 @@ String stateJson() {
   s += ",\"frame\":" + String(f.sequence) + ",\"millis\":" + String(f.atMs) + ",\"uptime_ms\":" + String(millis());
   s += ",\"sample_hz\":64,\"actual_sample_hz\":" + String(sensorFresh ? f.actualHz : 0, 1) + ",\"aux_sample_hz\":20,\"missed_deadlines\":" + String(f.missedDeadlines);
   s += ",\"rssi\":" + String(WiFi.RSSI()) + ",\"free_heap\":" + String(ESP.getFreeHeap());
-  s += ",\"pressure_count\":4,\"pressure_layout\":\"stepon-pressure-4-v1\",\"pressure_channels\":[0,2,4,6],\"shtc3_channels\":[3,4,5,6]";
+  s += ",\"pressure_count\":4,\"pressure_layout\":\"stepon-pressure-4-v1\",\"pressure_channels\":[";
+  for (uint8_t i = 0; i < 4; ++i) { if (i) s += ','; s += PRESSURE_CHANNELS[i]; }
+  s += "],\"shtc3_channels\":[3,4,5,6]";
   s += ",\"pressure_ready\":" + String(f.pressureReady && uint32_t(millis() - f.pressureAtMs) < 1000 ? "true" : "false");
   s += ",\"pressure\":[";
   for (uint8_t i = 0; i < 4; ++i) { if (i) s += ','; s += f.pressure[i]; }
@@ -177,6 +179,10 @@ void loop() {
   if (uint32_t(millis() - logAt) >= 2000) {
     logAt = millis(); const auto f = copyFrame();
     Serial.printf("[STATE] foot=%s wifi=%d uptime=%lu frame=%lu IMU=%u rate=%.1fHz missed=%lu heap=%u\n", FOOT_SIDE, int(WiFi.status()), (unsigned long)millis(), (unsigned long)f.sequence, f.imuReady, f.actualHz, (unsigned long)f.missedDeadlines, ESP.getFreeHeap());
+    Serial.printf("[PRESSURE] S0=%u S1=%u S2=%u S3=%u SIG=%u raw C%u=%u C%u=%u C%u=%u C%u=%u\n",
+      MUX_S0, MUX_S1, MUX_S2, MUX_S3, MUX_SIG,
+      PRESSURE_CHANNELS[0], f.pressureRaw[0], PRESSURE_CHANNELS[1], f.pressureRaw[1],
+      PRESSURE_CHANNELS[2], f.pressureRaw[2], PRESSURE_CHANNELS[3], f.pressureRaw[3]);
     WifiDiagnostics::printStatus();
   }
   delay(1);

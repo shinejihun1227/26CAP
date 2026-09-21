@@ -1,7 +1,7 @@
 // One collector on 8000; browsers and 8001 only read its cache.
 import { isIP } from 'node:net';
 import { randomUUID } from 'node:crypto';
-import { PRESSURE_LAYOUT_ID, PRESSURE_CHANNELS, THERMAL_CHANNELS } from '../src/data/sensor-config.js';
+import { PRESSURE_LAYOUT_ID, validPressureChannels, THERMAL_CHANNELS } from '../src/data/sensor-config.js';
 export const SIDES = ['left', 'right'];
 export const HUB_SERVICE = 'stepon-bilateral-v1';
 const STA_FIRMWARES = new Set(['04_sta_bilateral', '04_2_sta_bilateral_wroom']);
@@ -23,7 +23,7 @@ export function validateFrame(p, side, deviceId) {
   if (!identity(p.device_id) || (deviceId && p.device_id !== deviceId)) throw new Error('device_id_mismatch');
   if (!STA_FIRMWARES.has(p.firmware) || p.wifi_mode !== 'STA' || !identity(p.boot_id)) throw new Error('sta_firmware_required');
   if (!Number.isInteger(p.frame) || p.frame < 0 || !Number.isFinite(p.millis)) throw new Error('invalid_frame_clock');
-  if (p.pressure_count !== 4 || p.pressure_layout !== PRESSURE_LAYOUT_ID || JSON.stringify(p.pressure_channels) !== JSON.stringify(PRESSURE_CHANNELS)) throw new Error('pressure_layout_mismatch');
+  if (p.pressure_count !== 4 || p.pressure_layout !== PRESSURE_LAYOUT_ID || !validPressureChannels(p.pressure_channels)) throw new Error('pressure_layout_mismatch');
   if (!Array.isArray(p.pressure) || p.pressure.length !== 4 || !p.pressure.every((v) => Number.isFinite(v) && v >= 0 && v <= 100)) throw new Error('invalid_pressure');
   if (JSON.stringify(p.shtc3_channels) !== JSON.stringify(THERMAL_CHANNELS) || !['temperature', 'humidity', 'shtc3_ready'].every((k) => Array.isArray(p[k]) && p[k].length === 4)) throw new Error('thermal_layout_mismatch');
   if (p.imu_ready && (!vector(p.accel) || !vector(p.gyro))) throw new Error('invalid_imu');

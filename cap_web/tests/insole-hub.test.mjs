@@ -63,7 +63,7 @@ test('private IPv4 targets only, strict firmware identity and four-channel contr
   assert.equal(validateDeviceUrl('http://192.168.137.2'), 'http://192.168.137.2');
   for (const url of ['http://example.com', 'http://127.0.0.1', 'http://169.254.169.254', 'https://192.168.1.2', 'http://x:y@192.168.1.2', 'http://192.168.1.2/private', 'file:///tmp']) assert.throws(() => validateDeviceUrl(url));
   assert.throws(() => validateFrame(frame('right'), 'left'), /foot_side/);
-  assert.throws(() => validateFrame(frame('left', 1, { pressure_channels: [0, 1, 2, 3] }), 'left'), /layout/);
+  assert.throws(() => validateFrame(frame('left', 1, { pressure_channels: [0, 1, 2, 4] }), 'left'), /layout/);
   assert.throws(() => validateFrame(frame('left'), 'left', 'another'), /device_id/);
 });
 test('C3 and WROOM STA frames share the sensor contract without accepting other firmware', () => {
@@ -71,7 +71,7 @@ test('C3 and WROOM STA frames share the sensor contract without accepting other 
     const payload = frame('right', 2, { firmware, device_id: 'wroom-right' });
     assert.equal(validateFrame(payload, 'right', 'wroom-right'), payload);
     assert.throws(() => validateFrame({ ...payload, wifi_mode: 'AP' }, 'right'), /sta_firmware/);
-    assert.throws(() => validateFrame({ ...payload, pressure_channels: [0, 1, 2, 3] }, 'right'), /layout/);
+    assert.throws(() => validateFrame({ ...payload, pressure_channels: [0, 1, 2, 4] }, 'right'), /layout/);
     assert.throws(() => validateFrame({ ...payload, accel: { x: NaN, y: 0, z: 1 } }, 'right'), /invalid_imu/);
   }
   for (const firmware of ['03_final', '06_bmi270_csv_wroom', '04_2_unknown', null]) {

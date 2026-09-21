@@ -1,5 +1,5 @@
 const DEFAULT_ESP32_URL = "http://192.168.4.1";
-import { PRESSURE_COUNT, PRESSURE_LAYOUT_ID, PRESSURE_CHANNELS, THERMAL_CHANNELS, emptyPressure, pressureContractMatches } from '../data/sensor-config.js';
+import { PRESSURE_COUNT, PRESSURE_LAYOUT_ID, THERMAL_CHANNELS, emptyPressure, pressureContractMatches, pressureChannelsFor } from '../data/sensor-config.js';
 const STORAGE_KEY = "stepon-esp32-base-url";
 const THERMAL_SITES = ["heel", "arch", "forefoot", "toe"];
 
@@ -217,9 +217,9 @@ export function normalizeEsp32State(payload, previous) {
       footSide: side,
       bilateralAvailable,
       pressureLayout: measuredPressure || hasBilateralPressure ? PRESSURE_LAYOUT_ID : null,
-      pressureChannels: PRESSURE_CHANNELS,
+      pressureChannels: pressureChannelsFor(payload),
       thermalChannels: THERMAL_CHANNELS,
-      layoutWarning: !contractMatches || (!measuredPressure && !hasBilateralPressure) ? '압력 데이터가 4개 배치와 다릅니다. 새 펌웨어(채널 0·2·4·6)를 업로드해 주세요.' : null,
+      layoutWarning: !contractMatches || (!measuredPressure && !hasBilateralPressure) ? '압력 데이터가 4개 배치와 다릅니다. 실제 MUX 배선과 펌웨어 채널 설정을 확인해 주세요.' : null,
       sampleHz: 64,
       auxSampleHz: 20,
       raw: payload,
@@ -276,7 +276,7 @@ export function normalizeBilateralState(payload, previous) {
   const left = bothPressure ? total(pressure.left) : 0, right = bothPressure ? total(pressure.right) : 0;
   const rawActive = feet[active].connected ? feet[active].state : {};
   const raw = { ...rawActive, frame: payload.frame ?? previous.tick ?? 0, foot_side: active, pressure_count: 4, pressure_layout: PRESSURE_LAYOUT_ID,
-    pressure_channels: PRESSURE_CHANNELS, bilateral_pressure: pressure, bilateral_available: bothPressure, feet: payload.feet };
+    pressure_channels: pressureChannelsFor(rawActive), bilateral_pressure: pressure, bilateral_available: bothPressure, feet: payload.feet };
   const allThermal = [...thermal.left, ...thermal.right];
   const thermalCount = allThermal.filter((x) => x.available).length;
   const thermalTotal = 8;
@@ -291,7 +291,7 @@ export function normalizeBilateralState(payload, previous) {
     outputs: { ...previous.outputs, laser: Boolean(rawActive.output?.laser), auto: Boolean(rawActive.output?.auto_cue), vibrationActive: Boolean(rawActive.output?.vibration) },
     device: { ...previous.device, name: 'StepOn 양발 · STA', battery: null, lastSync: available.length ? '방금 전' : '연결 대기', signal: `양발 ${available.length}/2 연결` },
     hardware: { source: 'esp32', transport: 'sta', footSide: active, feet, bilateralAvailable: bothPressure,
-      sampleHz: 64, auxSampleHz: 20, pressureLayout: PRESSURE_LAYOUT_ID, pressureChannels: PRESSURE_CHANNELS, thermalChannels: THERMAL_CHANNELS,
+      sampleHz: 64, auxSampleHz: 20, pressureLayout: PRESSURE_LAYOUT_ID, pressureChannels: pressureChannelsFor(rawActive), thermalChannels: THERMAL_CHANNELS,
       lastError: payload.error ?? null, layoutWarning: null, raw,
       clockNote: 'PC 수신 시각 기준 · 두 보드의 millis는 정밀 동기화되지 않음',
       sensors: { pressure: { ready: pressure[active].every((v) => v !== null), count: sides.reduce((n, s) => n + pressure[s].filter((v) => v !== null).length, 0), total: 8 },

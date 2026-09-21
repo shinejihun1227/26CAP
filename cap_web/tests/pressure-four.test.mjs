@@ -30,7 +30,7 @@ test('ESP32 four channels retain order, temperature slots, and missing opposite 
 });
 
 test('old eight-channel arrays and mismatched metadata do not reuse stale pressure', () => {
-  for (const extra of [{ pressure: Array(8).fill(20) }, { pressure_count: 8 }, { pressure_layout: 'old-layout' }, { pressure_channels: [0, 1, 2, 3] }, { pressure: [1, 2, null, 4] }, { pressure: [1, 2, NaN, 4] }]) {
+  for (const extra of [{ pressure: Array(8).fill(20) }, { pressure_count: 8 }, { pressure_layout: 'old-layout' }, { pressure_channels: [0, 1, 2, 4] }, { pressure: [1, 2, null, 4] }, { pressure: [1, 2, NaN, 4] }]) {
     const s = stateFor(extra);
     assert.deepEqual(s.pressure, [null, null, null, null]);
     assert.equal(s.hardware.sensors.pressure.ready, false); assert.ok(s.hardware.layoutWarning);
@@ -115,12 +115,12 @@ test('trend conditions distinguish old layout and refuse mixed identities', () =
   s.rehab.calibration = captureRehabCalibration(s, now); s.rehab = analyzeRehabFrame({ state: s, history: {}, now }).rehab;
   const sample = buildSensorSample(s, 'P01', 'flat', now), current = sanitizeSensorSample(sample, now);
   assert.equal(current.values.pressure, 25); assert.equal(current.condition.algorithm, REHAB_ALGORITHM_ID);
-  assert.deepEqual(current.condition.pressureChannels, [0, 2, 4, 6]);
+  assert.deepEqual(current.condition.pressureChannels, [0, 1, 2, 3]);
   const old = structuredClone(sample); old.condition.algorithm = 'web-rehab-rules-v1';
   assert.throws(() => sanitizeSensorSample(old, now));
   delete old.condition.pressureLayout; delete old.condition.pressureChannels;
   assert.notEqual(sanitizeSensorSample(old, now).conditionKey, current.conditionKey);
-  const bad = structuredClone(sample); bad.condition.pressureChannels = [0, 1, 2, 3]; assert.throws(() => sanitizeSensorSample(bad, now));
+  const bad = structuredClone(sample); bad.condition.pressureChannels = [0, 1, 2, 4]; assert.throws(() => sanitizeSensorSample(bad, now));
   s.hardware.raw.pressure_count = 8;
   assert.equal(buildSensorSample(s, 'P01', 'flat', now).values.pressure, undefined);
 });
@@ -130,12 +130,13 @@ test('packaged WROOM firmware shares the web four-channel pressure and thermal m
   const config = fs.readFileSync(new URL('config.h', root), 'utf8');
   const sensor = fs.readFileSync(new URL('sensor_core.h', root), 'utf8');
   const sketch = fs.readFileSync(new URL('04_2_sta_bilateral_wroom.ino', root), 'utf8');
-  assert.match(config, /PRESSURE_CHANNELS\[4\] = \{0, 2, 4, 6\}/);
+  assert.match(config, /PRESSURE_CHANNELS\[4\] = \{0, 1, 2, 3\}/);
   assert.match(config, /THERMAL_CHANNELS\[4\] = \{3, 4, 5, 6\}/);
   assert.match(sensor, /pressureRaw\[4\]/);
   assert.match(sensor, /THERMAL_CHANNELS\[index\]/);
   const wireSource = sketch.replaceAll('\\"', '"');
   assert.ok(wireSource.includes('"pressure_count":4'));
-  assert.ok(wireSource.includes('"pressure_channels":[0,2,4,6]'));
+  assert.ok(wireSource.includes('"pressure_channels":['));
+  assert.match(sketch, /s \+= PRESSURE_CHANNELS\[i\]/);
   assert.ok(wireSource.includes('"shtc3_channels":[3,4,5,6]'));
 });

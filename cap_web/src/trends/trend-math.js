@@ -1,5 +1,5 @@
 import { comparisonKey, METRICS, VIEWS, quantile, round } from '../mediapipe/rom-math.js';
-import { PRESSURE_LAYOUT_ID, PRESSURE_CHANNELS, REHAB_ALGORITHM_ID, validPressure, pressureContractMatches } from '../data/sensor-config.js';
+import { PRESSURE_LAYOUT_ID, PRESSURE_CHANNELS, REHAB_ALGORITHM_ID, validPressure, pressureContractMatches, pressureChannelsFor } from '../data/sensor-config.js';
 
 export const TREND_PROTOCOL = 'stepon-daily-observations-v1';
 export const SENSOR_METRICS = {
@@ -91,7 +91,7 @@ export function buildSensorSample(state, participant, setup, now = Date.now()) {
   if (ai.available && ai.ready && ai.windowReady && ai.deviceConnected && finite(ai.lastWindowAtMs) && now - ai.lastWindowAtMs >= 0 && now - ai.lastWindowAtMs <= 3000 && ['normal', 'warning', 'confirmed'].includes(ai.state)) put('fog', ai.state === 'confirmed' ? 100 : 0);
   if (!Object.keys(values).length) return null;
   const condition = { protocol: TREND_PROTOCOL, setup, side, activeFoot: state.rehab?.config?.activeFoot ?? side, device: String(state.device?.name ?? 'ESP32'), bilateral: Boolean(hw.bilateralAvailable), thermalChannels: channels,
-    algorithm: REHAB_ALGORITHM_ID, pressureLayout: PRESSURE_LAYOUT_ID, pressureChannels: [...PRESSURE_CHANNELS], rehabConfig: state.rehab?.config ?? {}, baseline: state.rehab?.calibration?.pressureLayout === PRESSURE_LAYOUT_ID ? state.rehab.calibration.baseline ?? null : null,
+    algorithm: REHAB_ALGORITHM_ID, pressureLayout: PRESSURE_LAYOUT_ID, pressureChannels: [...(pressureChannelsFor(raw) ?? PRESSURE_CHANNELS)], rehabConfig: state.rehab?.config ?? {}, baseline: state.rehab?.calibration?.pressureLayout === PRESSURE_LAYOUT_ID ? state.rehab.calibration.baseline ?? null : null,
     aiFoot: ai.selectedFoot ?? null, aiSession: ai.calibration?.id ?? null, aiArtifact: ai.artifactId ?? null,
     aiModel: ai.model ?? null, aiRate: ai.sampleRateHz ?? null, aiWindow: ai.windowSec ?? null, aiHop: ai.hopSec ?? null,
     aiCalibration: Object.fromEntries(['vertical_confidence', 'forward_confidence', 'yaw_enabled', 'yaw_confidence'].filter((key) => finite(ai.calibration?.[key]) || typeof ai.calibration?.[key] === 'boolean').map((key) => [key, ai.calibration[key]])) };
