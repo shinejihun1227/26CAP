@@ -82,7 +82,15 @@ Git이 없다면 GitHub의 브랜치를 **final**로 선택한 후 **Code → Do
 | [Arduino IDE](https://www.arduino.cc/en/software/) | 보드 최초 업로드 또는 설정 변경 시 |
 | Git | clone·업데이트용, ZIP을 사용하면 선택 사항 |
 
-설치 후 새 PowerShell에서 확인합니다.
+**PowerShell의 현재 위치가 `setup-ai.bat`이 있는 프로젝트 폴더인지 먼저 확인합니다.** `PS C:\Users\사용자>`는 보통 사용자 홈이므로 그 위치에는 실행 파일이 없습니다. 탐색기에서 압축을 푼 `26CAP-final` 폴더를 열고 주소 표시줄에 `powershell`을 입력하면 해당 폴더에서 터미널이 열립니다. 또는 실제 다운로드 경로로 이동하세요.
+
+```powershell
+# 경로 예시입니다. 실제 압축을 푼 폴더로 바꾸세요.
+cd "C:\Users\사용자\Downloads\26CAP-final"
+Test-Path .\setup-ai.bat
+```
+
+마지막 결과가 `True`이면 위치가 맞습니다. 다음 명령은 **각 줄을 따로 입력하고 Enter**를 누릅니다. 설치 직후에는 이전 PowerShell을 닫고 새로 열어 PATH를 반영합니다.
 
 ```powershell
 node --version
@@ -91,6 +99,18 @@ py -3.12 --version
 ```
 
 `AI dependencies installed`가 나오면 완료입니다. `setup-ai.bat`은 `.venv-ai`를 만들고 `ai_engine/requirements.txt`의 고정 버전과 엔진 패키지를 설치합니다. 다른 PC의 `.venv-ai`를 복사하지 말고 새로 설치하세요. Python 실행기가 `python`만 있는 환경은 `python --version`으로 확인합니다.
+
+**이미 이 프로젝트를 사용하던 PC:** `node`나 `py -3.12`가 일반 터미널에서 실패해도 프로젝트의 기존 `.venv-ai`와 Codex 번들 실행 환경이 있을 수 있습니다. `run.bat`은 번들 Node도 찾습니다. 설치 스크립트는 실제 Python 버전·64비트 여부를 확인하고, `py`만 존재하고 3.12가 없는 경우에도 일반 Python·알려진 설치 경로·번들 Python으로 계속 탐색합니다. PATH나 전역 설치를 자동으로 바꾸지는 않습니다.
+
+```powershell
+# 설치하거나 변경하지 않고 프로젝트가 사용할 Python을 확인
+.\setup-ai.bat --check
+
+# 이 폴더에 AI 의존성이 이미 설치돼 있다면 바로 실행
+.\run.bat
+```
+
+현재 작업 PC의 기존 프로젝트 경로는 `E:\duawl-data\Documents\cau_capstone`입니다. 그 폴더를 계속 사용한다면 `cd "E:\duawl-data\Documents\cau_capstone"` 후 `run.bat`을 실행합니다. 새로 받은 `26CAP-final` 폴더는 별도 가상환경을 설치해야 합니다. 새로운 PC에서 실행 환경이 실제로 없다면 위 공식 설치 프로그램으로 Node.js 24와 64비트 Python 3.12를 설치하세요. `No suitable Python runtime found`는 `py` 실행기만 있고 요청한 3.12가 없다는 의미입니다.
 
 웹에는 별도 `npm install`이나 프런트엔드 빌드가 필요하지 않습니다. RF·CNN 가중치와 카메라 모델 자산이 포함되어 있습니다. 평소 실행에 모델 재학습, CUDA 또는 OpenAI API 키는 필요하지 않습니다.
 
@@ -404,7 +424,9 @@ CSV 작업 목록은 최근 20개를 보여 주지만 이전 완료 파일도 �
 
 | 현상 | 확인할 내용 |
 |---|---|
-| Node/Python을 못 찾음 | 프로그램 설치 후 새 터미널에서 버전 확인 |
+| setup-ai.bat을 못 찾음 | 프로젝트 폴더로 이동하고 `Test-Path .\setup-ai.bat`이 True인지 확인 |
+| node를 명령으로 인식하지 못함 | 새 PC는 Node 설치 후 터미널 다시 열기; 기존 PC는 번들 Node를 찾는 `run.bat` 사용 |
+| No suitable Python runtime found | py 실행기와 Python 3.12 설치는 별개; `setup-ai.bat --check`로 대체 경로 확인, 없으면 Python 3.12 설치 |
 | AI environment missing / 모듈 없음 | 저장소 최상위의 `setup-ai.bat` 실행 |
 | 8000/8001/8787 포트가 이미 사용 중 | 이전 프로젝트에서 측정 종료 후 그 폴더의 `stop.bat`; 다른 프로그램이면 해당 프로그램에서 종료 |
 | Adafruit_DRV2605.h 또는 BMI270 헤더 없음 | Arduino 스케치북의 현재 라이브러리 위치에 필요한 라이브러리 설치 |
@@ -450,11 +472,14 @@ CSV 작업 목록은 최근 20개를 보여 주지만 이전 완료 파일도 �
 node --test --test-concurrency=1 cap_web/tests/*.test.mjs
 .\.venv-ai\Scripts\python.exe -m unittest discover -s web/ai_bridge/tests -v
 .\.venv-ai\Scripts\python.exe -m unittest discover -s firmware/stepon_c3/06_bmi270_csv_wroom/tests -v
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File web/ai_bridge/tests/test_setup_runtime.ps1 -PythonExe .\.venv-ai\Scripts\python.exe
 ```
 
 검사는 합성 센서와 임시 기록을 사용하며 실제 가중치 로드·추론, CSV 형식/품질 검사, 양발 수집→Python→웹 응답, 데이터 단절 처리 등을 확인합니다. 실제 보드 업로드·무선 품질·착용자 모델 정확도 확인은 별도로 진행해야 합니다.
 
 **2026-09-21 final 패키지 검사:** 웹·HTTP·CSV·실제 RF/CNN 연동 125개, Python AI/CSV 26개, USB 기록기 17개로 **총 168개 통과, 건너뛴 검사 0개**입니다. 모델 3개 파일은 기존 작업 폴더와 SHA-256이 같고 MediaPipe 자산도 제공된 해시 목록과 일치합니다. PowerShell 구문, Windows 배치 줄바꿈, 문서의 내부 파일 링크와 목차, 개인 파일·암호 제외도 확인했습니다. 이번 패키지에서 실물 보드에 업로드하거나 새 착용 측정을 수행하지 않았습니다.
+
+설치 안내 보완에서는 Windows PowerShell 5.1로 `py` 실행 실패 후 대체 Python 선택, 3.12 이외 버전·32비트 Python 거부, 실행 환경 누락 안내를 추가 검사했습니다. `setup-ai.bat --check`로 기존 가상환경과 새 폴더의 번들 Python 탐색을 설치 없이 확인했습니다.
 
 업데이트는 로컬 변경 내용을 보관한 뒤 `final` 브랜치 작업 폴더에서 수행합니다.
 

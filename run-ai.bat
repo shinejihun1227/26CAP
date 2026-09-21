@@ -13,6 +13,6 @@ echo Use stop.bat when finished.
 pause
 exit /b 0
 :failed
-echo AI startup failed. Check the message above and docs\RUNNING.md.
+echo AI startup failed. Check the message above and README.md.
 pause
 exit /b 1
