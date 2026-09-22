@@ -452,6 +452,36 @@ async function refreshEsp32State(force = false) {
   }
 }
 
+// AI decision -> physical cue. Previously nothing called setLaser/vibrate
+// here at all - a state change only ever produced a toast (see nextEvents
+// below), so WARNING/CONFIRMED never actually buzzed or lit anything. This
+// reuses the exact same setLaser/vibrate calls the manual "test-laser" /
+// "test-vibration" actions already use (see the action handler above), just
+// triggered by the AI's own decision instead of a button press. Laser calls
+// are safe to send unconditionally - the ESP32 firmware's own
+// ENABLE_LASER_OUTPUT compile-time flag is the real safety gate and simply
+// no-ops (409) while it stays false.
+let lastActuatedFoot = null;
+function triggerAiActuation(nextAi) {
+  if (!esp32Enabled) return;
+  const side = nextAi.selectedFoot ?? state.rehab?.config?.activeFoot ?? "left";
+  if (nextAi.state === "confirmed") {
+    void vibrate(47, side).catch(() => {});
+    void setLaser(true, side).then(() => {
+      lastActuatedFoot = side;
+      window.setTimeout(() => void setLaser(false, side).catch(() => {}), 650);
+    }).catch(() => {});
+  } else if (nextAi.state === "warning") {
+    void vibrate(47, side).catch(() => {});
+  } else if (nextAi.state === "normal" && lastActuatedFoot) {
+    // Defensive: make sure a CONFIRMED->NORMAL transition never leaves the
+    // laser stuck on if the 650ms auto-off above was ever missed (e.g. tab
+    // backgrounded, request dropped).
+    void setLaser(false, lastActuatedFoot).catch(() => {});
+    lastActuatedFoot = null;
+  }
+}
+
 async function refreshAiState(force = false) {
   if (!aiEnabled || showOnboarding || aiRequestInFlight || (state.paused && !force)) return;
   aiRequestInFlight = true;
@@ -459,6 +489,7 @@ async function refreshAiState(force = false) {
     const payload = await fetchAiState();
     const nextAi = normalizeAiState(payload, state.ai);
     const decisionChanged = nextAi.ready && nextAi.state && nextAi.state !== state.ai?.state;
+    if (decisionChanged) triggerAiActuation(nextAi);
     const nextEvents = decisionChanged
       ? [{
         time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
