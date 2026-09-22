@@ -1,0 +1,83 @@
+/* Everyday tasks first; technical and storage tools stay in their own surfaces. */
+[hidden] { display: none !important; }
+:root { --user-ink: #203b40; --user-muted: #647977; --user-line: #dbe7e3; --user-accent: #176d68; }
+.simple-heading { display:flex; justify-content:space-between; align-items:center; gap:20px; margin:0 0 22px; }
+.simple-heading h1 { margin:6px 0 10px; font-size:clamp(1.7rem,3vw,2.25rem); color:var(--user-ink); }
+.simple-heading p, .simple-note { color:var(--user-muted); font-size:1rem; line-height:1.7; }
+.simple-eyebrow { color:var(--user-accent); font-size:.84rem; font-weight:700; }
+.simple-secondary, .simple-route-link button, .records-shortcuts a { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:10px 16px; border:1px solid var(--user-line); border-radius:12px; color:var(--user-accent); background:#fff; font:inherit; font-weight:650; text-decoration:none; cursor:pointer; }
+.simple-route-link { margin:12px 0 20px; }
+.simple-details { border:1px solid var(--user-line); border-radius:14px; background:#fff; margin:16px 0; padding:0 18px; min-width:0; }
+.simple-details > summary { cursor:pointer; padding:17px 0; color:var(--user-ink); font-size:.95rem; line-height:1.5; font-weight:650; }
+.simple-details[open] { padding-bottom:18px; }
+.simple-details > .panel { border:0; box-shadow:none; padding:12px 0; }
+.simple-details:focus-within { border-color:#82b9ad; }
+.simple-details .simple-details { background:#f8fbf9; }
+.sidebar .management-nav { margin-top:0; }
+.sidebar .management-nav .nav-item { min-height:48px; }
+.sidebar .nav-item small { display:none; }
+.sidebar .care-card { display:none; }
+.sidebar .sidebar-section-label { margin-top:24px; }
+.simple-status-symbol { display:grid; place-items:center; flex-shrink:0; width:88px; height:88px; border-radius:50%; background:#ffffff18; color:#bde1d3; }
+.simple-status-symbol .icon { width:44px; height:44px; }
+.overview-more > .overview-bottom-grid { margin-bottom:10px; }
+.overview-ai-summary { padding:22px; background:#fff; border:1px solid var(--user-line); border-radius:20px; display:flex; flex-direction:column; gap:12px; }
+.overview-ai-summary .overview-insight { border:0; box-shadow:none; padding:0; flex:1; }
+.overview-ai-summary .overview-insight-heading { flex-wrap:wrap; }
+.overview-ai-summary .overview-insight-value { font-size:1.7rem; margin:15px 0 10px; }
+.overview-ai-summary .simple-secondary { align-self:flex-start; }
+.clarity-live-grid { grid-template-columns:minmax(0,1fr); }
+.clarity-live-grid > .clarity-health-card { margin:0; }
+.ai-status-panel .ai-status-copy p { font-size:.86rem; color:var(--user-muted); }
+.records-workspace > .simple-note { padding:14px 18px; border-radius:12px; background:#edf5f1; }
+.records-shortcuts { display:flex; gap:12px; flex-wrap:wrap; margin:20px 0 28px; }
+.records-workspace > section { scroll-margin-top:24px; margin:26px 0; }
+.records-workspace .rom-heading h2, .records-workspace .trends-heading h2 { font-size:1.45rem; }
+.records-workspace .rom-management-layout { grid-template-columns:1fr; }
+.records-workspace .rom-set-panel { margin-bottom:16px; }
+.records-workspace .rom-heading, .records-workspace .trends-heading { border-top:1px solid var(--user-line); padding-top:24px; }
+.rom-workspace.is-measurement .rom-setup-panel .rom-panel-head { margin-bottom:10px; }
+.rom-identity { margin-top:0; }
+.rom-workspace .rom-joint-help { font-size:.86rem; margin-top:4px; }
+.rom-workspace .rom-record-box { background:#edf6f2; border-color:#c5dfd5; }
+.rom-workspace .rom-record-box .rom-buttons button:first-child { flex:1 1 160px; min-height:48px; }
+.rom-workspace .rom-local-badge { font-size:.78rem; }
+.records-workspace .rom-identity { border:0; padding:0; }
+.records-workspace .rom-identity > summary { padding-top:0; }
+.simple-mobile .mobile-main { padding:16px 16px 106px; }
+.simple-mobile-header { display:flex; align-items:center; gap:12px; padding:18px 20px 10px; background:#fff; }
+.simple-mobile-header > b { color:var(--user-accent); font-size:1.2rem; letter-spacing:.06em; }
+.simple-mobile-header > span { margin-left:auto; font-size:.8rem; color:var(--user-muted); }
+.simple-mobile-header button { border:0; background:#edf5f1; border-radius:50%; width:40px; height:40px; display:grid; place-items:center; }
+.mobile-management { display:flex; justify-content:flex-end; gap:8px; padding:4px 20px 12px; background:#fff; border-bottom:1px solid var(--user-line); }
+.mobile-management button { border:1px solid var(--user-line); background:#fff; color:var(--user-muted); border-radius:9px; padding:9px 12px; min-height:40px; font:inherit; font-size:.85rem; }
+.mobile-management button[aria-current=page] { background:#e6f2ed; color:var(--user-accent); border-color:#aacfc1; }
+.simple-mobile .mobile-tabbar { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.simple-mobile .mobile-tab { min-width:0; }
+.simple-mobile .mobile-tab span { font-size:.78rem; }
+.simple-mobile .metrics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.simple-mobile .clarity-overview-hero, .simple-mobile .overview-bottom-grid, .simple-mobile .overview-insights, .simple-mobile .device-grid, .simple-mobile .algorithm-grid { grid-template-columns:1fr; }
+.simple-mobile .clarity-status-main { gap:10px; }
+.simple-mobile .clarity-status-main h2 { font-size:1.5rem; }
+.simple-mobile .clarity-live-hero { flex-wrap:wrap; }
+.simple-mobile .clarity-live-values { flex-wrap:wrap; }
+.simple-mobile .clarity-status-card { padding:22px; }
+.simple-mobile .simple-status-symbol { display:none; }
+.simple-mobile .clarity-status-main { display:block; }
+.simple-mobile .simple-status-symbol .icon { width:30px; height:30px; }
+.simple-mobile .overview-start-card { display:none; }
+.simple-mobile .clarity-page-intro { align-items:flex-start; gap:12px; flex-wrap:wrap; }
+.simple-mobile .device-hero { flex-wrap:wrap; }
+.simple-mobile .simple-heading { display:block; }
+.simple-mobile .simple-heading a { margin-top:12px; }
+.simple-mobile .rom-layout { grid-template-columns:1fr; }
+.simple-mobile .rom-workspace { font-size:1rem; }
+@media(max-width:800px) {
+  .simple-heading { flex-wrap:wrap; }
+  .records-shortcuts a { flex:1 1 160px; }
+  .simple-details { padding:0 14px; }
+  .rom-workspace .rom-camera-panel, .rom-workspace .rom-setup-panel { padding:16px; }
+  .simple-mobile .ai-status-body { flex-direction:column; align-items:flex-start; }
+  .simple-mobile .ai-status-panel { padding:18px; }
+  .simple-mobile .trends-toolbar { grid-template-columns:1fr; }
+}

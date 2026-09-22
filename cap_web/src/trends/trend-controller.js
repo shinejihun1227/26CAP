@@ -2,8 +2,9 @@ import { koreaDay, romGroups, romDays, sensorDays, compareDays, SENSOR_METRICS, 
 import { renderComparison, renderSensorSummary, changeText } from './trend-render.js';
 import { escapeHtml as e } from '../utils/text.js';
 
-export function mountTrendWorkspace(root, getState) {
+export function mountTrendWorkspace(root, getState, context = null) {
   const $ = (selector) => root.querySelector(selector), action = (id) => $(`[data-trend-action="${id}"]`);
+  const managing = root.dataset.trendsMode === "manage";
   const events = new AbortController();
   let alive = true, recording = false, saving = false, loading = false, rows = [], sessions = [], romSets = [], ready = false, romReady = false;
   let lastFrame = null, saved = 0, skipped = 0, errorMessage = '', refreshedAt = null;
@@ -19,7 +20,7 @@ export function mountTrendWorkspace(root, getState) {
   function buttons() {
     if (!alive) return;
     const s = getState();
-    action('start').disabled = recording || saving || !ready || !$('[data-trend-consent]').checked || !participant() || !$('[data-trend-setup]').value.trim() || s.dataSource !== 'esp32' || !s.connected;
+    action('start').disabled = !managing || recording || saving || !ready || !$('[data-trend-consent]').checked || !participant() || !$('[data-trend-setup]').value.trim() || s.dataSource !== 'esp32' || !s.connected;
     action('stop').disabled = !recording;
     action('export').disabled = !ready || !romReady || recording || saving;
     $('[data-trend-participant]').disabled = recording || saving;
@@ -46,7 +47,7 @@ export function mountTrendWorkspace(root, getState) {
     $('[data-trend-rom-result]').innerHTML = !romReady ? '관절 기록을 읽지 못했습니다. 요약을 최신 결과로 표시하지 않습니다.' : group ? `<details class="trends-detail"><summary>분리해서 비교하는 촬영 조건</summary>${e(group.config.modelVersion)} · ${group.config.width}×${group.config.height} · ${e(group.config.protocol)}<br>측정 코드·관절·좌우·자세·환경 코드·신뢰도·모델·화면 비율이 같아야 비교합니다.</details>${renderComparison(days, date(), mode())}` : '이 측정 코드의 관절 기록이 없습니다. MediaPipe에서 측정을 완료한 뒤 기록을 저장하세요.';
     $('[data-trend-sensor-result]').classList.toggle('trends-empty', !sensorKey);
     const source = mine.find((r) => r.conditionKey === sensorKey);
-    $('[data-trend-sensor-result]').innerHTML = !ready ? '센서 저장소를 읽지 못했습니다. 이전 결과를 최신 결과로 표시하지 않습니다.' : sensorKey ? `<details class="trends-detail"><summary>센서·알고리즘 비교 조건</summary><pre>${e(JSON.stringify(source.condition, null, 2))}</pre></details>${renderComparison(makeDays(metric), date(), mode(), { sensor: true, unit: spec.unit, label: spec.label, note: spec.note })}${renderSensorSummary(rows, makeDays, date(), mode())}` : '저장된 실제 센서 기록이 없습니다. ESP32 연결 상태에서 위의 저장 동의 후 센서 기록을 시작하세요. 시연 데이터는 저장하지 않습니다.';
+    $('[data-trend-sensor-result]').innerHTML = !ready ? '센서 저장소를 읽지 못했습니다. 이전 결과를 최신 결과로 표시하지 않습니다.' : sensorKey ? `<details class="trends-detail"><summary>센서·알고리즘 비교 조건</summary><pre>${e(JSON.stringify(source.condition, null, 2))}</pre></details>${renderComparison(makeDays(metric), date(), mode(), { sensor: true, unit: spec.unit, label: spec.label, note: spec.note })}${renderSensorSummary(rows, makeDays, date(), mode())}` : '저장된 실제 센서 기록이 없습니다. 데이터 관리에서 깔창 연결과 저장 동의를 확인하고 센서 기록을 시작하세요. 시연 데이터는 저장하지 않습니다.';
     const allDays = new Map();
     for (const s of sessions.filter((s) => s.config.participant === code)) { const key = koreaDay(s.capturedAt); if (!allDays.has(key)) allDays.set(key, { rom: 0, sensor: 0, conditions: 0 }); allDays.get(key).rom++; }
     for (const r of mine) { if (!allDays.has(r.day)) allDays.set(r.day, { rom: 0, sensor: 0, conditions: 0 }); allDays.get(r.day).sensor += r.sampleCount; allDays.get(r.day).conditions++; }
@@ -58,7 +59,7 @@ export function mountTrendWorkspace(root, getState) {
     const attention = changes.filter((c) => c.attention);
     $('.trends-summary p').textContent = changes.length ? `${(attention.length ? attention : changes).slice(0, 3).map((c) => `${c.label}: ${changeText(c.delta, c.unit)}`).join(' · ')}. ${attention.length ? '다시 확인할 수치 변화입니다. 악화로 확정하지 않습니다.' : '수치 변화는 개선·악화 판정을 의미하지 않습니다.'}` : '선택한 날짜와 비교 날짜에 같은 조건의 유효 기록이 필요합니다. 전날 기록이 없다면 ‘직전 기록일’을 선택하세요.';
     $('[data-trend-calendar]').classList.toggle('trends-empty', !allDays.size);
-    $('[data-trend-calendar]').innerHTML = allDays.size ? `<div class="trends-table-wrap"><table><thead><tr><th>날짜</th><th>관절 기록</th><th>센서 표본</th><th>센서 조건 수</th></tr></thead><tbody>${[...allDays].sort(([a], [b]) => b.localeCompare(a)).map(([day, d]) => `<tr><td><button class="trends-day-button" data-trend-action="day" data-day="${day}">${day}</button></td><td>${d.rom}회</td><td>${d.sensor}개</td><td>${d.conditions}개</td></tr>`).join('')}</tbody></table></div>${mine.length ? `<details class="trends-detail"><summary>내보내기 후 날짜별 센서 기록 관리</summary>${mine.map((r) => `<p>${r.day} · ${e(r.condition.setup)} · ${r.conditionKey.slice(0, 6)} <button data-trend-action="delete" data-id="${r.id}" ${recording || saving ? 'disabled' : ''}>이 센서 기록 삭제</button></p>`).join('')}</details>` : ''}` : '저장된 개인 기록이 없습니다. 측정하지 않은 날짜는 정상이나 0으로 표시하지 않습니다.';
+    $('[data-trend-calendar]').innerHTML = allDays.size ? `<div class="trends-table-wrap"><table><thead><tr><th>날짜</th><th>관절 기록</th><th>센서 표본</th><th>센서 조건 수</th></tr></thead><tbody>${[...allDays].sort(([a], [b]) => b.localeCompare(a)).map(([day, d]) => `<tr><td><button class="trends-day-button" data-trend-action="day" data-day="${day}">${day}</button></td><td>${d.rom}회</td><td>${d.sensor}개</td><td>${d.conditions}개</td></tr>`).join('')}</tbody></table></div>${managing && mine.length ? `<details class="trends-detail"><summary>내보내기 후 날짜별 센서 기록 관리</summary>${mine.map((r) => `<p>${r.day} · ${e(r.condition.setup)} · ${r.conditionKey.slice(0, 6)} <button data-trend-action="delete" data-id="${r.id}" ${recording || saving ? 'disabled' : ''}>이 센서 기록 삭제</button></p>`).join('')}</details>` : ''}` : '저장된 개인 기록이 없습니다. 측정하지 않은 날짜는 정상이나 0으로 표시하지 않습니다.';
     const codes = [...new Set([...sessions.map((s) => s.config.participant), ...rows.map((r) => r.participant)])].sort();
     $('#trend-participants').innerHTML = codes.map((c) => `<option value="${e(c)}"></option>`).join('');
     buttons();
@@ -94,11 +95,11 @@ export function mountTrendWorkspace(root, getState) {
     const target = event.target.closest('[data-trend-action]'); if (!target || target.disabled) return;
     const id = target.dataset.trendAction;
     if (id === 'refresh') { errorMessage = ''; await refresh(); }
-    else if (id === 'start') { recording = true; lastFrame = null; saved = 0; skipped = 0; errorMessage = ''; notice('실제 센서 관찰값을 저장합니다. 이 탭을 숨기면 기록이 중지됩니다.'); buttons(); void sample(); }
+    else if (id === 'start' && managing) { recording = true; lastFrame = null; saved = 0; skipped = 0; errorMessage = ''; notice('실제 센서 관찰값을 저장합니다. 이 탭을 숨기면 기록이 중지됩니다.'); buttons(); void sample(); }
     else if (id === 'stop') stop();
     else if (id === 'day') { $('[data-trend-date]').value = target.dataset.day; render(); }
     else if (id === 'metric') { $('[data-trend-metric]').value = target.dataset.metric; render(); }
-    else if (id === 'delete') {
+    else if (id === 'delete' && managing) {
       if (recording || saving || !window.confirm('이 날짜·조건의 센서 요약을 영구 삭제할까요? 내보낸 파일 외에는 복구할 수 없습니다. 관절 기록은 남습니다.')) return;
       try { await request('/api/trends', 'DELETE', { id: target.dataset.id, confirm: 'DELETE_SENSOR_DAY' }); await refresh(); } catch (error) { notice(error.message, true); }
     } else if (id === 'export') {
@@ -113,6 +114,9 @@ export function mountTrendWorkspace(root, getState) {
   window.addEventListener('pagehide', stop, { signal: events.signal });
   window.addEventListener('beforeunload', (event) => { if (saving) { event.preventDefault(); event.returnValue = ''; } }, { signal: events.signal });
   const captureTimer = setInterval(sample, 1000), readTimer = setInterval(() => { if (!document.hidden) void refresh(); }, 5000);
+  if (context) for (const key of ['participant', 'setup', 'date', 'comparison', 'metric']) {
+    if (context[key] !== undefined) $(`[data-trend-${key}]`).value = context[key];
+  }
   void refresh(); buttons();
-  return { canLeave() { if (saving) { notice('마지막 표본 저장이 끝나면 이동해 주세요.'); return false; } if (recording && !window.confirm('센서 기록을 중지하고 다른 화면으로 이동할까요? 저장 완료된 자료는 유지됩니다.')) return false; stop(); return true; }, destroy() { alive = false; recording = false; clearInterval(captureTimer); clearInterval(readTimer); events.abort(); } };
+  return { getContext: () => Object.fromEntries(['participant', 'setup', 'date', 'comparison', 'metric'].map(key => [key, $(`[data-trend-${key}]`).value])), canLeave() { if (saving) { notice('마지막 표본 저장이 끝나면 이동해 주세요.'); return false; } if (recording && !window.confirm('센서 기록을 중지하고 다른 화면으로 이동할까요? 저장 완료된 자료는 유지됩니다.')) return false; stop(); return true; }, destroy() { alive = false; recording = false; clearInterval(captureTimer); clearInterval(readTimer); events.abort(); } };
 }

@@ -1,4 +1,5 @@
 const paths = {
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   activity: '<path d="M3 12h4l2.1-6 4.2 12 2.1-6H21"/>',
   shield: '<path d="M12 3 20 6v5.8c0 4.9-3.4 7.8-8 9.2-4.6-1.4-8-4.3-8-9.2V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/>',

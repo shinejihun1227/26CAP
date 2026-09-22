@@ -27,7 +27,7 @@ function featureRow(label, value, tone = "lavender") {
   return `<div class="feature-row"><span>${label}</span><div class="feature-track"><i class="feature-${tone}" style="width:${value}%"></i></div><b>${value}%</b></div>`;
 }
 
-export function renderSafetyView(state) {
+export function renderSafetyView(state, { embedded = false } = {}) {
   const thermal = analyzeThermalDifference(state.thermal);
   const fog = analyzeFog({ imu: state.imu, pressure: state.pressure, cadence: state.metrics.cadence });
   const cue = buildCuePlan({ fog, thermal, outputs: state.outputs });
@@ -38,9 +38,9 @@ export function renderSafetyView(state) {
     ? "ESP32 출력 API 연결됨 · 레이저는 펌웨어 안전 설정에 따라 비활성화될 수 있습니다."
     : "ESP32 연결 모드에서는 실제 출력 API가 호출되고, 연결 전에는 브라우저에서 시뮬레이션합니다.";
 
-  return `<div class="page-shell">
+  return `${embedded ? "" : `<div class="page-shell">
     ${renderTopbar(state)}
-    <main class="content-area">
+    <main class="content-area">`}
       <section class="subpage-heading"><div><span class="eyebrow">GAIT ANALYSIS CENTER</span><h1>보행 분석 센터</h1><p>결과만 보여주지 않고, 어떤 신호를 보고 판단했는지 함께 보여드려요.</p></div><span class="research-badge">연구용 분석</span></section>
       <section class="safety-notice"><span>${icon("shield")}</span><p><b>이 화면은 진단 결과가 아니에요.</b> 보행동결, 압력 이동, 양발 온·습도 차이를 관찰하는 연구용 보조 화면입니다. 각 카드에서 측정값과 판단 근거를 확인할 수 있어요.</p></section>
       ${renderSystemPipeline(state)}
@@ -68,6 +68,6 @@ export function renderSafetyView(state) {
         <div class="cue-test-row"><button class="text-button" data-action="test-laser">레이저 테스트</button><button class="text-button" data-action="test-vibration">진동 테스트</button><button class="text-button" data-action="test-voice">음성 듣기 ${icon("arrow")}</button><span>${outputNote}</span></div>
       </section>
       <section class="algorithm-footer"><div><b>보정 포인트</b><span>사용자별 안정 온도 기준선 · BMI270 샘플링 주파수 · FSR 압력 캘리브레이션</span></div><button class="subtle-button" data-action="calibrate">기준선 다시 잡기 ${icon("arrow")}</button></section>
-    </main>
-  </div>`;
+    ${embedded ? "" : `</main>
+  </div>`}`;
 }

@@ -26,12 +26,17 @@ export function renderSidebar(activeView, state) {
 
       <div class="sidebar-section-label">내 보행 살펴보기</div>
       <nav class="primary-nav" aria-label="주요 메뉴">
-        ${navItems.map((item) => `
+        ${navItems.filter((item) => item.group !== 'manage').map((item) => `
           <button class="nav-item ${activeView === item.id ? "is-active" : ""}" data-view="${item.id}" ${activeView === item.id ? 'aria-current="page"' : ''}>
             ${icon(item.icon)}
             <span><b>${item.korean}</b><small>${item.label}</small><em class="nav-item-mobile-label">${mobileNavLabels[item.id] ?? item.korean}</em></span>
           </button>
         `).join("")}
+      </nav>
+
+      <div class="sidebar-section-label">설정 · 자료 보관</div>
+      <nav class="primary-nav management-nav" aria-label="설정과 데이터 관리">
+        ${navItems.filter((item) => item.group === 'manage').map((item) => `<button class="nav-item ${activeView === item.id ? 'is-active' : ''}" data-view="${item.id}" ${activeView === item.id ? 'aria-current="page"' : ''}>${icon(item.icon)}<span><b>${item.korean}</b><small>${item.label}</small></span></button>`).join('')}
       </nav>
 
       <div class="sidebar-spacer"></div>

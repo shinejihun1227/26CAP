@@ -37,9 +37,10 @@ export function csvForSession(record) {
   const headers = ["participant", "view", "posture", "setup", "captured_at", "time_ms", "valid", ...ids.map((id) => `${id}_deg`)];
   return "\uFEFF" + [headers, ...record.samples.map((s) => [record.config.participant, record.config.view, record.config.posture, record.config.setup, record.capturedAt, s.t, s.valid, ...ids.map((id) => s.values[id] ?? "")])].map((row) => row.map(cell).join(",")).join("\r\n");
 }
-export function mountRomWorkspace(root) {
+export function mountRomWorkspace(root, context = null) {
   if (!root) return { destroy() {}, canLeave: () => true };
   const $ = (selector) => root.querySelector(selector);
+  const managing = root.dataset.romMode === "manage";
   const button = (action) => $(`[data-rom-action="${action}"]`);
   const video = $("[data-rom-video]");
   const overlay = $("[data-rom-overlay]");
@@ -78,6 +79,7 @@ export function mountRomWorkspace(root) {
   function setButtons() {
     button("start").disabled = starting || running || !$("[data-rom-consent]").checked;
     button("stop").disabled = !starting && !running;
+    $("[data-rom-identity]").textContent = `내 기록 · ${config().participant || "이름표 입력 필요"}`;
     const readiness = recordReadiness(), help = $("[data-rom-record-help]");
     button("record").disabled = !readiness.ready;
     button("record").title = readiness.reason;
@@ -216,7 +218,7 @@ export function mountRomWorkspace(root) {
     $("[data-rom-set-select]").value = activeSetId || "";
     $("[data-rom-set-notice]").textContent = storageReady && data.setSchemaVersion !== 1 ? "세트 기능을 적용하려면 웹 서버를 새 코드로 재시작하세요. 기존 개별 기록은 유지됩니다."
       : set ? `이후 저장하는 기록은 ‘${set.label}’에 함께 연결됩니다. 방향을 바꿀 때마다 촬영 확인란을 다시 체크하세요. 세트는 생성 후 30일 보관됩니다.` : "아래 측정 코드를 확인한 뒤 세트를 만드세요. 이미 저장한 기록은 방향별 기록에서 추가할 수 있습니다.";
-    $("[data-rom-set-views]").innerHTML = renderSetViews(set, data.sessions);
+    $("[data-rom-set-views]").innerHTML = renderSetViews(set, data.sessions, { capture: !managing });
     $("[data-rom-set-report]").innerHTML = renderIntegratedReport(set, data.sessions);
     if (set) {
       for (const el of $("[data-rom-history]").querySelectorAll('[data-rom-action="select"]')) {
@@ -250,7 +252,7 @@ export function mountRomWorkspace(root) {
     if (!quiet) notice("카메라를 껐습니다. 영상은 저장하지 않았습니다.");
   }
   async function startCamera() {
-    if (starting || running || !$("[data-rom-consent]").checked) return;
+    if (managing || starting || running || !$("[data-rom-consent]").checked) return;
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) { notice("웹캠은 http://127.0.0.1 또는 localhost, HTTPS에서 사용할 수 있습니다.", true); return; }
     if (!window.Worker || !window.createImageBitmap || !window.OffscreenCanvas) { notice("이 브라우저는 필요한 카메라 분석 기능을 지원하지 않습니다. 최신 데스크톱 브라우저에서 localhost로 열어 주세요.", true); return; }
     const token = ++generation; starting = true; setButtons();
@@ -409,7 +411,7 @@ export function mountRomWorkspace(root) {
     }
     if (action === "start") { void startCamera(); return; }
     if (action === "stop") { stopCamera(); return; }
-    if (action === "record") {
+    if (action === "record" && !managing) {
       const readiness = recordReadiness();
       if (!readiness.ready) { notice(readiness.reason); setButtons(); return; }
       if (draft && !window.confirm("저장하지 않은 기록을 버리고 새로 측정할까요?")) return;
@@ -469,8 +471,16 @@ export function mountRomWorkspace(root) {
   document.addEventListener("visibilitychange", onVisibility, { signal: abortEvents.signal });
   window.addEventListener("pagehide", () => stopCamera({ quiet: true }), { signal: abortEvents.signal });
   window.addEventListener("beforeunload", (event) => { if (recording || draft || pendingSave) { event.preventDefault(); event.returnValue = ""; } }, { signal: abortEvents.signal });
+  if (context) {
+    for (const key of ['participant', 'setup', 'metric', 'posture', 'confidence']) {
+      if (context[key] !== undefined) $(`[data-rom-config=${key}]`).value = context[key];
+    }
+    if (VIEWS[context.view]) $(`input[name=rom-view][value="${context.view}"]`).checked = true;
+  }
   setupView(); void refreshStorage();
+  if (managing) notice("기록을 저장한 사용자 코드를 선택하세요. 세트는 이미 저장한 기록을 묶어 관리합니다.");
   return {
+    getContext: config,
     canLeave: () => (!recording && !draft && !pendingSave) || window.confirm("이동하면 카메라를 끄고 저장하지 않은 기록을 버립니다. 이동할까요?"),
     destroy() { if (!alive) return; stopCamera({ quiet: true }); alive = false; clearInterval(tick); abortEvents.abort(); },
   };

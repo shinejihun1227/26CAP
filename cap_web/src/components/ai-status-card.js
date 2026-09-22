@@ -5,7 +5,7 @@ const STATUS_META = {
   warning: { label: "주의", tone: "orange", detail: "보행동결 가능성을 관찰하고 있어요." },
   confirmed: { label: "신호 감지", tone: "coral", detail: "최근 분석에서 보행동결 관련 신호가 이어졌어요." },
   warming_up: { label: "AI 준비 중", tone: "sky", detail: "첫 4초 분석 창을 채우고 있어요." },
-  calibration_missing: { label: '개인 보정 필요', tone: 'orange', detail: '깔창을 착용한 상태에서 아래 개인 IMU 보정을 진행해 주세요.' },
+  calibration_missing: { label: '개인 보정 필요', tone: 'orange', detail: '기기 설정의 ‘개인 기준 설정’에서 착용자의 기준을 준비해 주세요.' },
   calibration_failed: { label: '보정 다시 필요', tone: 'orange', detail: '보정에 실패해 판단을 멈췄어요. 수신 상태와 안내된 동작을 확인한 뒤 다시 보정해 주세요.' },
   calibrating: { label: '개인 보정 중', tone: 'sky', detail: '3초 준비 후 5초 정지, 이어서 20초 동안 평소처럼 걸어 주세요.' },
   invalid_data: { label: '입력 확인 필요', tone: 'orange', detail: '센서 수신 간격과 IMU 상태를 확인하고 유효한 분석 창을 다시 수집합니다.' },
@@ -75,17 +75,18 @@ export function renderAiStatusCard(state, { compact = false } = {}) {
   const model = escapeHtml(ai.model ?? "ensemble");
   const detail = status === 'unavailable' ? 'PC의 AI 분석 프로그램과 개인 보정 파일이 필요해요.' : meta.detail;
   const connection = ai.available ? (ai.ready ? "실시간 추론 연결됨" : "브리지 연결됨 · 준비 필요") : "브리지 연결 안 됨";
+  const nextView = ['calibration_missing', 'calibration_failed', 'device_offline', 'unavailable', 'invalid_data'].includes(status) ? 'devices' : 'live';
 
-  if (compact) return `<article class="overview-insight" data-insight="ai"><div class="overview-insight-heading"><h3>AI 보행동결</h3><span class="overview-badge tone-${meta.tone}" data-live-copy>${disabled ? '선택 기능' : meta.label}</span></div><div class="overview-insight-value" data-live-copy>${score === null ? meta.label : `${displayScore(score)}점`}</div><p data-live-copy>${detail}</p><button class="text-button" data-view="safety">분석 상태 보기 <span aria-hidden="true">→</span></button></article>`;
+  if (compact) return `<article class="overview-insight" data-insight="ai"><div class="overview-insight-heading"><h3>AI 보행동결</h3><span class="overview-badge tone-${meta.tone}" data-live-copy>${disabled ? '선택 기능' : meta.label}</span></div><div class="overview-insight-value" data-live-copy>${score === null ? meta.label : `${displayScore(score)}점`}</div><p data-live-copy>${detail}</p><button class="text-button" data-view="${nextView}">${nextView === 'devices' ? '연결 · 개인 기준 확인' : '보행 측정에서 확인'} <span aria-hidden="true">→</span></button></article>`;
 
   return `<article class="panel ai-status-panel">
-    <div class="panel-heading"><div><span class="panel-kicker">연구용 AI · ${model.toUpperCase()}</span><h2>AI 보행동결 탐지</h2></div><span class="algorithm-pill pill-${meta.tone}"><i></i><span data-live-copy>${meta.label}</span></span></div>
+    <div class="panel-heading"><div><span class="panel-kicker">현재 보행 신호</span><h2>AI 보행 관찰</h2></div><span class="algorithm-pill pill-${meta.tone}"><i></i><span data-live-copy>${meta.label}</span></span></div>
     <div class="ai-status-body">
       <div class="ai-score-block"><strong data-live-copy>${displayScore(score)}</strong><span>/ 100 · 판정 점수</span></div>
       <div class="ai-status-copy"><b data-live-copy>${detail}</b><p data-live-copy>${disabled ? 'AI 분석 꺼짐' : `${connection} · 최근 ${ai.windowSec ?? 4}초 분석`}</p><div class="ai-score-track"><i style="width:${score === null ? 0 : Math.round(score * 100)}%"></i></div></div>
     </div>
-    <p><a class="outline-button" href="/data/">데이터 수집 · CSV 분석 →</a></p>
-    ${renderAiDetails(state)}
+    <p><button class="outline-button" data-view="devices">연결 · 개인 기준 설정</button></p>
+    <details class="simple-details" data-ui-disclosure="ai-details"><summary>분석 근거 자세히 보기</summary>${renderAiDetails(state)}</details>
     <small class="algorithm-disclaimer">연구용 모델 결과이며 의료적 진단이 아닙니다. 센서 연결 전에는 기존 시연 데이터와 별도로 표시됩니다.</small>
   </article>`;
 }

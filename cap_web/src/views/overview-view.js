@@ -69,13 +69,12 @@ function renderObservations(state, presentation) {
   const thermalReady = finite(thermal.meanTemperatureDelta);
   const thermalValue = state.paused ? '화면 갱신 정지' : thermalReady ? `${display(thermal.meanTemperatureDelta)}°C 차이` : '양발 센서 필요';
   return `<section class="overview-insights" aria-label="분석별 상태">
-    ${renderAiStatusCard(state, { compact: true })}
     <article class="overview-insight" data-insight="gait"><div class="overview-insight-heading"><h3>보행 규칙 관찰</h3><span class="overview-badge ${alerts ? 'tone-orange' : 'tone-sky'}">센서 기반</span></div><div class="overview-insight-value" data-live-copy>${ruleLabel}</div><p>${ruleReady ? '압력 이동과 발의 움직임을 개인 기준과 비교해요.' : '개인 기준을 저장하면 하중·착지·발 들림의 변화를 살펴볼 수 있어요.'}</p><button class="text-button" data-view="live">측정과 기준 설정 <span aria-hidden="true">→</span></button></article>
     <article class="overview-insight" data-insight="thermal"><div class="overview-insight-heading"><h3>양발 온도 비교</h3><span class="overview-badge tone-${thermalReady ? thermal.stageTone : 'sky'}" data-live-copy>${state.paused ? '일시정지' : thermalReady ? thermal.stageLabel : '비교 대기'}</span></div><div class="overview-insight-value" data-live-copy>${thermalValue}</div><p>${state.paused ? '갱신을 재개하면 최신 온도 차이를 확인할 수 있어요.' : thermalReady ? '같은 부위의 평균 온도 차이예요. 습도 차이도 함께 확인할 수 있어요.' : '양발의 같은 부위에서 값이 들어와야 비교할 수 있어요.'}</p><button class="text-button" data-view="safety">부위별 차이 보기 <span aria-hidden="true">→</span></button></article>
   </section>`;
 }
 
-export function renderOverview(state) {
+export function renderOverview(state, { embedded = false } = {}) {
   const presentation = overviewPresentation(state);
   const { connection, usable, risk, title, description, action, view } = presentation;
   const metrics = state.metrics ?? {};
@@ -87,21 +86,17 @@ export function renderOverview(state) {
   const events = (state.events ?? []).slice(0, 3);
   const greeting = state.profile?.configured ? `${esc(state.profile.name)}님의 보행과 발 상태를 살펴보세요.` : '연결 상태와 주요 측정값을 한눈에 확인하세요.';
 
-  return `<div class="page-shell clarity-page overview-page">
+  return `${embedded ? "" : `<div class="page-shell clarity-page overview-page">
     ${renderTopbar(state)}
-    <main id="overview-content" class="content-area clarity-content overview-content">
+    <main id="overview-content" class="content-area clarity-content overview-content">`}
       <section class="clarity-page-intro overview-intro"><div><h1>오늘 요약</h1><p>${greeting}</p></div><span class="overview-source ${connection.real ? '' : 'is-demo'}">${connection.real ? '실제 센서 모드' : '시연 모드 · 예시 수치'}</span></section>
       <section class="clarity-overview-hero" aria-label="현재 상태와 시작 안내">
         <article class="clarity-status-card">
           <span class="clarity-card-kicker">지금의 보행 상태</span>
-          <div class="clarity-status-main"><div><h2 data-live-copy>${title}</h2><p data-live-copy>${description}</p><button class="clarity-primary-button" ${state.paused ? 'data-action="toggle-pause"' : `data-view="${view}"`}><span data-live-copy>${action}</span>${icon('arrow')}</button></div><div class="clarity-risk-score"><strong data-live-copy>${risk ?? '—'}</strong><span>관찰 점수</span><small>AI 점수와 별개</small></div></div>
+          <div class="clarity-status-main"><div><h2 data-live-copy>${title}</h2><p data-live-copy>${description}</p><button class="clarity-primary-button" ${state.paused ? 'data-action="toggle-pause"' : `data-view="${view}"`}><span data-live-copy>${action}</span>${icon('arrow')}</button></div><div class="simple-status-symbol" aria-hidden="true">${icon(connection.count ? "shoe" : "device")}</div></div>
           <div class="clarity-status-meta">${renderFootStatus(state, connection)}<span>${connection.real ? `${connection.activeLabel} 기준 · 센서 규칙` : '시연용 점수'}</span></div>
         </article>
-        <aside class="overview-start-card"><h2>이 순서로 시작하세요</h2><ol class="overview-start-steps">
-          <li><span>1</span><button data-view="devices"><b>깔창 연결</b><small>왼발·오른발 상태 확인</small>${icon('arrow')}</button></li>
-          <li><span>2</span><button data-view="live"><b>실시간 측정</b><small>압력과 움직임 살펴보기</small>${icon('arrow')}</button></li>
-          <li><span>3</span><button data-view="trends"><b>기록 비교</b><small>날짜별 변화를 확인하기</small>${icon('arrow')}</button></li>
-        </ol></aside>
+        <aside class="overview-ai-summary">${renderAiStatusCard(state, { compact: true })}<button class="simple-secondary" data-view="mediapipe">카메라로 관절 측정 →</button></aside>
       </section>
       <section class="clarity-section-heading overview-section-heading"><h2>핵심 측정값</h2><span>${connection.real ? '현재 수신 중인 세션 기준' : '시연 데이터'} · 미수신은 — 표시</span></section>
       <section class="metrics-grid clarity-metrics" aria-label="핵심 측정값">
@@ -110,17 +105,18 @@ export function renderOverview(state) {
         ${renderMetricCard({ label: '깔창 평균 온도', value: display(temperature), unit: '°C', delta: finite(temperature) ? '수신 부위 평균' : '센서값 대기', description: '연결된 온도센서 기준', tone: 'lavender', iconName: 'sun' })}
         ${renderMetricCard({ label: '깔창 평균 습도', value: display(humidity, 0), unit: '%', delta: finite(humidity) ? '상대습도' : '센서값 대기', description: '신발 안의 습한 정도', tone: 'sky', iconName: 'sun' })}
       </section>
-      <section class="clarity-section-heading overview-section-heading"><h2>분석 상태</h2><button class="text-button" data-view="safety">전체 분석 보기 ${icon('arrow')}</button></section>
+      <details class="simple-details overview-more" data-ui-disclosure="overview-observations"><summary>AI 분석 · 발 상태 · 최근 알림 자세히 보기</summary><section class="clarity-section-heading overview-section-heading"><h2>분석 상태</h2><button class="text-button" data-view="safety">전체 분석 보기 ${icon('arrow')}</button></section>
       ${renderObservations(state, presentation)}
       <section class="overview-bottom-grid">
-        <article class="panel clarity-events-card"><div class="panel-heading"><h2>최근 기록</h2><button class="text-button" data-view="reports">리포트 보기 ${icon('arrow')}</button></div>${events.length ? `<ul class="clarity-event-list">${events.map(renderEvent).join('')}</ul>` : '<div class="overview-empty"><b>아직 기록된 변화가 없어요</b><p>측정 중 상태 변화가 기록되면 여기에 표시됩니다.</p></div>'}</article>
+        <article class="panel clarity-events-card"><div class="panel-heading"><h2>최근 기록</h2><button class="text-button" data-view="trends">지난 기록 보기 ${icon('arrow')}</button></div>${events.length ? `<ul class="clarity-event-list">${events.map(renderEvent).join('')}</ul>` : '<div class="overview-empty"><b>아직 기록된 변화가 없어요</b><p>측정 중 상태 변화가 기록되면 여기에 표시됩니다.</p></div>'}</article>
         <article class="panel overview-camera-link"><span class="overview-small-icon">${icon('camera')}</span><div><h2>관절 움직임도 기록해 보세요</h2><p>노트북 카메라로 정면·측면의 움직임을 측정하고, 이전 기록과 비교할 수 있어요.</p><button class="text-button" data-view="mediapipe">관절 측정 열기 ${icon('arrow')}</button><small>카메라는 직접 시작할 때만 켜집니다.</small></div></article>
       </section>
+      </details>
       <details class="overview-details" data-ui-disclosure="overview-guide"><summary><span><b>점수와 용어가 궁금한가요?</b><small>판단 기준 · 데이터 처리 과정</small></span>${icon('chevron')}</summary><div class="overview-details-content">
-        <dl class="overview-glossary"><div><dt>관찰 점수와 AI 점수</dt><dd>관찰 점수는 센서 규칙의 참고값, AI 점수는 별도 모델의 출력입니다. 질환 확률이나 의료 진단이 아닙니다.</dd></div><div><dt>좌우 하중 균형</dt><dd>양발의 상대 압력을 비교합니다. 100점에 가까울수록 좌우가 비슷하며, 실제 체중 비율을 뜻하지는 않습니다.</dd></div><div><dt>보행동결(FoG)과 개인 기준</dt><dd>보행동결은 걸으려 해도 발을 떼기 어려운 현상입니다. 개인 기준은 본인의 측정값으로 만든 비교 기준이며 카메라 관절 측정과는 별도로 관리됩니다.</dd></div></dl>
+        <p>센서 규칙 관찰 점수: ${risk ?? "—"} / 100 · AI 모델 점수와 별개입니다.</p><dl class="overview-glossary"><div><dt>관찰 점수와 AI 점수</dt><dd>관찰 점수는 센서 규칙의 참고값, AI 점수는 별도 모델의 출력입니다. 질환 확률이나 의료 진단이 아닙니다.</dd></div><div><dt>좌우 하중 균형</dt><dd>양발의 상대 압력을 비교합니다. 100점에 가까울수록 좌우가 비슷하며, 실제 체중 비율을 뜻하지는 않습니다.</dd></div><div><dt>보행동결(FoG)과 개인 기준</dt><dd>보행동결은 걸으려 해도 발을 떼기 어려운 현상입니다. 개인 기준은 본인의 측정값으로 만든 비교 기준이며 카메라 관절 측정과는 별도로 관리됩니다.</dd></div></dl>
         ${renderSystemPipeline(state, { compact: true })}
       </div></details>
       <p class="medical-disclaimer">StepOn의 측정값과 분석은 관찰용 참고 정보이며, 의료적 진단이나 치료 효과를 보장하지 않습니다.</p>
-    </main>
-  </div>`;
+    ${embedded ? "" : `</main>
+  </div>`}`;
 }

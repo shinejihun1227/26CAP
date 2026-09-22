@@ -8,6 +8,7 @@ import { renderSafetyView } from "../views/safety-view.js";
 import { renderReportsView } from "../views/reports-view.js";
 import { renderDevicesView } from "../views/devices-view.js";
 import { renderMediaPipeView } from "../views/mediapipe-view.js";
+import { renderRecordsView } from '../views/records-view.js';
 import { renderTrendsView } from "../views/trends-view.js";
 import { loadSensorLayout, normalizeSensorLayout, persistSensorLayout } from "../data/sensor-layout.js";
 import { FOOT_LAYOUT_MODES, loadFootLayout, normalizeFootLayout, persistFootLayout } from "../data/foot-layout.js";
@@ -19,6 +20,7 @@ const GRID_COLUMNS = 12;
 const DEFAULT_KICKERS = { hero: "TODAY'S GAIT STATUS", pressure: "PRESSURE INSIGHT", chart: "WEEKLY RHYTHM", sensor: "SENSOR HEALTH", notice: "TODAY'S INSIGHT", text: "CUSTOM BLOCK" };
 
 const SCREEN_DEFS = [
+  { id: "records", label: "데이터 관리", short: "Data", description: "세트·보관·내보내기" },
   { id: "overview", label: "오늘 요약", short: "Today", description: "처음 들어왔을 때 보는 핵심 상태" },
   { id: "live", label: "실시간 측정", short: "Live", description: "센서 흐름과 현재 신호" },
   { id: "safety", label: "분석 센터", short: "Analysis", description: "FoG·압력·온습도 판단 근거" },
@@ -39,12 +41,13 @@ const COMPONENT_CATALOG = [
   { type: "image", label: "참고 이미지", description: "내 이미지 등록", icon: "image", width: 6, height: 5, tone: "plain" },
 ];
 
-const PREVIEW_RENDERERS = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView };
+const PREVIEW_RENDERERS = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView, records: renderRecordsView };
 
 // The editor preview deliberately points at the real 8000 DOM instead of a second
 // design-only canvas. Each entry connects one persisted editor block to the
 // corresponding block in the actual screen renderer.
 const DIRECT_PREVIEW_BLOCKS = {
+  records: [{ id: "records-heading", selector: ".records-workspace > .simple-heading", fields: { title: "h1", description: "p" } }],
   trends: [
     { id: "trends-heading", selector: ".trends-heading", fields: { title: "h1", description: "p" } },
     { id: "trends-rom", selector: ".trends-rom", fields: { title: "h2" } },
@@ -291,7 +294,7 @@ function findPreviewTarget(block, selector) {
 
 export function applyDirectTextOverrides(root, screenId, overrides = loadDirectTextOverrides()) {
   const screenOverrides = overrides?.[screenId] ?? {};
-  const definitions = root.querySelector(".mobile-app") ? MOBILE_DIRECT_TEXT_BLOCKS[screenId] : DIRECT_PREVIEW_BLOCKS[screenId];
+  const definitions = root.querySelector(".simple-mobile") ? DIRECT_PREVIEW_BLOCKS[screenId] : root.querySelector(".mobile-app") ? MOBILE_DIRECT_TEXT_BLOCKS[screenId] : DIRECT_PREVIEW_BLOCKS[screenId];
   (definitions ?? []).forEach((definition) => {
     const block = root.querySelector(definition.selector);
     const elementOverrides = screenOverrides[definition.id] ?? {};

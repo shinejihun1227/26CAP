@@ -125,7 +125,7 @@ test('demo data is visibly identified and main measurements precede optional tec
   const html = renderOverview(structuredClone(initialState));
   assert.match(html, /시연 모드 · 예시 수치/);
   assert.match(html, /실제 측정값이 아닙니다/);
-  assert.ok(html.indexOf('핵심 측정값') < html.indexOf('data-insight="ai"'));
+  assert.ok(html.indexOf('data-insight="ai"') < html.indexOf('핵심 측정값'));
   assert.ok(html.indexOf('data-insight="ai"') < html.indexOf('data-ui-disclosure="overview-guide"'));
   assert.match(html, /<details class="overview-details" data-ui-disclosure="overview-guide">/);
   assert.match(html, /카메라는 직접 시작할 때만 켜집니다/);

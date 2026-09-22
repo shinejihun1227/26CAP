@@ -15,11 +15,11 @@ export function renderSetReportPanel() {
   return `<section class="rom-set-report" aria-label="통합 관절 자료"><div class="rom-panel-head"><div><span class="rom-eyebrow">MULTI-VIEW RECORD</span><h2>통합 관절 자료</h2></div><div class="rom-buttons"><button type="button" data-rom-action="set-json" disabled>통합 JSON</button><button type="button" data-rom-action="set-csv" disabled>통합 CSV</button><button type="button" class="rom-danger" data-rom-action="set-delete" disabled>세트만 삭제</button></div></div><div data-rom-set-report>세트를 선택하면 정면·좌측면·우측면 기록을 함께 확인할 수 있습니다.</div><p class="rom-help">서로 다른 시점의 2D 각도 기록을 묶는 기능입니다. 3D 복원·동시 촬영·치료 효과 판정이 아니며, 영상은 저장하지 않습니다.</p></section>`;
 }
 
-export function renderSetViews(set, sessions) {
+export function renderSetViews(set, sessions, { capture = true } = {}) {
   const report = set ? buildSetReport(set, sessions) : null;
   return Object.entries(VIEWS).map(([view, label]) => {
     const summary = report?.views[view];
-    return `<div class="rom-set-view ${summary?.eligibleCount ? "is-recorded" : ""}"><strong>${label}</strong><span>${summary ? `저장 ${summary.count}개 · 품질 통과 ${summary.eligibleCount}개` : "세트 선택 후 기록"}</span><button type="button" data-rom-action="set-capture" data-rom-view="${view}" ${set ? "" : "disabled"}>${label} 촬영</button></div>`;
+    return `<div class="rom-set-view ${summary?.eligibleCount ? "is-recorded" : ""}"><strong>${label}</strong><span>${summary ? `저장 ${summary.count}개 · 품질 통과 ${summary.eligibleCount}개` : "세트 선택 후 기록"}</span>${capture ? `<button type="button" data-rom-action="set-capture" data-rom-view="${view}" ${set ? "" : "disabled"}>${label} 촬영</button>` : ""}</div>`;
   }).join("");
 }
 
