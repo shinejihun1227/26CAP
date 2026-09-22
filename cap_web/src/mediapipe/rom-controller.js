@@ -6,6 +6,20 @@ import { resolveJointSelection, renderJointOptions, jointGuide, renderJointGuide
 
 const MODEL_VERSION = "tasks-vision-1.0.1/pose-lite-f16-v1";
 const CONNECTIONS = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[27,29],[29,31],[27,31],[24,26],[26,28],[28,30],[30,32],[28,32]];
+export function recordingReadiness({ consent, starting, running, participant, setup, directionConfirmed, analysis, fresh, recording, pendingSave }) {
+  if (recording) return { ready: false, reason: "15초 기록 중입니다. 중단하려면 ‘통증·불편 / 중단’을 누르세요." };
+  if (pendingSave) return { ready: false, reason: "기록 저장이 끝날 때까지 기다려 주세요." };
+  if (!consent) return { ready: false, reason: "카메라 아래의 ‘웹캠 사용에 동의합니다’를 체크하세요." };
+  if (starting) return { ready: false, reason: "모델과 웹캠을 준비 중입니다. 카메라 권한 요청이 뜨면 허용해 주세요." };
+  if (!running) return { ready: false, reason: "‘웹캠 켜기’를 누르세요. 연결에 실패했다면 화면 위의 오류 안내를 확인하세요." };
+  if (!participant?.trim()) return { ready: false, reason: "사용자 코드(예: P01)를 입력하세요." };
+  if (!setup?.trim()) return { ready: false, reason: "촬영 환경 코드를 입력하세요." };
+  if (!directionConfirmed) return { ready: false, reason: "위의 ‘몸의 선택한 방향을 카메라로 향했고, 화면에는 한 사람만 있습니다’를 확인하고 체크하세요." };
+  if (!analysis) return { ready: false, reason: "관절 인식을 기다리고 있습니다. 선택한 관절과 어깨·골반이 화면에 보이게 해 주세요." };
+  if (!fresh) return { ready: false, reason: "최신 관절 인식을 기다리고 있습니다. 분석이 계속 멈춰 있으면 카메라를 껐다가 다시 켜 주세요." };
+  if (!analysis.valid) return { ready: false, reason: analysis.reason || "선택한 관절이 잘 보이도록 위치를 조정하세요." };
+  return { ready: true, reason: "준비 완료 · ‘15초 기록 시작’을 누르세요." };
+}
 export function cameraErrorMessage(error) {
   if (["NotAllowedError", "PermissionDeniedError"].includes(error?.name)) return "카메라 권한이 거부됐습니다. 주소창의 사이트 권한에서 카메라를 허용한 뒤 다시 켜 주세요.";
   if (["NotFoundError", "DevicesNotFoundError"].includes(error?.name)) return "사용 가능한 웹캠이 없습니다. 연결 상태를 확인하세요.";
@@ -52,13 +66,23 @@ export function mountRomWorkspace(root) {
     width: video.videoWidth || 640, height: video.videoHeight || 480, protocol: PROTOCOL, modelVersion: MODEL_VERSION,
   });
   const selectedRecord = () => draft || data.sessions.find((s) => s.id === selectedId);
-  const isFresh = () => running && performance.now() - resultAt < 400 && lastAnalysis?.valid;
+  const hasFreshResult = () => running && performance.now() - resultAt < 400;
+  const isFresh = () => hasFreshResult() && lastAnalysis?.valid;
+  const recordReadiness = () => recordingReadiness({
+    consent: $("[data-rom-consent]").checked, starting, running, ...config(),
+    directionConfirmed: $("[data-rom-direction-confirmed]").checked,
+    analysis: lastAnalysis, fresh: hasFreshResult(), recording, pendingSave,
+  });
   const sameConfig = (a, b) => comparisonKey({ config: a }) === comparisonKey({ config: b });
   const activeSet = () => data.sets?.find((s) => s.id === activeSetId && s.participant === config().participant);
   function setButtons() {
     button("start").disabled = starting || running || !$("[data-rom-consent]").checked;
     button("stop").disabled = !starting && !running;
-    button("record").disabled = !isFresh() || Boolean(recording) || pendingSave || !config().participant || !config().setup;
+    const readiness = recordReadiness(), help = $("[data-rom-record-help]");
+    button("record").disabled = !readiness.ready;
+    button("record").title = readiness.reason;
+    if (help.textContent !== readiness.reason) help.textContent = readiness.reason;
+    help.classList.toggle("is-ready", readiness.ready);
     button("abort").disabled = !recording;
     button("save").disabled = !draft || pendingSave || !storageReady || Boolean(recording);
     button("baseline").disabled = !selectedRecord()?.id || !selectedRecord()?.summary?.eligible || Boolean(recording) || pendingSave || !storageReady;
@@ -325,7 +349,8 @@ export function mountRomWorkspace(root) {
     if (el.matches("[data-rom-set-select]")) { activeSetId = el.value || null; renderHistory(); setButtons(); return; }
     if (el.matches("[data-rom-mirror]")) { $("[data-rom-stage]").classList.toggle("is-mirrored", el.checked); return; }
     if (el.matches("input[name=rom-view], [data-rom-config]")) {
-      $("[data-rom-direction-confirmed]").checked = false;
+      // Naming a record or changing confidence does not change the wearer's orientation.
+      if (el.matches('input[name=rom-view], [data-rom-config=metric], [data-rom-config=posture]')) $("[data-rom-direction-confirmed]").checked = false;
       setupView(el.matches('[data-rom-config=metric]') ? 'metric' : 'view');
     }
     if (el.matches("[data-rom-direction-confirmed]")) { lastAnalysis = null; resultAt = 0; resetFrozen(); updateAngles(null); }
@@ -385,7 +410,8 @@ export function mountRomWorkspace(root) {
     if (action === "start") { void startCamera(); return; }
     if (action === "stop") { stopCamera(); return; }
     if (action === "record") {
-      if (!isFresh() || recording) return;
+      const readiness = recordReadiness();
+      if (!readiness.ready) { notice(readiness.reason); setButtons(); return; }
       if (draft && !window.confirm("저장하지 않은 기록을 버리고 새로 측정할까요?")) return;
       resetFrozen(); draft = null; selectedId = null;
       recording = { started: performance.now(), capturedAt: new Date().toISOString(), config: config(), setId: activeSet()?.id ?? null, samples: [] };
