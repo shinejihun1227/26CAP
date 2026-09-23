@@ -1,0 +1,95 @@
+/* Camera controls stay short; recorded observations get their own reading area. */
+.rom-workspace.is-measurement .rom-heading { align-items:center; margin-bottom:24px; }
+.rom-workspace.is-measurement .rom-heading h1 { margin:3px 0 6px; }
+.rom-workspace.is-measurement .rom-heading p { margin:6px 0 0; }
+.rom-heading-actions .simple-route-link { display:flex; gap:10px; flex-wrap:wrap; }
+.rom-workspace .motion-capture { background:#fff; border:1px solid #dce8ed; border-radius:18px; padding:22px; gap:28px; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); }
+.rom-workspace .motion-capture :is(.rom-camera-panel,.rom-setup-panel) { border:0; padding:0; box-shadow:none; border-radius:0; }
+.motion-capture .rom-panel-head { margin-bottom:14px!important; }
+.motion-capture .rom-panel-head h2 { font-size:19px; }.motion-capture .rom-panel-head > span { font-size:12px; }
+.motion-capture .rom-video-empty b { font-size:17px; }.motion-capture .rom-video-empty p { font-size:13px!important; max-width:30ch; margin:8px 0; }
+.motion-capture .rom-framing-figure { height:58%; max-height:240px; }
+.motion-capture .rom-consent { margin:14px 0 10px; font-size:13px; line-height:1.65; }
+.motion-capture .rom-camera-tools { margin:0; gap:8px; }.motion-capture .rom-camera-tools button { padding:8px 13px; }
+.motion-capture .rom-camera-tools label { font-size:13px; }.motion-capture .rom-camera-tools > span { width:100%; margin:0; font-size:11px; }
+.motion-capture .rom-quality[data-rom-quality] { margin:12px 0 0; padding:11px 13px; font-size:13px; border-radius:8px; }
+.motion-preparation { list-style:none; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:0; margin:0 0 18px; }
+.motion-preparation li { display:grid; grid-template-columns:24px 1fr; column-gap:7px; row-gap:2px; align-items:center; background:#f4f7f8; border-radius:10px; padding:10px; }
+.motion-preparation .step-number { grid-row:1 / 3; width:24px; height:24px; display:grid; place-items:center; border-radius:50%; font-size:12px; background:#e3ebee; color:#577780; }
+.motion-preparation b { font-size:12px; white-space:nowrap; }.motion-preparation small { font-size:10px!important; color:#67808b; }
+.motion-preparation .is-current { background:#eaf7f2; }.motion-preparation :is(.is-current,.is-complete) .step-number { background:#228a79; color:white; }
+.motion-preparation .is-complete small { color:#207b6b; }
+.rom-workspace .motion-essential { grid-template-columns:minmax(0,1.7fr) minmax(90px,.8fr); gap:12px; margin:0; }
+.motion-essential .rom-joint-field { grid-column:auto; }.motion-essential label,.motion-capture .rom-directions legend { font-size:13px!important; }
+.motion-essential select { width:100%; min-height:43px; font-size:13px!important; padding:8px 10px; }
+.motion-capture .rom-joint-help { font-size:12px!important; margin:7px 0 12px; line-height:1.5; }
+.motion-capture .rom-directions { margin:0; }.motion-capture .rom-directions label { min-height:40px; padding:0; font-size:13px; }
+.motion-capture .rom-directions span { padding:9px 4px 9px 26px; font-size:13px; }
+.motion-capture .rom-directions input { left:8px; top:11px; }
+.motion-capture .rom-view-guide { margin:10px 0; padding:9px 12px; font-size:12px!important; line-height:1.65; }
+.motion-capture .rom-check { font-size:13px!important; line-height:1.6; gap:8px; }
+.rom-workspace .motion-capture .rom-record-box { margin:15px 0 0; padding:15px; }
+.motion-capture .rom-record-box [data-rom-record-title] { font-size:15px; }.motion-capture [data-rom-progress-text] { font-size:12px; }
+.rom-workspace .motion-capture .rom-record-box .rom-quality { margin:8px 0 12px; padding:0; border:0; background:transparent; font-size:13px; line-height:1.6; color:#486a74; }
+.motion-capture .rom-record-box .rom-buttons { flex-wrap:nowrap; }.rom-workspace .motion-capture .rom-record-box button { min-height:46px; font-size:14px; }
+.motion-capture .rom-record-box > small { display:block; font-size:11px!important; color:#637e87; margin-top:10px; }
+.motion-capture .rom-record-box progress { margin:7px 0 0; height:6px; }
+.rom-workspace.is-measurement > .rom-notice { background:transparent; margin:8px 2px; padding:6px 0; font-size:13px; }
+.rom-workspace.is-measurement > .rom-notice.is-error { background:#fff1ed; padding:12px; }
+.rom-workspace .motion-settings { margin:10px 0 24px; }
+.rom-workspace .motion-settings > summary { padding:13px 0; font-size:14px; }
+.motion-settings .rom-form-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }.motion-settings .rom-participant-help { font-size:13px; line-height:1.7; }
+.motion-settings .rom-joint-guide { margin-top:14px; }
+.motion-save-panel { display:flex; justify-content:space-between; align-items:center; gap:18px; padding:20px 24px; border:1px solid #b7d8cd; background:#edf8f3; border-radius:14px; margin:0 0 24px; }
+.motion-save-panel .rom-result { padding:0; margin:0; border:0; background:none; min-height:0; }.motion-save-panel .rom-result b { font-size:16px; }
+.motion-save-panel .rom-result small { display:block; font-size:13px; color:#486b73; margin:5px 0; }.motion-save-panel .rom-comparison { font-size:12px; margin:4px 0 0; }
+.motion-save-panel .rom-buttons { justify-content:flex-end; }.motion-save-panel button { font-size:13px; }
+.motion-analysis { display:grid; gap:18px; scroll-margin-top:24px; }
+.motion-section-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.rom-workspace .motion-section-heading h2,.rom-workspace .motion-insights h2 { font-size:21px; }
+.rom-workspace .motion-section-heading p { color:#5e7885; font-size:13px; margin:6px 0 0; }
+.motion-section-heading > span { font-size:12px; color:#5e7885; }
+.motion-state { padding:8px 13px; border:1px solid #dce6eb; border-radius:22px; background:#f2f6f8; white-space:nowrap; }
+.motion-state.is-ready { color:#18796b; background:#e9f8f2; border-color:#cceae0; }
+.motion-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.motion-stat { background:#fff; border:1px solid #dce8ed; border-radius:15px; padding:20px; min-width:0; }
+.motion-stat > div { display:flex; align-items:center; gap:10px; }.rom-workspace .motion-stat h3 { font-size:14px; line-height:1.5; margin:0; }
+.motion-stat-icon { width:36px; height:36px; border-radius:50%; background:#edf7fc; color:#2b89aa; display:grid; place-items:center; flex-shrink:0; }
+.motion-mint .motion-stat-icon { color:#268974; background:#e8f7f1; }.motion-lavender .motion-stat-icon { color:#8864c6; background:#f2edfd; }.motion-sand .motion-stat-icon { color:#a58138; background:#faf2df; }
+.motion-stat > strong { display:block; margin:20px 0 8px; font:750 clamp(28px,2.9vw,40px)/1.1 var(--font-number); letter-spacing:-.04em; color:#123646; font-variant-numeric:tabular-nums; }
+.rom-workspace .motion-stat p { font-size:12px; line-height:1.6; margin:0; color:#5e7885; }
+.motion-analysis-grid { display:grid; grid-template-columns:minmax(0,1.85fr) minmax(230px,1fr); gap:18px; }
+.motion-panel { border:1px solid #dce8ed; border-radius:16px; background:#fff; padding:22px; min-width:0; }
+.motion-chart { display:block; width:100%; height:auto; min-height:180px; overflow:visible; }
+.motion-chart-grid line { stroke:#e8eff3; }.motion-chart-grid text { fill:#567583; font:18px var(--font-ui); }
+.motion-chart-current,.motion-chart-previous { fill:none; stroke:#248c7b; stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.motion-chart-previous { stroke:#a4b8c3; stroke-width:2.5; stroke-dasharray:7 6; }.motion-chart-peak { fill:#fff; stroke:#248c7b; stroke-width:3; }
+.motion-chart-empty { font:16px var(--font-ui); fill:#72909d; }.rom-workspace .motion-chart-caption { font-size:11px; color:#657e8b; margin:12px 0 3px; }
+.motion-chart-legend { display:flex; align-items:center; gap:5px; font-size:11px!important; white-space:nowrap; }.motion-chart-legend i { display:inline-block; width:17px; height:2px; background:#248c7b; }
+.motion-chart-legend i.previous { border-top:2px dashed #a4b8c3; background:none; margin-left:7px; }.motion-chart-legend:not(.has-baseline) i.previous { opacity:.4; }
+.motion-previous-legend { display:inline-flex; gap:5px; align-items:center; }.motion-chart-legend:not(.has-baseline) .motion-previous-legend { display:none; }
+.motion-more { margin-top:14px; border-top:1px solid #e2ecef; padding-top:14px; }.motion-more > summary { cursor:pointer; font-size:13px; color:#486975; }
+.motion-more .rom-live-metrics { margin-top:14px; }.motion-more .rom-metric { padding:12px; }.motion-more .rom-metric strong { font-size:24px; }
+.motion-insights { background:#fbfdfd; }.motion-insights ol { list-style:none; margin:20px 0 0; padding:0; display:grid; gap:20px; }
+.motion-insights li { display:flex; align-items:flex-start; gap:10px; }.motion-insights li > span { display:grid; place-items:center; width:25px; height:25px; flex:0 0 25px; background:#eaf5f2; color:#287e72; font-size:12px; font-weight:700; border-radius:50%; }
+.rom-workspace .motion-insights li p { font-size:13px; line-height:1.8; color:#3f626f; margin:0; }
+.motion-review-controls { display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin:18px 0; }
+.motion-review-controls label { flex:1 1 210px; display:grid; gap:7px; font-size:13px; min-width:0; }.motion-review-controls select { width:100%; font-size:13px!important; }
+.motion-review-controls button { min-height:46px; font-size:13px; }
+.motion-comparison { scroll-margin-top:24px; }.motion-comparison-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+.motion-comparison-grid article { border:1px solid #e0e9ee; border-radius:11px; padding:16px; }.rom-workspace .motion-comparison-grid h3 { font-size:14px; margin:0 0 14px; }
+.motion-comparison-bar { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:11px; }.motion-comparison-bar > span { white-space:nowrap; color:#657c87; }.motion-comparison-bar > div { flex:1; min-width:20px; height:9px; background:#eef3f5; border-radius:9px; overflow:hidden; }.motion-comparison-bar i { display:block; height:100%; background:#2b9180; border-radius:9px; }.motion-comparison-bar i.previous { background:#afc0c8; }.motion-comparison-bar b { min-width:37px; text-align:right; color:#234a5a; }
+.rom-workspace .motion-empty { padding:18px; background:#f4f8f9; color:#66808c; border-radius:10px; font-size:14px; margin:14px 0 0; line-height:1.8; }
+.rom-workspace .motion-footnote { font-size:12px; color:#657e89; margin:14px 0 0; }
+@media(min-width:801px) and (max-width:1150px) {
+ .rom-workspace .motion-capture { gap:20px; padding:18px; }.motion-preparation li { padding:8px 5px; gap:3px; }.motion-preparation b { font-size:11px; }
+ .motion-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.motion-analysis-grid { grid-template-columns:1fr; }.motion-insights ol { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:800px) {
+ .rom-workspace .motion-capture { grid-template-columns:1fr; padding:18px; gap:25px; }.rom-heading-actions { margin-top:12px; }
+ .motion-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }.motion-stat { padding:15px; }.motion-stat > div { gap:7px; flex-wrap:wrap; }.rom-workspace .motion-stat h3 { font-size:13px; }.motion-stat > strong { font-size:32px; }
+ .motion-analysis-grid,.motion-comparison-grid { grid-template-columns:1fr; }.motion-panel { padding:18px; }.motion-section-heading { flex-wrap:wrap; gap:9px; }
+ .motion-save-panel { flex-direction:column; align-items:stretch; padding:18px; }.motion-save-panel .rom-buttons { justify-content:flex-start; }
+ .motion-settings .rom-form-grid { grid-template-columns:1fr; }.motion-essential select { font-size:12px!important; }.motion-review-controls label { flex-basis:100%; }
+ .motion-chart { min-height:170px; }.motion-chart-grid text { font-size:32px; }.motion-chart-empty { font-size:30px; }
+}

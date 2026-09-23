@@ -1,20 +1,22 @@
-import { analyzePose, METRICS, VIEWS, PROTOCOL, CAPTURE_SECONDS, SAMPLE_HZ, metricsForView, summarizeSession, comparisonKey, compareSessions, referenceError, round } from "./rom-math.js";
+import { analyzePose, METRICS, VIEWS, PROTOCOL, CAPTURE_SECONDS, SAMPLE_HZ, metricsForView, summarizeSession, comparisonKey, referenceError, round } from "./rom-math.js";
 import { escapeHtml } from "../utils/text.js";
 import { renderSetViews, renderIntegratedReport } from "./set-view.js";
 import { exportSetJson, csvForSet, buildSetReport } from "./rom-sets.js";
 import { resolveJointSelection, renderJointOptions, jointGuide, renderJointGuide, renderLiveJointMetrics } from './rom-joints.js';
 
+import { comparableRecords, renderMotionCards, renderMotionInsights, renderAngleChart, renderRecordComparison } from './motion-report.js';
+
 const MODEL_VERSION = "tasks-vision-1.0.1/pose-lite-f16-v1";
 const CONNECTIONS = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[27,29],[29,31],[27,31],[24,26],[26,28],[28,30],[30,32],[28,32]];
 export function recordingReadiness({ consent, starting, running, participant, setup, directionConfirmed, analysis, fresh, recording, pendingSave }) {
-  if (recording) return { ready: false, reason: "15초 기록 중입니다. 중단하려면 ‘통증·불편 / 중단’을 누르세요." };
+  if (recording) return { ready: false, reason: "15초 기록 중입니다. 불편하면 ‘중단’을 누르세요." };
   if (pendingSave) return { ready: false, reason: "기록 저장이 끝날 때까지 기다려 주세요." };
   if (!consent) return { ready: false, reason: "카메라 아래의 ‘웹캠 사용에 동의합니다’를 체크하세요." };
   if (starting) return { ready: false, reason: "모델과 웹캠을 준비 중입니다. 카메라 권한 요청이 뜨면 허용해 주세요." };
   if (!running) return { ready: false, reason: "‘웹캠 켜기’를 누르세요. 연결에 실패했다면 화면 위의 오류 안내를 확인하세요." };
   if (!participant?.trim()) return { ready: false, reason: "사용자 코드(예: P01)를 입력하세요." };
   if (!setup?.trim()) return { ready: false, reason: "촬영 환경 코드를 입력하세요." };
-  if (!directionConfirmed) return { ready: false, reason: "위의 ‘몸의 선택한 방향을 카메라로 향했고, 화면에는 한 사람만 있습니다’를 확인하고 체크하세요." };
+  if (!directionConfirmed) return { ready: false, reason: "촬영 방향 아래의 ‘선택한 방향을 향했고, 화면에는 나만 있어요’를 체크하세요." };
   if (!analysis) return { ready: false, reason: "관절 인식을 기다리고 있습니다. 선택한 관절과 어깨·골반이 화면에 보이게 해 주세요." };
   if (!fresh) return { ready: false, reason: "최신 관절 인식을 기다리고 있습니다. 분석이 계속 멈춰 있으면 카메라를 껐다가 다시 켜 주세요." };
   if (!analysis.valid) return { ready: false, reason: analysis.reason || "선택한 관절이 잘 보이도록 위치를 조정하세요." };
@@ -45,14 +47,14 @@ export function mountRomWorkspace(root, context = null) {
   const video = $("[data-rom-video]");
   const overlay = $("[data-rom-overlay]");
   const ctx = overlay.getContext("2d");
-  const graph = $("[data-rom-chart]").getContext("2d");
+  const graph = $("[data-rom-chart]");
   const abortEvents = new AbortController();
   let alive = true, starting = false, running = false, generation = 0;
   let stream = null, worker = null, animation = 0, busyFrame = false, lastVideoTime = -1, lastSentAt = 0;
   let resultAt = 0, resultSerial = 0, lastSampleSerial = -1, lastAnalysis = null, lastPoses = [], trace = [];
   let recording = null, draft = null, frozen = null, selectedId = null, pendingSave = false, storageReady = false;
   let data = { sessions: [], references: [], baselineIds: [], sets: [] };
-  let activeSetId = null;
+  let activeSetId = null, comparisonChoice = null;
   let workerTimeout = 0, permissionTimeout = 0, startupReject = null;
   let fpsSamples = [];
 
@@ -66,7 +68,7 @@ export function mountRomWorkspace(root, context = null) {
     posture: $("[data-rom-config=posture]").value, confidence: Number($("[data-rom-config=confidence]").value),
     width: video.videoWidth || 640, height: video.videoHeight || 480, protocol: PROTOCOL, modelVersion: MODEL_VERSION,
   });
-  const selectedRecord = () => draft || data.sessions.find((s) => s.id === selectedId);
+  const selectedRecord = () => draft || data.sessions.find((s) => s.id === selectedId && s.config.participant === config().participant);
   const hasFreshResult = () => running && performance.now() - resultAt < 400;
   const isFresh = () => hasFreshResult() && lastAnalysis?.valid;
   const recordReadiness = () => recordingReadiness({
@@ -79,7 +81,7 @@ export function mountRomWorkspace(root, context = null) {
   function setButtons() {
     button("start").disabled = starting || running || !$("[data-rom-consent]").checked;
     button("stop").disabled = !starting && !running;
-    $("[data-rom-identity]").textContent = `내 기록 · ${config().participant || "이름표 입력 필요"}`;
+    $("[data-rom-identity]").textContent = `${managing ? "내 기록" : "추가 설정 · 내 기록"} ${config().participant || "코드 입력 필요"}`;
     const readiness = recordReadiness(), help = $("[data-rom-record-help]");
     for (const step of root.querySelectorAll('[data-rom-step]')) {
       const id = step.dataset.romStep;
@@ -111,23 +113,57 @@ export function mountRomWorkspace(root, context = null) {
     button("discard").disabled = !draft || pendingSave || Boolean(recording);
     button("save-alone").hidden = !draft?.setId || Boolean(data.sets?.some((s) => s.id === draft.setId));
     button("save-alone").disabled = !draft || pendingSave || !storageReady;
+    if (!managing) {
+      button('review').disabled = Boolean(recording || pendingSave) || !storageReady || !$("[data-motion-review]").value;
+      $("[data-motion-review]").disabled = Boolean(recording || pendingSave);
+      $("[data-motion-baseline]").disabled = Boolean(recording || pendingSave) || !comparableRecords(selectedRecord(), data.sessions).length;
+      renderDashboard();
+    }
+  }
+  const renderedMarkup = new WeakMap();
+  const replaceHtml = (element, html) => {
+    if (element && renderedMarkup.get(element) !== html) { element.innerHTML = html; renderedMarkup.set(element, html); }
+  };
+  function reportBaseline(record) {
+    const candidates = comparableRecords(record, data.sessions);
+    if (comparisonChoice !== null) return candidates.find(s => s.id === comparisonChoice) || null;
+    return candidates.find(s => data.baselineIds.includes(s.id)) || candidates[0] || null;
+  }
+  function liveRecord() {
+    if (!recording) return selectedRecord();
+    const durationMs = Math.round(performance.now() - recording.started);
+    return { ...recording, durationMs, summary: summarizeSession(recording.samples, recording.config.metric, durationMs) };
   }
   function drawTrace() {
-    if (!graph) return;
-    const { width, height } = graph.canvas;
-    graph.clearRect(0, 0, width, height);
-    graph.strokeStyle = "#d7e2e8"; graph.lineWidth = 1;
-    graph.font = "14px sans-serif"; graph.fillStyle = "#697a89";
-    for (const a of [0, 90, 180]) { const y = height - 15 - a / 180 * (height - 30); graph.beginPath(); graph.moveTo(35, y); graph.lineTo(width - 10, y); graph.stroke(); graph.fillText(String(a), 4, y + 4); }
-    graph.strokeStyle = "#168477"; graph.lineWidth = 3; graph.beginPath();
-    let connected = false;
-    trace.forEach((v, i) => {
-      if (!Number.isFinite(v)) { connected = false; return; }
-      const x = 35 + i / Math.max(1, trace.length - 1) * (width - 50), y = height - 15 - v / 180 * (height - 30);
-      if (connected) graph.lineTo(x, y); else graph.moveTo(x, y);
-      connected = true;
-    });
-    graph.stroke();
+    if (managing) return;
+    const record = liveRecord(), metric = record?.config.metric || config().metric;
+    const baseline = !recording && reportBaseline(record);
+    const samples = record ? record.samples : trace.map(s => ({ ...s, t: s.t - (trace[0]?.t || 0) }));
+    replaceHtml(graph, renderAngleChart(samples, metric, baseline, record ? record.durationMs / 1000 : samples.length ? samples.at(-1).t / 1000 : 15));
+    $('[data-motion-chart-label]').textContent = recording ? '기록 중' : record ? '선택 기록' : '실시간';
+    $('[data-motion-chart-caption]').textContent = baseline ? '각도(°) · 각 기록의 시작점을 0초로 맞췄어요. 인식 누락 구간은 비워 둡니다.' : '각도(°) · 인식되지 않은 구간은 선을 연결하지 않아요.';
+    $('[data-motion-chart-label]').parentElement.classList.toggle('has-baseline', Boolean(baseline));
+  }
+  function renderDashboard() {
+    const record = liveRecord(), baseline = !recording && reportBaseline(record);
+    replaceHtml($('[data-motion-cards]'), renderMotionCards({ record, baseline, metric: config().metric, analysis: lastAnalysis, fresh: isFresh(), recording: Boolean(recording) }));
+    replaceHtml($('[data-motion-insights]'), recording ? '<p class="motion-empty">기록 중이에요. 15초가 끝나면 관찰 요약을 확인할 수 있어요.</p>' : renderMotionInsights(record, baseline));
+    const status = $('[data-motion-state]');
+    status.textContent = recording ? '15초 기록 중' : record ? draft ? '기록 완료 · 저장 전' : '저장 기록 보기' : recordReadiness().ready ? '측정 준비 완료' : running ? '몸 위치 확인' : '측정 대기';
+    status.classList.toggle('is-ready', Boolean(recording || recordReadiness().ready || record?.summary.eligible));
+    $('[data-motion-context]').textContent = record ? `${METRICS[record.config.metric].label} · ${new Date(record.capturedAt).toLocaleString('ko-KR')}` : `${METRICS[config().metric].label} · 실시간 2D 추정값`;
+  }
+  function updateComparisonControls(record) {
+    if (managing) return;
+    const review = $('[data-motion-review]'), previousValue = review.value;
+    const mine = data.sessions.filter(s => s.config.participant === config().participant).sort((a,b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt));
+    const title = s => `${new Date(s.capturedAt).toLocaleString('ko-KR')} · ${METRICS[s.config.metric].label}`;
+    replaceHtml(review, mine.length ? '<option value="">불러올 기록을 선택하세요</option>' + mine.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(title(s))}</option>`).join('') : '<option value="">저장된 기록 없음</option>');
+    review.value = mine.some(s => s.id === (selectedId || previousValue)) ? (selectedId || previousValue) : '';
+    const candidates = comparableRecords(record, data.sessions), select = $('[data-motion-baseline]');
+    replaceHtml(select, `<option value="">${candidates.length ? '비교 없이 보기' : '같은 조건의 이전 기록 없음'}</option>` + candidates.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(title(s))}${data.baselineIds.includes(s.id) ? ' · 개인 기준' : ''}</option>`).join(''));
+    select.value = reportBaseline(record)?.id || '';
+    replaceHtml($('[data-motion-comparison]'), candidates.length && comparisonChoice === '' ? '<p class="motion-empty">비교할 이전 기록을 선택하면 범위와 각도를 나란히 볼 수 있어요.</p>' : renderRecordComparison(record, reportBaseline(record)));
   }
   function drawOverlay(poses, ready) {
     if (!ctx) return;
@@ -168,7 +204,7 @@ export function mountRomWorkspace(root, context = null) {
     $("[data-rom-guide]").textContent = jointGuide(metric).framing;
     $("[data-rom-joint-guide]").innerHTML = renderJointGuide(metric);
     $("[data-rom-metrics]").innerHTML = renderLiveJointMetrics(view, metric);
-    lastAnalysis = null; resultAt = 0; trace = []; resetFrozen(); updateAngles(null); drawTrace(); drawOverlay([], false); renderHistory(); setButtons();
+    lastAnalysis = null; resultAt = 0; trace = []; resetFrozen(); updateAngles(null); drawTrace(); drawOverlay([], false); renderHistory(); renderResult(); setButtons();
   }
   async function requestStore(method = "GET", body) {
     const response = await fetch("/api/rom", { method, cache: "no-store", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(6000) });
@@ -193,18 +229,15 @@ export function mountRomWorkspace(root, context = null) {
     } catch (error) { if ([404, 409].includes(error.status)) await refreshStorage(); notice(error.message, true); return false; }
     finally { pendingSave = false; if (alive) { renderHistory(); renderResult(); setButtons(); } }
   }
-  function baselineFor(record) {
-    return data.sessions.find((s) => data.baselineIds.includes(s.id) && comparisonKey(s) === comparisonKey(record));
-  }
   function renderResult() {
     const record = selectedRecord();
-    if (!record) { $("[data-rom-result]").textContent = "아직 선택한 기록이 없습니다."; $("[data-rom-comparison]").textContent = "품질 기준을 통과한 저장 기록을 개인 기준으로 지정할 수 있습니다."; return; }
+    $('[data-motion-save]').hidden = !record;
+    updateComparisonControls(record);
+    if (!managing) { renderDashboard(); drawTrace(); }
+    if (!record) { $("[data-rom-result]").textContent = "아직 선택한 기록이 없습니다."; $("[data-rom-comparison]").textContent = ""; return; }
     const stats = record.summary.byMetric[record.config.metric];
-    $("[data-rom-result]").innerHTML = `<b>${escapeHtml(METRICS[record.config.metric].label)} · ${VIEWS[record.config.view]}</b><br><strong>${stats ? `${stats.observedRange}°` : "—"}</strong> 관찰 범위 (P05–P95)<small>${stats ? `관찰 각도 ${stats.p05}~${stats.p95}° · 중앙값 ${stats.median}°<br>` : ""}유효 ${record.summary.validCount}/${record.summary.totalCount}개 (${Math.round(record.summary.validRatio * 100)}%) · ${escapeHtml(record.summary.reason)}${draft ? " · 아직 저장하지 않음" : ""}</small>`;
-    const baseline = baselineFor(record), compared = compareSessions(record, baseline);
-    $("[data-rom-comparison]").textContent = baseline?.id === record.id ? "이 기록이 해당 촬영 조건의 개인 기준입니다."
-      : compared ? `개인 기준 ${compared.baselineRange}° → 이번 관찰 범위 ${compared.currentRange}° (${compared.delta >= 0 ? "+" : ""}${compared.delta}°). 범위 차이이며 치료 효과 판정이 아닙니다.`
-      : record.summary.eligible ? "동일한 측정 코드·방향·관절·자세·촬영 환경·신뢰도·모델·화면 비율의 개인 기준이 없습니다." : "이 기록은 품질 조건을 충족하지 않아 개인 기준 비교에서 제외합니다.";
+    $("[data-rom-result]").innerHTML = `<b>${draft ? '기록 완료 · 저장해 주세요' : '저장된 기록'} · ${escapeHtml(METRICS[record.config.metric].label)}</b><small>${stats ? `관찰 범위 ${stats.observedRange}° · ` : ''}유효 표본 ${Math.round(record.summary.validRatio * 100)}% · ${record.summary.eligible ? '비교 가능' : '품질 부족 · 비교 제외'}</small>`;
+    $("[data-rom-comparison]").textContent = data.baselineIds.includes(record.id) ? "이 기록은 해당 촬영 조건의 개인 기준입니다." : "저장하면 다음 측정과 비교할 수 있어요. 영상은 저장하지 않아요.";
   }
   function renderHistory() {
     const current = config();
@@ -254,9 +287,9 @@ export function mountRomWorkspace(root, context = null) {
     cancelAnimationFrame(animation); worker?.terminate(); worker = null;
     stream?.getTracks().forEach((track) => track.stop()); stream = null;
     video.pause(); video.srcObject = null;
-    busyFrame = false; lastVideoTime = -1; resultAt = 0; lastAnalysis = null; lastPoses = [];
+    busyFrame = false; lastVideoTime = -1; resultAt = 0; lastAnalysis = null; lastPoses = []; trace = [];
     $("[data-rom-empty]").hidden = false; $("[data-rom-camera-status]").textContent = "카메라 꺼짐";
-    $("[data-rom-fps]").textContent = "분석 대기"; updateAngles(null); drawOverlay([], false); resetFrozen(); setButtons();
+    $("[data-rom-fps]").textContent = "분석 대기"; updateAngles(null); drawOverlay([], false); resetFrozen(); setButtons(); drawTrace();
     if (!quiet) notice("카메라를 껐습니다. 영상은 저장하지 않았습니다.");
   }
   async function startCamera() {
@@ -289,7 +322,7 @@ export function mountRomWorkspace(root, context = null) {
             lastAnalysis = analyzePose(result.poses, { ...config(), directionConfirmed: $("[data-rom-direction-confirmed]").checked });
             if (resultAt - result.timestamp > 800) lastAnalysis = { valid: false, values: {}, reason: "분석 지연이 큽니다. 다른 앱을 닫거나 웹캠 해상도를 줄이세요." };
             updateAngles(lastAnalysis); drawOverlay(result.poses, lastAnalysis.valid);
-            trace.push(lastAnalysis.valid ? lastAnalysis.primary : null); trace = trace.slice(-100); drawTrace();
+            trace.push({ t: resultAt, valid: lastAnalysis.valid, values: { ...lastAnalysis.values } }); trace = trace.slice(-100); drawTrace();
             fpsSamples = [...fpsSamples.filter((t) => resultAt - t < 2000), resultAt];
             $("[data-rom-fps]").textContent = `${round(fpsSamples.length / 2)} 분석/초 · 기록 5 Hz`;
             setButtons();
@@ -347,6 +380,7 @@ export function mountRomWorkspace(root, context = null) {
       if (elapsed >= CAPTURE_SECONDS * 1000) finishRecording(false);
     }
     setButtons();
+    if (recording) drawTrace();
   }, 1000 / SAMPLE_HZ);
 
   function download(contents, mime, suffix) {
@@ -356,9 +390,12 @@ export function mountRomWorkspace(root, context = null) {
   }
   root.addEventListener("change", (event) => {
     const el = event.target;
+    if (el.matches('[data-motion-baseline]')) { comparisonChoice = el.value; renderResult(); setButtons(); return; }
+    if (el.matches('[data-motion-review]')) { setButtons(); return; }
     if (el.matches("[data-rom-set-select]")) { activeSetId = el.value || null; renderHistory(); setButtons(); return; }
     if (el.matches("[data-rom-mirror]")) { $("[data-rom-stage]").classList.toggle("is-mirrored", el.checked); return; }
     if (el.matches("input[name=rom-view], [data-rom-config]")) {
+      if (!draft) { selectedId = null; comparisonChoice = null; }
       // Naming a record or changing confidence does not change the wearer's orientation.
       if (el.matches('input[name=rom-view], [data-rom-config=metric], [data-rom-config=posture]')) $("[data-rom-direction-confirmed]").checked = false;
       setupView(el.matches('[data-rom-config=metric]') ? 'metric' : 'view');
@@ -370,7 +407,8 @@ export function mountRomWorkspace(root, context = null) {
   root.addEventListener("click", async (event) => {
     const target = event.target.closest("[data-rom-action]");
     if (!target || target.disabled || !alive) return;
-    const action = target.dataset.romAction, id = target.dataset.romId;
+    const action = target.dataset.romAction, id = action === 'review' ? $('[data-motion-review]')?.value : target.dataset.romId;
+    if (action === 'show-comparison') { $('#rom-record-comparison')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
     if (pendingSave && !["stop", "abort"].includes(action)) return;
     if (action.startsWith("set-")) {
       if (recording || draft) return;
@@ -423,7 +461,7 @@ export function mountRomWorkspace(root, context = null) {
       const readiness = recordReadiness();
       if (!readiness.ready) { notice(readiness.reason); setButtons(); return; }
       if (draft && !window.confirm("저장하지 않은 기록을 버리고 새로 측정할까요?")) return;
-      resetFrozen(); draft = null; selectedId = null;
+      resetFrozen(); draft = null; selectedId = null; comparisonChoice = null;
       recording = { started: performance.now(), capturedAt: new Date().toISOString(), config: config(), setId: activeSet()?.id ?? null, samples: [] };
       lastSampleSerial = resultSerial;
       $("[data-rom-record-title]").textContent = "15초 기록 중 · 편안한 범위에서";
@@ -442,7 +480,7 @@ export function mountRomWorkspace(root, context = null) {
       }
       return;
     }
-    if (action === "baseline") { await mutate("POST", { action: "set_baseline", id: selectedRecord()?.id }, "동일 촬영 조건의 개인 기준으로 지정했습니다."); return; }
+    if (action === "baseline") { comparisonChoice = null; await mutate("POST", { action: "set_baseline", id: selectedRecord()?.id }, "동일 촬영 조건의 개인 기준으로 지정했습니다."); return; }
     if (action === "freeze" && isFresh()) { frozen = { config: config(), capturedAt: new Date().toISOString(), estimated: lastAnalysis.primary }; $("[data-rom-frozen]").textContent = `${METRICS[frozen.config.metric].label}: ${frozen.estimated}°`; $("[data-rom-same-pose]").checked = false; setButtons(); return; }
     if (action === "reference" && frozen) {
       const raw = $("[data-rom-reference]").value;
@@ -452,9 +490,18 @@ export function mountRomWorkspace(root, context = null) {
       setButtons(); return;
     }
     if (action === "refresh") { await refreshStorage(); return; }
-    if (action === "select") {
+    if (action === "select" || action === "review") {
       if (recording || (draft && !window.confirm("저장하지 않은 기록을 버리고 이전 기록을 볼까요?"))) return;
-      draft = null; selectedId = id; renderResult(); setButtons(); return;
+      const record = data.sessions.find(s => s.id === id && s.config.participant === config().participant);
+      if (!record) return;
+      stopCamera({ quiet: true }); draft = null; selectedId = id; comparisonChoice = null;
+      for (const key of ['setup', 'metric', 'posture', 'confidence']) $(`[data-rom-config=${key}]`).value = record.config[key];
+      $(`input[name=rom-view][value="${record.config.view}"]`).checked = true;
+      $('[data-rom-direction-confirmed]').checked = false;
+      setupView('metric'); renderResult(); setButtons();
+      notice('저장된 기록을 불러왔어요. 새 측정은 웹캠을 켜고 몸 위치를 다시 확인해 주세요.');
+      if (!managing) $('[data-motion-analysis]').scrollIntoView({ block: 'start' });
+      return;
     }
     if (action.startsWith("delete-")) {
       if (!window.confirm("선택한 각도 기록을 이 PC에서 삭제할까요? 연결된 세트에서는 원본 누락으로 표시됩니다. 내보낸 파일은 삭제되지 않습니다.")) return;
