@@ -15,7 +15,7 @@ import time
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from urllib.request import Request, urlopen
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -295,6 +295,7 @@ class FootRuntime:
                 'window_ready': ready, 'window_count': self.window_count, 'total_windows': self.total_windows,
                 'received_hz': round(self.input_hz(), 1), 'sample_rate_hz': TARGET_HZ,
                 'accepted_samples': self.accepted_samples, 'resets': self.resets, 'device_id': self.identity[0] if self.identity else None,
+                'boot_id': self.identity[1] if self.identity else None,
                 'last_error': self.load_error or self.error, 'calibration': self.calibration_info, 'capture': capture,
                 'pressure_gate_enabled': False, 'pressure_note': 'relative_4_channel_pressure_not_force_calibrated'}
 
@@ -326,6 +327,11 @@ class BridgeState:
         self.last_decision = None
         self.source_error = None
         self.datasets = DatasetService(data_dir, artifact_dir, self.artifact_id, model_name)
+        if __package__:
+            from .fog_cue import FogCueController
+        else:
+            from fog_cue import FogCueController
+        self.cue = FogCueController(self, data_dir)
 
     def consume(self, payload):
         with self.lock:
@@ -406,7 +412,8 @@ class BridgeState:
                     'window_count': sum(s['window_count'] for s in feet.values()), 'sample_rate_hz': TARGET_HZ,
                     'window_sec': 4, 'hop_sec': 0.5, 'calibration': result['calibration'],
                     'last_error': self.source_error or (result['last_error'] if not selected else None),
-                    'source': 'esp32' if self.esp32_url else 'insole_hub', 'device_url': self.esp32_url or self.hub_url}
+                    'source': 'esp32' if self.esp32_url else 'insole_hub', 'device_url': self.esp32_url or self.hub_url,
+                    'cue': self.cue.snapshot()}
 
 
 class BridgeHandler(BaseHTTPRequestHandler):
@@ -431,7 +438,16 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 with self.bridge.lock:
                     self.send_json(200, {'events': list(self.bridge.events)})
             elif route == '/api/ai/datasets':
-                self.send_json(200, self.bridge.datasets.list())
+                query = parse_qs(urlparse(self.path).query)
+                context = None
+                if query:
+                    from_context = {key: query.get(key, [''])[0] for key in ('participant_id', 'session_id', 'side', 'placement')}
+                    if __package__:
+                        from .csv_pipeline import metadata
+                    else:
+                        from csv_pipeline import metadata
+                    context = metadata(from_context)
+                self.send_json(200, self.bridge.datasets.list(context))
             elif route.startswith('/api/ai/datasets/'):
                 parts = route.removeprefix('/api/ai/datasets/').split('/')
                 if len(parts) == 1:
@@ -468,6 +484,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError('json_object_required')
+            if route == '/api/ai/cue':
+                self.bridge.cue.set_enabled(body.get('enabled'))
+                return self.send_json(200, self.bridge.snapshot())
             if route == '/api/ai/datasets/validate':
                 return self.send_json(200, self.bridge.datasets.validate(body))
             if route == '/api/ai/datasets/analyze':
@@ -517,6 +536,7 @@ def main():
     server = ThreadingHTTPServer((args.host, args.port), BridgeHandler)
     worker = threading.Thread(target=bridge.poll_device, daemon=True)
     worker.start()
+    bridge.cue.start()
     print(f'StepOn AI API: http://{args.host}:{args.port}/api/ai/state', flush=True)
     try:
         server.serve_forever()
@@ -524,6 +544,7 @@ def main():
         pass
     finally:
         bridge.stop.set()
+        bridge.cue.close()
         bridge.datasets.close()
         server.server_close()
         worker.join(timeout=2)

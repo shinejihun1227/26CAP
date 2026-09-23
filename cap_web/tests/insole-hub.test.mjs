@@ -23,6 +23,25 @@ const foot = (side, extra = {}) => ({ connected: true, status: 'online', age_ms:
 const both = () => ({ service: 'stepon-bilateral-v1', frame: 20, feet: { left: foot('left'), right: foot('right') } });
 const until = async (predicate) => { for (let i = 0; i < 200; i++) { if (predicate()) return; await new Promise((r) => setTimeout(r, 10)); } throw new Error('test condition timeout'); };
 
+test('FoG cue commands bind to the live device and boot and require compatible firmware', async t => {
+  const commands=[]; let sequence=0, capability=1;
+  const hub=createInsoleHub({pollIntervalMs:10,fetchImpl:async url=> {
+    const path=new URL(url).pathname;
+    if(path==='/api/state') return new Response(JSON.stringify(frame('left',++sequence,{cue_api_version:capability})));
+    commands.push(url); return new Response(JSON.stringify({accepted:true,cue_api_version:1}));
+  }});
+  t.after(()=>hub.stop()); hub.register({side:'left',url:'http://192.168.0.12'});
+  await until(()=>hub.snapshot().feet.left.connected);
+  const value={active:true,device_id:'c3-left',boot_id:'boot-1'};
+  await hub.command('left','fog-cue',value);
+  await hub.command('left','fog-cue',{...value,active:false});
+  assert.match(commands[0],/active=1/); assert.match(commands[1],/active=0/);
+  await assert.rejects(hub.command('left','fog-cue',{...value,boot_id:'old-boot'}),/identity/);
+  capability=0; await until(()=>hub.snapshot().feet.left.state?.cue_api_version===0);
+  await assert.rejects(hub.command('left','fog-cue',value),/upload_fog_cue_firmware/);
+  assert.equal(commands.length,2);
+});
+
 test('bilateral normalizer keeps two independent pressure, thermal and IMU values', () => {
   const s = normalizeBilateralState(both(), structuredClone(initialState));
   assert.deepEqual(s.bilateralPressure.left, [10, 20, 30, 40]); assert.deepEqual(s.bilateralPressure.right, [80, 60, 40, 20]);

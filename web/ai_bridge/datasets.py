@@ -13,11 +13,13 @@ import time
 import uuid
 
 if __package__:
-    from .csv_pipeline import COLUMNS, MAX_ROWS, metadata, validate_pair, write_json
+    from .csv_pipeline import COLUMNS, MAX_ROWS, metadata, validate_pair, write_json, parse_csv, calibration_from_rows
 else:
-    from csv_pipeline import COLUMNS, MAX_ROWS, metadata, validate_pair, write_json
+    from csv_pipeline import COLUMNS, MAX_ROWS, metadata, validate_pair, write_json, parse_csv, calibration_from_rows
 
 BODY_LIMIT = 20 * 1024 * 1024
+GUIDED_PROTOCOL = 'stepon-five-movements-v1'
+GUIDED_ACTIVITIES = {'standing': 30, 'walking': 60, 'slow_walking': 60, 'start_stop': 60, 'turning': 60}
 DOWNLOADS = {'measurement.csv', 'calibration.csv', 'windows.csv', 'result.json', 'calibration.json', 'manifest.json', 'recording.csv'}
 
 
@@ -47,14 +49,18 @@ class DatasetService:
             result.update(status='interrupted', error='프로그램이 종료되어 작업이 중단되었습니다. 다시 시작해 주세요.')
         return result
 
-    def list(self):
+    def list(self, context=None):
         self.tick()
         with self.lock:
-            files = sorted(self.root.glob('*/manifest.json'), key=lambda p: p.stat().st_mtime, reverse=True)[:20]
+            files = sorted(self.root.glob('*/manifest.json'), key=lambda p: p.stat().st_mtime, reverse=True)
+            if context is None:
+                files = files[:20]
             items = []
             for file in files:
                 try:
-                    items.append(self.manifest(file.parent.name))
+                    item = self.manifest(file.parent.name)
+                    if context is None or all(item.get('metadata', {}).get(k) == v for k, v in context.items()):
+                        items.append(item)
                 except (ValueError, OSError):
                     continue
             return {'items': items, 'active_recording': self.capture['id'] if self.capture and self.capture['status'] in ('countdown', 'recording') else None,
@@ -121,6 +127,14 @@ class DatasetService:
         if purpose not in ('calibration', 'measurement'):
             raise ValueError('purpose: calibration 또는 measurement가 필요합니다.')
         duration = 25 if purpose == 'calibration' else body.get('duration_s', 60)
+        protocol = body.get('protocol')
+        if protocol is not None and protocol != GUIDED_PROTOCOL:
+            raise ValueError('알 수 없는 수집 안내입니다. 화면을 새로고침하세요.')
+        activity = body.get('activity')
+        if protocol and purpose == 'measurement':
+            if activity not in GUIDED_ACTIVITIES:
+                raise ValueError('기록할 동작을 선택하세요.')
+            duration = GUIDED_ACTIVITIES[activity]
         if isinstance(duration, bool) or not isinstance(duration, int) or not 10 <= duration <= 600:
             raise ValueError('측정 시간은 10~600초 정수입니다.')
         with self.lock:
@@ -135,6 +149,19 @@ class DatasetService:
             if snap.get('capture', {}).get('status') in ('countdown', 'recording'):
                 raise ValueError('실시간 개인 보정이 끝난 뒤 수집을 시작하세요.')
             context.update(device_id=runtime.identity[0], boot_id=runtime.identity[1])
+            calibration_id = body.get('calibration_id') if protocol and purpose == 'measurement' else None
+            if protocol and purpose == 'measurement':
+                if not isinstance(calibration_id, str):
+                    raise ValueError('먼저 25초 보정을 끝내 주세요.')
+                calibration = self.manifest(calibration_id)
+                if calibration.get('purpose') != 'calibration' or calibration['status'] != 'complete' or not calibration.get('calibration_valid'):
+                    raise ValueError('먼저 25초 보정을 끝내 주세요.')
+                if any(calibration['metadata'].get(k) != context[k] for k in ('participant_id', 'session_id', 'side', 'placement', 'device_id')):
+                    raise ValueError('보정 때와 참가자·회차·발·장치·부착 위치가 다릅니다. 다시 보정하세요.')
+            repetition = 1
+            if protocol and purpose == 'measurement':
+                repetition += sum(item.get('protocol') == protocol and item.get('activity') == activity and item['status'] == 'complete'
+                                  for item in self.list(metadata(body))['items'])
             identifier = uuid.uuid4().hex
             folder = self.path(identifier)
             folder.mkdir(parents=True)
@@ -146,6 +173,10 @@ class DatasetService:
                             'metadata': context, 'duration_s': duration, 'rows': 0, 'elapsed_s': 0,
                             'created_at_ms': int(time.time()*1000), 'starts_at_ms': int((time.time()+3)*1000),
                             'error': None}
+            if protocol:
+                self.capture.update(protocol=protocol, activity=activity if purpose == 'measurement' else 'calibration',
+                                    calibration_id=calibration_id, repetition=repetition,
+                                    label_source='planned_instruction', ground_truth_status='unreviewed')
             self.starts_at = time.monotonic() + 3
             self.last_received = time.monotonic()
             self.first_t = self.last_t = None
@@ -166,10 +197,23 @@ class DatasetService:
                 error = error or '25초 보정 동작을 완료하지 못했습니다. 다시 기록하세요.'
             if self.capture['rows'] < 2:
                 error = error or '기록된 센서 데이터가 없습니다.'
-            self.capture.update(status='failed' if error else 'complete', error=error)
             if self.output:
                 self.output.close()
                 self.output = None
+            if self.capture.get('protocol') and not error:
+                if self.capture['elapsed_s'] < self.capture['duration_s'] - 0.1:
+                    error = '동작 시간이 끝나기 전에 기록을 멈췄어요. 쉬었다가 같은 동작을 다시 기록해 주세요.'
+                else:
+                    try:
+                        content = (self.path(identifier) / 'recording.csv').read_text(encoding='utf-8-sig')
+                        recording = parse_csv(content, self.capture['metadata'])
+                        self.capture['quality'] = recording.quality
+                        if self.capture['purpose'] == 'calibration':
+                            calibration_from_rows(recording.rows, self.capture['metadata']['side'], self.capture['metadata']['device_id'])
+                            self.capture['calibration_valid'] = True
+                    except ValueError as exc:
+                        error = str(exc)
+            self.capture.update(status='failed' if error else 'complete', error=error)
             self._save_capture()
             return dict(self.capture)
 
@@ -193,7 +237,8 @@ class DatasetService:
                 self.first_t = t
             self.last_t = t
             elapsed = (t - self.first_t) / 1000
-            label = ('calibration_still' if elapsed < 5 else 'calibration_walk') if c['purpose'] == 'calibration' else 'unlabeled'
+            label = ('calibration_still' if elapsed < 5 else 'calibration_walk') if c['purpose'] == 'calibration' else (
+                'planned_' + c['activity'] if c.get('protocol') else 'unlabeled')
             self.writer.writerow([t, *(payload[k][axis] for k in ('accel', 'gyro') for axis in 'xyz'),
                                   *(c['metadata'][k] for k in ('device_id', 'boot_id', 'side', 'participant_id', 'session_id', 'placement')), label])
             c.update(status='recording', rows=c['rows']+1, elapsed_s=round(elapsed, 3))

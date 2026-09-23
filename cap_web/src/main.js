@@ -17,8 +17,8 @@ import { loadSensorLayout, normalizeSensorLayout } from "./data/sensor-layout.js
 import { loadFootLayout, normalizeFootLayout } from "./data/foot-layout.js";
 import { renderMobileApp, renderMobileOnboarding } from "./mobile/mobile-app.js";
 import { fetchEsp32State, markEsp32Disconnected, normalizeEsp32State } from "./services/esp32-api.js";
-import { setAutoCue, setLaser, vibrate, usesBilateralSta, hubRequest } from "./services/esp32-api.js";
-import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi } from "./services/ai-api.js";
+import { setLaser, vibrate, usesBilateralSta, hubRequest } from "./services/esp32-api.js";
+import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi, setFogCue } from "./services/ai-api.js";
 import { mountRomWorkspace } from "./mediapipe/rom-controller.js";
 import { renderTrendsView } from "./views/trends-view.js";
 import { renderRecordsView } from './views/records-view.js';
@@ -27,6 +27,8 @@ import { emptyPressure } from "./data/sensor-config.js";
 import { captureViewContinuity, restoreViewContinuity } from "./utils/view-continuity.js";
 import { captureInsoleControls, restoreInsoleControls, isEditingInsole } from "./utils/insole-ui.js";
 import { updateInsoleReadings } from "./components/insole-connection.js";
+import { createInteractionGuard } from './utils/interaction-guard.js';
+import { updateAppShell } from './utils/app-shell.js';
 
 const app = document.querySelector("#app");
 const profileStorageKey = "stepon-cap-web-profile";
@@ -88,12 +90,14 @@ let renderedView = null;
 let toastMessage = '';
 let toastTimer;
 const toastMarkup = () => `<div class="toast-region" aria-live="polite">${toastMessage ? `<div class="toast">${escapeHtml(toastMessage)}</div>` : ''}</div>`;
+const interactionGuard = createInteractionGuard(app, () => renderView());
 
 function renderView(force = false) {
   if (isEditorMode) {
     return;
   }
   // Native dropdowns and both address forms must survive background polling.
+  if (!force && renderedView === activeView && interactionGuard.defer()) return;
   if (!force && renderedView === activeView && !showOnboarding && isEditingInsole(app)) {
     updateInsoleReadings(app, state);
     return;
@@ -110,7 +114,7 @@ function renderView(force = false) {
   const viewState = { ...state, aiEnabled, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
   const continuity = renderedView === activeView ? captureViewContinuity(app) : null;
   const insoleControls = renderedView === activeView ? captureInsoleControls(app) : null;
-  app.innerHTML = `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${toastMarkup()}`;
+  updateAppShell(app, `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${toastMarkup()}`, isMobileUi, renderedView === activeView);
   applySafeTextOverrides();
   restoreViewContinuity(app, continuity);
   restoreInsoleControls(app, insoleControls);
@@ -211,7 +215,7 @@ function updateRehabLog(log, result) {
 function syncEsp32Output(key, enabled) {
   if (!esp32Enabled) return;
   const side = state.rehab?.config?.activeFoot ?? 'left';
-  const request = key === "laser" ? setLaser(enabled, side) : key === "vibration" && enabled ? vibrate(47, side) : key === "auto" ? setAutoCue(enabled, side) : null;
+  const request = key === "laser" ? setLaser(enabled, side) : key === "vibration" && enabled ? vibrate(47, side) : key === "auto" ? setFogCue(enabled) : null;
   if (request) void request.catch(() => showToast("선택한 발의 연결과 출력 설정을 확인하세요."));
 }
 
@@ -222,13 +226,20 @@ function applyRehabAnalysis(nextState) {
     ? { ...nextState.metrics, steps: result.rehab.metrics.stepCount }
     : nextState.metrics;
   const stateWithRehab = { ...nextState, metrics: liveMetrics, rehab: result.rehab, rehabLog: updateRehabLog(nextState.rehabLog, result) };
-  if (result.triggeredAlert && esp32Enabled && stateWithRehab.outputs?.vibration && (!usesBilateralSta() || stateWithRehab.outputs?.auto) && result.feedback?.vibrationCount) {
+  if (result.triggeredAlert && esp32Enabled && !aiEnabled && !usesBilateralSta() && stateWithRehab.outputs?.vibration && result.feedback?.vibrationCount) {
     void vibrate(47, result.feedback?.side ?? stateWithRehab.rehab?.config?.activeFoot ?? 'left').catch(() => showToast("진동 출력 연결을 확인하세요."));
   }
   return stateWithRehab;
 }
 
 async function handleAction(action, actionTarget) {
+  if (action === 'fog-cue-stop' || action === 'fog-cue-enable') {
+    try {
+      state = { ...state, ai: normalizeAiState(await setFogCue(action === 'fog-cue-enable'), state.ai) };
+      showToast(action === 'fog-cue-stop' ? '자동 출력을 중지했어요. 연결이 끊겨도 마지막 명령 후 최대 1.5초 안에 꺼져요.' : 'FoG 감지 중에는 진동과 레이저를 유지하고, 감지가 해제되면 꺼요.');
+    } catch (error) { showToast(error.message); }
+    renderView(); return;
+  }
   if (action === 'connect-sta') { window.location.href = '/?view=devices&esp32=1&transport=sta&ai=1&mobile=0'; return; }
   if (action === 'ai-calibrate' || action === 'ai-calibration-cancel') {
     const side = actionTarget?.dataset.aiSide;
@@ -459,6 +470,7 @@ async function refreshAiState(force = false) {
     const payload = await fetchAiState();
     const nextAi = normalizeAiState(payload, state.ai);
     const decisionChanged = nextAi.ready && nextAi.state && nextAi.state !== state.ai?.state;
+    // Automatic physical outputs are owned by the PC live AI cue worker.
     const nextEvents = decisionChanged
       ? [{
         time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),

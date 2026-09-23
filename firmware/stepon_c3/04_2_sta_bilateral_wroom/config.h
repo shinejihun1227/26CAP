@@ -23,7 +23,9 @@ constexpr uint8_t PRESSURE_CHANNELS[4] = {0, 2, 4, 6};
 constexpr uint8_t THERMAL_CHANNELS[4] = {3, 4, 5, 6};
 constexpr uint32_t IMU_INTERVAL_US = 15625, AUX_INTERVAL_MS = 50;
 constexpr uint8_t LASER_PIN = 27; // Base resistor -> 2N2222 base (existing laser output).
-constexpr bool ENABLE_LASER_OUTPUT = false; // Keep disabled until hardware safety verification.
+constexpr bool ENABLE_LASER_OUTPUT = true; // GPIO27 -> transistor driver, never power a laser directly from GPIO.
+constexpr uint32_t FOG_CUE_LEASE_MS = 1500;
+constexpr uint8_t FOG_VIBRATION_LEVEL = 70; // DRV2605 real-time amplitude (0..127).
 #if defined(BOARD_HAS_DUAL_ANTENNA)
 constexpr bool isAntennaPin(uint8_t pin) { return pin == ANT1 || pin == ANT2; }
 static_assert(!(isAntennaPin(I2C_SDA) || isAntennaPin(I2C_SCL) ||

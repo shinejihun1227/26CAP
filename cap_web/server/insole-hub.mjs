@@ -112,6 +112,12 @@ export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, s
   async function command(side, action, value) {
     const d = devices.get(side);
     if (!SIDES.includes(side) || !fresh(d)) throw new Error('selected_foot_offline');
+    if (action === 'fog-cue') {
+      if (typeof value?.active !== 'boolean' || value.device_id !== d.payload.device_id || value.boot_id !== d.payload.boot_id) throw new Error('cue_device_identity_mismatch');
+      if (d.payload.cue_api_version !== 1) throw new Error('upload_fog_cue_firmware');
+      const query = new URLSearchParams({ active: value.active ? '1' : '0', device_id: value.device_id, boot_id: value.boot_id });
+      return readJson(`${d.url}/api/fog-cue?${query}`);
+    }
     const paths = { laser: `/api/laser?on=${value === true ? 1 : 0}`, vibrate: '/api/vibrate?effect=47', 'auto-cue': `/api/auto-cue?enabled=${value === true ? 1 : 0}` };
     if (!Object.hasOwn(paths, action)) throw new Error('invalid_action');
     return readJson(d.url + paths[action]);

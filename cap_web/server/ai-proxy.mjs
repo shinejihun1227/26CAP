@@ -2,6 +2,7 @@
 const routes = new Map([
   ['/api/ai/state', 'GET'], ['/api/ai/ping', 'GET'], ['/api/ai/events', 'GET'],
   ['/api/ai/calibration/start', 'POST'], ['/api/ai/calibration/cancel', 'POST'],
+  ['/api/ai/cue', 'POST'],
   ['/api/ai/datasets', 'GET'], ['/api/ai/datasets/validate', 'POST'], ['/api/ai/datasets/analyze', 'POST'],
   ['/api/ai/datasets/record/start', 'POST'], ['/api/ai/datasets/record/stop', 'POST'],
 ]);
@@ -12,7 +13,8 @@ export function createAiHandler({ baseUrl = process.env.STEPON_AI_URL || 'http:/
       res.end(JSON.stringify(body));
     };
     try {
-      const route = new URL(req.url, 'http://localhost').pathname;
+      const requested = new URL(req.url, 'http://localhost');
+      const route = requested.pathname;
       const datasetRead = /^\/api\/ai\/datasets\/[0-9a-f]{32}(?:\/(?:measurement\.csv|calibration\.csv|windows\.csv|result\.json|calibration\.json|manifest\.json|recording\.csv))?$/.test(route);
       if (!routes.has(route) && !datasetRead) return reply(404, { error: 'not_found' });
       if (req.method !== (routes.get(route) || 'GET')) return reply(405, { error: 'method_not_allowed' });
@@ -30,7 +32,7 @@ export function createAiHandler({ baseUrl = process.env.STEPON_AI_URL || 'http:/
         body = Buffer.concat(chunks).toString('utf8');
         try { JSON.parse(body); } catch { return reply(400, { error: 'invalid_json' }); }
       }
-      const upstream = await fetchImpl(new URL(route, baseUrl), {
+      const upstream = await fetchImpl(new URL(route + (route === '/api/ai/datasets' ? requested.search : ''), baseUrl), {
         method: req.method, body, headers: { 'content-type': 'application/json' },
         redirect: 'error', signal: AbortSignal.timeout(route.startsWith('/api/ai/datasets') ? 30000 : 8000),
       });

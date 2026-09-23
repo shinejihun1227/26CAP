@@ -1,4 +1,5 @@
 import { escapeHtml as esc } from '../src/utils/text.js';
+import { PROTOCOL, MOVEMENTS, movementCue, guideProgress } from './collection-guide.js';
 
 const API = '/api/ai/datasets';
 const LIMIT = 8 * 1024 * 1024;
@@ -41,24 +42,55 @@ export async function readCsvFile(file) {
 if (typeof document !== 'undefined') {
   const $ = id => document.getElementById(id);
   const selected = { calibration: null, measurement: null };
+  let items = [], activity = MOVEMENTS[0].id;
   let recordingId = null, jobId = null, busy = false, recording = false, analyzing = false;
   let timer;
   $('context').elements.session_id.value = `${new Intl.DateTimeFormat('sv-SE').format(new Date()).replaceAll('-', '')}_S01`;
+  try {
+    const saved = JSON.parse(localStorage.getItem('stepon-collection-context') || 'null');
+    if (saved) for (const key of ['participant_id', 'session_id', 'side', 'placement']) if (saved[key]) $('context').elements[key].value = saved[key];
+  } catch { /* Server records remain available without local storage. */ }
+  const rawContext = () => Object.fromEntries(['participant_id', 'session_id', 'side', 'placement'].map(key => [key, $('context').elements[key].value.trim()]));
+  $('guide-cards').innerHTML = MOVEMENTS.map(m => `<button type="button" class="movement-card" data-movement="${m.id}" aria-pressed="false"><span class="movement-number">${m.icon}</span><span><b>${m.name}</b><small>${m.seconds}초 · <span data-count="${m.id}">아직 기록 전</span></small></span><span data-mark="${m.id}" aria-hidden="true">○</span></button>`).join('');
+  function updateGuide() {
+    const progress = guideProgress(items, rawContext());
+    const done = progress.filter(m => m.records.length).length;
+    $('guide-progress').textContent = `${done} / 5 저장${done === 5 ? ' · 모두 모았어요!' : ''}`;
+    for (const m of progress) {
+      const button = document.querySelector(`[data-movement="${m.id}"]`);
+      button.setAttribute('aria-pressed', String(m.id === activity));
+      button.disabled = recording || busy || analyzing;
+      document.querySelector(`[data-count="${m.id}"]`).textContent = m.records.length ? `${m.records.length}회 저장` : '아직 기록 전';
+      document.querySelector(`[data-mark="${m.id}"]`).textContent = m.records.length ? '✓' : '○';
+    }
+    const m = MOVEMENTS.find(m => m.id === activity);
+    $('movement-title').textContent = m.name;
+    $('movement-time').textContent = `선택한 동작 · ${m.seconds}초`;
+    $('movement-instruction').textContent = m.instruction;
+    $('movement-why').textContent = m.why;
+    const ready = selected.calibration?.item?.calibration_valid;
+    $('guide-calibration').textContent = ready ? '✓ 보정 완료 · 이 발의 다섯 동작을 기록할 준비가 됐어요.' : '먼저 위의 보정 25초 기록을 끝내 주세요.';
+    $('record-help').textContent = ready ? '시간이 끝나면 자동 저장돼요. 완료한 뒤 잠깐 쉬어도 괜찮아요.' : '보정을 완료하면 이 버튼이 켜져요. 외부 CSV는 오른쪽 분석 영역에서 사용할 수 있어요.';
+    $('record-measurement').textContent = `${m.name} · ${m.seconds}초 기록`;
+    $('record-measurement').disabled = busy || recording || analyzing || !ready;
+  }
 
   async function api(path = '', body) {
     const response = await fetch(`${API}${path}`, { method: body === undefined ? 'GET' : 'POST',
       headers: body === undefined ? {} : { 'content-type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(35000) });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'AI 프로그램 연결을 확인하세요.');
+    if (!response.ok) throw new Error(result.error === 'ai_bridge_unavailable' ? 'AI 프로그램과 연결되지 않았어요. run.bat을 실행한 뒤 다시 시도해 주세요.' : result.error || 'AI 프로그램 연결을 확인하세요.');
     return result;
   }
   function controls() {
     for (const id of ['record-calibration', 'record-measurement']) $(id).disabled = busy || recording || analyzing;
     for (const id of ['validate', 'analyze']) $(id).disabled = busy || recording || analyzing;
-    for (const input of $('context').elements) input.disabled = recording;
+    for (const input of $('context').elements) input.disabled = recording || analyzing;
+    for (const id of ['calibration-file', 'measurement-file']) $(id).disabled = busy || recording || analyzing;
     $('record-stop').hidden = !recording;
     $('record-stop').disabled = busy;
+    updateGuide();
   }
   async function action(fn) {
     if (busy) return;
@@ -82,6 +114,7 @@ if (typeof document !== 'undefined') {
       selected[kind] = null;
       $(`${kind}-name`).textContent = $(`${kind}-file`).files[0]?.name ?? '선택된 파일이 없습니다.';
       $('validation').textContent = '파일이 바뀌었습니다. 다시 검사하거나 분석을 시작하세요.';
+      controls();
     });
   }
   $('validate').addEventListener('click', () => action(async () => {
@@ -108,20 +141,30 @@ if (typeof document !== 'undefined') {
   }
   function renderCapture(c) {
     recording = ['countdown', 'recording'].includes(c.status);
+    if (recording) for (const key of ['participant_id', 'session_id', 'side', 'placement']) $('context').elements[key].value = c.metadata[key];
     // Countdown from the server avoids different clocks on PC and phone.
     const clock = c.countdown_s === undefined ? Date.now() : c.starts_at_ms - c.countdown_s * 1000;
     $('capture-status').textContent = captureText(c, clock);
+    if (c.activity && MOVEMENTS.some(m => m.id === c.activity)) activity = c.activity;
+    $('capture-cue').textContent = c.status === 'countdown' ? '곧 시작해요. 자세를 준비해 주세요.' : c.status === 'recording' ? c.purpose === 'calibration' ? c.elapsed_s < 5 ? '가만히 서 주세요' : '이제 평소처럼 걸어 주세요' : movementCue(c.activity, c.elapsed_s) : c.status === 'complete' ? '잘 마쳤어요. 기록을 저장했어요.' : '이 기록은 완료 횟수에 포함하지 않았어요. 연결을 확인하고 다시 해 주세요.';
+    $('capture-progress').value = Math.min(100, 100 * c.elapsed_s / c.duration_s);
     $('capture-downloads').innerHTML = recording ? '' : links(c.id, [['recording.csv', '기록 CSV'], ['manifest.json', '기록 정보']]) + (c.status === 'complete' ? `<button type="button" class="secondary" data-use-record="${c.id}">${c.purpose === 'calibration' ? '보정' : '측정'} 파일로 연결</button>` : '');
     controls();
   }
   for (const purpose of ['calibration', 'measurement']) {
     $(`record-${purpose}`).addEventListener('click', () => action(async () => {
-      const c = await api('/record/start', { ...context(), purpose, duration_s: Number($('duration').value) });
+      const c = await api('/record/start', { ...context(), purpose, protocol: PROTOCOL, activity,
+        calibration_id: selected.calibration?.id, duration_s: MOVEMENTS.find(m => m.id === activity).seconds });
+      if (purpose === 'calibration') {
+        selected.calibration = null; selected.measurement = null;
+        for (const kind of ['calibration', 'measurement']) { $(`${kind}-file`).value = ''; $(`${kind}-name`).textContent = '새 보정에 맞는 기록을 기다리고 있어요.'; }
+      }
       recordingId = c.id; renderCapture(c); await history(); schedule();
     }));
   }
   $('record-stop').addEventListener('click', () => action(async () => {
-    renderCapture(await api('/record/stop', { id: recordingId })); await history();
+    const c = await api('/record/stop', { id: recordingId });
+    renderCapture(c); if (c.status === 'complete') await useRecord(c.id); await history();
   }));
   async function useRecord(id) {
     if (recording || analyzing) throw new Error('진행 중인 작업을 마친 뒤 다른 기록을 연결하세요.');
@@ -129,13 +172,19 @@ if (typeof document !== 'undefined') {
     if (c.kind !== 'recording' || c.status !== 'complete') throw new Error('완료된 기록만 분석에 연결할 수 있습니다.');
     const response = await fetch(`${API}/${id}/recording.csv`, { signal: AbortSignal.timeout(10000) });
     if (!response.ok) throw new Error('CSV 기록을 불러오지 못했습니다.');
-    selected[c.purpose] = { text: await readCsvFile(await response.blob()), id };
+    selected[c.purpose] = { text: await readCsvFile(await response.blob()), id, item: c };
     $(`${c.purpose}-file`).value = '';
     $(`${c.purpose}-name`).textContent = `웹 기록 연결: ${c.metadata.session_id} · ${c.rows}행 · ${id.slice(0, 8)}`;
     for (const key of ['participant_id', 'session_id', 'side', 'placement']) $('context').elements[key].value = c.metadata[key];
+    if (c.purpose === 'measurement' && c.calibration_id && selected.calibration?.id !== c.calibration_id) await useRecord(c.calibration_id);
+    try { localStorage.setItem('stepon-collection-context', JSON.stringify(rawContext())); } catch { }
     $('validation').textContent = '웹 기록을 연결했습니다. 나머지 파일을 선택하고 검사하세요.';
+    if (selected.calibration && selected.measurement) $('validation').textContent = '보정과 측정 기록이 연결됐어요. 모델 분석 시작을 눌러 주세요.';
+    controls();
   }
   document.addEventListener('click', event => {
+    const movement = event.target.closest('[data-movement]');
+    if (movement && !recording && !busy && !analyzing) { activity = movement.dataset.movement; updateGuide(); }
     const record = event.target.closest('[data-use-record]');
     const view = event.target.closest('[data-view-job]');
     if (record) void action(() => useRecord(record.dataset.useRecord));
@@ -148,18 +197,37 @@ if (typeof document !== 'undefined') {
     });
   });
   async function history() {
-    const data = await api();
+    const ctx = rawContext();
+    const scoped = ctx.participant_id && ctx.session_id;
+    const data = await api(scoped ? `?${new URLSearchParams(ctx)}` : '');
+    if (JSON.stringify(ctx) !== JSON.stringify(rawContext())) return;
+    items = data.items;
     if (data.active_recording) { recordingId = data.active_recording; recording = true; }
     if (data.active_job) { jobId = data.active_job; analyzing = true; }
-    $('history').innerHTML = data.items.length ? data.items.map(item => `<div class="history-item"><div><b>${item.kind === 'analysis' ? 'CSV 모델 분석' : item.purpose === 'calibration' ? '보정 기록' : '측정 기록'} · ${esc(STATUSES[item.status] ?? item.status)}</b><p>${esc(item.metadata.participant_id)} · ${esc(item.metadata.session_id)} · ${item.metadata.side === 'left' ? '왼발' : '오른발'} · ${esc(item.metadata.placement)}<br />${esc(new Date(item.created_at_ms).toLocaleString())}</p></div><button class="secondary" type="button" data-view-job="${item.id}">보기</button></div>`).join('') : '<p>아직 저장된 작업이 없습니다.</p>';
+    $('history-scope').textContent = scoped ? `${ctx.participant_id} · ${ctx.session_id} · ${ctx.side === 'left' ? '왼발' : '오른발'}의 저장 기록이에요. 동작 안내는 실제 정답과 별도로 보관돼요.` : '최근 20개 기록이에요. 참가자와 회차를 입력하면 해당 기록을 모두 모아 볼 수 있어요.';
+    $('history').innerHTML = data.items.length ? data.items.map(item => `<div class="history-item"><div><b>${item.kind === 'analysis' ? 'CSV 모델 분석' : item.purpose === 'calibration' ? '보정 기록' : MOVEMENTS.find(m => m.id === item.activity)?.name ?? '측정 기록'} · ${esc(STATUSES[item.status] ?? item.status)}</b><p>${esc(item.metadata.participant_id)} · ${esc(item.metadata.session_id)} · ${item.metadata.side === 'left' ? '왼발' : '오른발'} · ${esc(item.metadata.placement)}${item.repetition ? ` · ${item.repetition}회차 시도` : ''}<br />${esc(new Date(item.created_at_ms).toLocaleString())}${item.error ? `<br />${esc(item.error)}` : ''}</p></div><div class="history-actions">${item.kind === 'recording' && item.status === 'complete' ? `<button class="secondary" type="button" data-use-record="${item.id}">분석에 연결</button>` : ''}<button class="secondary" type="button" data-view-job="${item.id}">보기</button></div></div>`).join('') : '<p>아직 저장된 기록이 없어요. 보정부터 시작해 볼까요?</p>';
+    if (scoped && !recording && !analyzing && !selected.calibration) {
+      const calibration = items.find(i => i.purpose === 'calibration' && i.protocol === PROTOCOL);
+      if (calibration?.status === 'complete' && calibration.calibration_valid) await useRecord(calibration.id);
+    }
     controls();
   }
   $('refresh-history').addEventListener('click', () => action(async () => { await history(); schedule(); }));
+  $('context').addEventListener('change', () => {
+    for (const kind of ['calibration', 'measurement']) {
+      selected[kind] = null; $(`${kind}-file`).value = ''; $(`${kind}-name`).textContent = '이번 측정에 사용할 기록을 연결해 주세요.';
+    }
+    items = []; $('result').innerHTML = ''; $('job-status').textContent = '';
+    try { localStorage.setItem('stepon-collection-context', JSON.stringify(rawContext())); } catch { }
+    controls();
+    void history().then(schedule).catch(error => { $('error').textContent = error.message; });
+  });
   function schedule() { clearTimeout(timer); timer = setTimeout(poll, 600); }
   async function poll() {
     try {
       let finished = false;
-      if (recordingId && recording) { const c = await api(`/${recordingId}`); renderCapture(c); finished ||= !recording; }
+      if (recordingId && recording) { const c = await api(`/${recordingId}`); renderCapture(c); finished ||= !recording;
+        if (c.status === 'complete') await useRecord(c.id); }
       if (jobId && analyzing) { const job = await api(`/${jobId}`); renderJob(job); finished ||= !analyzing; }
       if (finished) await history();
     } catch (error) { $('error').textContent = `상태 확인 실패: ${error.message} 연결되면 다시 확인합니다.`; }

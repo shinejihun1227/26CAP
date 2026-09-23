@@ -19,6 +19,15 @@ export function getAiStatusMeta(status) {
   return STATUS_META[status] ?? STATUS_META.unavailable;
 }
 
+export function renderFogCue(state) {
+  if (state.dataSource !== 'esp32') return '';
+  const cue = state.ai?.available ? state.ai.cue : null;
+  const active = Object.entries(cue?.feet ?? {}).filter(([, v]) => v.requested && v.acknowledged).map(([s]) => s === 'left' ? '왼발' : '오른발');
+  const error = Object.values(cue?.feet ?? {}).find(v => v.error)?.error;
+  const label = !cue ? 'AI 연결 후 확인할 수 있어요' : !cue.enabled ? '자동 출력 중지됨' : active.length ? `${active.join(' · ')} 진동·레이저 유지 명령 전달 중` : 'FoG 감지 시 자동 출력 대기';
+  return `<div class="fog-cue-panel"><h3>FoG 감지 안내</h3><p data-live-copy><b>${escapeHtml(label)}</b></p><p>각 발의 AI가 신호 감지 상태일 때 진동과 레이저를 유지하고, 감지가 해제되면 자동으로 꺼요. 연결이 끊기면 마지막 명령 후 최대 1.5초 안에 꺼져요.</p><div class="device-actions"><button class="outline-button" data-action="fog-cue-stop" ${!cue ? 'disabled' : ''}>진동·레이저 자동 출력 중지</button><button class="outline-button" data-action="fog-cue-enable" ${!cue || cue.enabled ? 'disabled' : ''}>자동 출력 다시 켜기</button></div>${error ? `<p role="status">${escapeHtml(error)}</p>` : ''}<small>PC AI가 제어해요. 웹을 닫아도 동작하며, CSV 수집 중에는 자동 출력을 쉬어요. CSV 분석은 실제 출력을 켜지 않아요.</small></div>`;
+}
+
 function displayScore(score) {
   return score !== null && score !== undefined && Number.isFinite(Number(score))
     ? `${Math.round(Number(score) * 100)}`
@@ -86,6 +95,7 @@ export function renderAiStatusCard(state, { compact = false } = {}) {
       <div class="ai-status-copy"><b data-live-copy>${detail}</b><p data-live-copy>${disabled ? 'AI 분석 꺼짐' : `${connection} · 최근 ${ai.windowSec ?? 4}초 분석`}</p><div class="ai-score-track"><i style="width:${score === null ? 0 : Math.round(score * 100)}%"></i></div></div>
     </div>
     <p><button class="outline-button" data-view="devices">연결 · 개인 기준 설정</button></p>
+    ${renderFogCue(state)}
     <details class="simple-details" data-ui-disclosure="ai-details"><summary>분석 근거 자세히 보기</summary>${renderAiDetails(state)}</details>
     <small class="algorithm-disclaimer">연구용 모델 결과이며 의료적 진단이 아닙니다. 센서 연결 전에는 기존 시연 데이터와 별도로 표시됩니다.</small>
   </article>`;

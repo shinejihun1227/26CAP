@@ -9,22 +9,25 @@
 <body>
   <header><a class="brand" href="/?view=records&esp32=1&transport=sta&ai=1">StepOn <span>RESEARCH</span></a><a href="/?view=records&esp32=1&transport=sta&ai=1">데이터 관리로 돌아가기 ↗</a></header>
   <main>
-    <div class="intro"><span class="eyebrow">YOUR DATA → MODEL DECISION</span><h1>우리 센서 데이터로<br />보행 신호 분석하기</h1><p>보정 25초와 측정 CSV를 연결하면, 저장된 RF·CNN 모델이 4초 구간마다 점수와 상태를 계산합니다.</p><span id="connection" role="status">AI 프로그램 연결 확인 중</span></div>
-    <ol class="steps"><li><b>01</b>같은 발·부착 위치로 수집</li><li><b>02</b>시간·단위·보정 검사</li><li><b>03</b>모델 분석과 결과 저장</li></ol>
+    <div class="intro"><span class="eyebrow">한 걸음씩, 우리 데이터 쌓기</span><h1>다섯 가지 움직임으로<br />내 걸음을 기록해요</h1><p>처음이어도 괜찮아요. 보정부터 동작별 저장까지 차근차근 안내할게요.<br />한쪽 발 기준 약 5분, 중간에 충분히 쉬어도 돼요.</p><span id="connection" role="status">AI 프로그램 연결 확인 중</span></div>
+    <ol class="steps"><li><b>01</b>누구의 어느 발인지 알려주기</li><li><b>02</b>25초 보정 후 다섯 동작 기록</li><li><b>03</b>저장한 기록으로 분석하기</li></ol>
     <section class="panel"><h2>1. 이번 측정 정보</h2><p>한 파일에는 한 사람, 한 회차, 한쪽 발, 한 장치의 데이터만 넣어 주세요. 양발은 각각 분석합니다.</p>
       <form id="context" class="fields">
         <label>참가자 코드<input name="participant_id" required maxlength="80" placeholder="예: P001 (실명 대신 코드)" /></label>
         <label>측정 회차<input name="session_id" required maxlength="80" placeholder="예: 20260914_S01" /></label>
         <label>측정 발<select name="side"><option value="left">왼발 · left</option><option value="right">오른발 · right</option></select></label>
         <label>부착 위치<select name="placement"><option value="shoe">신발 고정 · shoe</option><option value="insole">깔창 고정 · insole</option><option value="ankle">발목 고정 · ankle</option><option value="shank">정강이 고정 · shank</option></select></label>
-      </form><p class="note">참가자·센서 부착·위치가 바뀌면 보정부터 다시 기록하세요. 업로드 파일에 있는 정보와 여기 입력한 정보가 다르면 분석을 중단합니다.</p>
+      </form><p class="note">같은 사람은 같은 참가자 코드를 써 주세요. 새로 측정하는 날에는 회차를 바꾸세요. 양발은 한쪽씩 진행해요.</p><a href="/?view=devices&esp32=1&transport=sta&ai=1">센서 연결 확인하기 →</a>
     </section>
     <div class="columns">
-      <section class="panel"><h2>2. 데이터 준비</h2><p>웹에 연결된 실제 IMU를 기록하거나, 기존 USB 수집기의 CSV 파일을 사용하세요.</p>
-        <div class="capture-box"><h3>웹 센서에서 CSV 기록</h3><p>선택한 발의 센서를 기기 연결 화면에서 연결한 뒤 시작하세요. 시작 버튼을 누르면 <b>3초 준비 시간</b>을 줍니다.</p>
-          <div class="actions"><button id="record-calibration" type="button">보정 25초 기록</button><button id="record-measurement" class="secondary" type="button">측정 기록</button></div>
-          <label class="duration">측정 시간(초)<input id="duration" type="number" min="10" max="600" step="1" value="60" /></label>
-          <p><b>보정 동작:</b> 첫 5초 가만히 서기 → 이어서 20초 평소처럼 걷기. 보정 중 센서 방향을 바꾸지 마세요.</p>
+      <section class="panel"><h2>2. 안내에 따라 기록해요</h2><p>센서를 단단히 고정하고 걸을 공간을 준비해 주세요. 버튼을 누르면 <b>3초 뒤</b> 시작해요.</p>
+        <div class="calibration-step"><h3>먼저, 내 센서의 기준 맞추기</h3><p>5초 가만히 서기 → 20초 평소처럼 걷기</p><button id="record-calibration" type="button">보정 25초 기록</button><p id="guide-calibration" role="status">보정을 끝내면 다섯 동작을 시작할 수 있어요.</p><p class="note">센서를 다시 붙이거나 방향을 바꿨다면, 같은 회차여도 다시 보정해 주세요.</p></div>
+        <div class="guide-heading"><h3>이번 회차의 다섯 동작</h3><span id="guide-progress">0 / 5 저장</span></div>
+        <p class="note">순서대로 한 번씩 해 보고, 필요한 동작은 다시 기록해도 좋아요. 모든 시도는 따로 보관돼요.</p>
+        <div id="guide-cards" class="guide-cards" aria-label="기록할 동작 선택"></div>
+        <div class="capture-box"><span class="eyebrow" id="movement-time"></span><h3 id="movement-title"></h3><p id="movement-instruction"></p><p class="note" id="movement-why"></p>
+          <div class="actions"><button id="record-measurement" type="button">이 동작 기록하기</button></div><p id="record-help" class="note"></p>
+          <div id="capture-cue" class="capture-cue" role="status"></div><progress id="capture-progress" max="100" value="0" aria-label="현재 기록 진행률"></progress>
           <div id="capture-status" class="status" aria-live="polite">아직 기록을 시작하지 않았습니다.</div>
           <button id="record-stop" type="button" class="secondary" hidden>기록 끝내기</button>
           <div id="capture-downloads" class="downloads"></div>
@@ -43,7 +46,7 @@ record.bat --port COM7 --seconds 60 --label walking --side left --placement shoe
           <a href="./imu-template.csv" download>빈 CSV 양식 다운로드 ↓</a><p class="note">양식에는 가짜 센서값이 없습니다. 압력·온습도·카메라 값은 현재 IMU 모델 점수에 합산하지 않습니다.</p>
         </details>
       </section>
-      <section class="panel"><h2>3. CSV 연결과 분석</h2><p>같은 참가자·회차·발·장치·부착 위치의 두 파일을 선택하세요. 보정 파일은 앞 25초를 사용합니다.</p>
+      <section class="panel"><h2>3. 저장한 걸음 살펴보기</h2><p>보정과 방금 마친 동작이 자동으로 연결돼요. <b>모델 분석 시작</b>을 눌러 결과를 확인하세요. 다섯 동작을 모두 마치기 전에도 하나씩 분석할 수 있어요.</p><p class="note">외부 CSV가 있다면 아래에서 직접 선택해도 돼요. 참가자·회차·발·장치·부착 위치가 같아야 해요.</p>
         <form id="analysis-form">
           <label class="file-label">보정 CSV · 5초 정지 + 20초 일반 보행<input id="calibration-file" type="file" accept=".csv,text/csv" /><span id="calibration-name">파일을 선택하거나 웹 기록을 연결하세요.</span></label>
           <label class="file-label">측정 CSV · 권장 30~60초 이상<input id="measurement-file" type="file" accept=".csv,text/csv" /><span id="measurement-name">최소 4초 · 최대 10분 / 60,001행 / 파일당 8 MiB</span></label>
@@ -55,9 +58,9 @@ record.bat --port COM7 --seconds 60 --label walking --side left --placement shoe
         <p class="note">CSV는 이 PC의 비공개 데이터 폴더에 저장됩니다. 이 분석용 보정은 실시간 화면의 개인 보정값을 바꾸지 않습니다. 새 데이터로 가중치를 재학습하는 기능은 포함하지 않습니다.</p>
       </section>
     </div>
-    <section class="panel"><div class="section-top"><h2>최근 기록과 분석</h2><button id="refresh-history" class="secondary" type="button">새로고침</button></div><p>이 PC에 저장된 최근 20개 작업입니다. 보정·측정 기록을 다시 선택하거나 결과를 내려받을 수 있습니다.</p><div id="history"></div></section>
+    <section class="panel"><div class="section-top"><h2>저장한 기록</h2><button id="refresh-history" class="secondary" type="button">새로고침</button></div><p id="history-scope">참가자와 회차를 입력하면 이번 발의 기록을 모아 볼 수 있어요. 새로고침해도 서버에 저장된 진행 상황을 다시 불러와요.</p><div id="history"></div></section>
     <p id="error" role="alert"></p>
-    <footer>점수는 해당 시간 구간의 모델 출력입니다. label은 수집자 메모이며 정답 판정이나 정확도로 사용하지 않습니다. 실제 보행동결 정답 구간이 있어야 성능 평가와 재학습을 별도로 진행할 수 있습니다.</footer>
+    <footer>여기서 고른 동작은 수집 안내이며, 실제 수행 여부나 보행동결 정답을 확정하지 않아요. 저장 후 실제 관찰 기록과 비교해 주세요. 일부러 멈추는 동작은 보행동결 정답이 아닙니다. 현재 모델은 IMU를 분석하며 압력·카메라 데이터는 합산하지 않아요.</footer>
   </main>
   <script type="module" src="./data.js"></script>
 </body>

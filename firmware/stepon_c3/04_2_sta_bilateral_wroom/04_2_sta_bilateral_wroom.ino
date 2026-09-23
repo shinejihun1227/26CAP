@@ -23,8 +23,27 @@ QueueHandle_t vibrationQueue;
 String deviceId, bootId;
 volatile uint32_t lastVibrationAt = 0;
 volatile bool autoCue = false;
-bool laserOn = false;
+volatile bool laserOn = false;
+bool manualLaserRequested = false;
 uint32_t laserOffAt = 0;
+// Commands are leases, never latches. The sensor task owns every DRV/I2C write.
+portMUX_TYPE cueLock = portMUX_INITIALIZER_UNLOCKED;
+bool fogCueRequested = false;
+uint32_t fogCueUntil = 0;
+volatile bool sustainedVibration = false;
+bool fogCueActive(uint32_t now) {
+  portENTER_CRITICAL(&cueLock);
+  if (fogCueRequested && int32_t(fogCueUntil - now) <= 0) fogCueRequested = false;
+  const bool active = fogCueRequested;
+  portEXIT_CRITICAL(&cueLock);
+  return active && WiFi.status() == WL_CONNECTED;
+}
+void updateFogCue(bool enabled) {
+  portENTER_CRITICAL(&cueLock);
+  fogCueRequested = enabled;
+  fogCueUntil = millis() + FOG_CUE_LEASE_MS;
+  portEXIT_CRITICAL(&cueLock);
+}
 
 void sendJson(int code, const String &body) {
   server.sendHeader("Cache-Control", "no-store");
@@ -47,16 +66,17 @@ bool candidate(const StaSensors::Frame &f) {
   return sum / 4 > 10 && sqrtf(gyro) > 55; // Prototype rule, NOT RF/CNN inference.
 }
 void setLaserOutput(bool enabled) {
-  laserOn = ENABLE_LASER_OUTPUT && enabled;
-  digitalWrite(LASER_PIN, laserOn ? HIGH : LOW);
-  if (laserOn) laserOffAt = millis() + 650;
+  portENTER_CRITICAL(&cueLock);
+  manualLaserRequested = ENABLE_LASER_OUTPUT && enabled;
+  laserOffAt = millis() + 650;
+  portEXIT_CRITICAL(&cueLock);
 }
 String stateJson() {
   const auto f = copyFrame();
   const bool sensorFresh = f.sequence > 0 && uint32_t(millis() - f.atMs) < 1000;
   String s; s.reserve(2100);
   s = "{\"device\":\"StepOn-WROOM\",\"firmware\":\"04_2_sta_bilateral_wroom\",\"wifi_mode\":\"STA\",\"device_id\":\"" + deviceId + "\",\"boot_id\":\"" + bootId + "\",\"foot_side\":\"" + FOOT_SIDE + "\",\"bilateral_available\":false";
-  s += ",\"frame\":" + String(f.sequence) + ",\"millis\":" + String(f.atMs) + ",\"uptime_ms\":" + String(millis());
+  s += ",\"cue_api_version\":1,\"frame\":" + String(f.sequence) + ",\"millis\":" + String(f.atMs) + ",\"uptime_ms\":" + String(millis());
   s += ",\"sample_hz\":64,\"actual_sample_hz\":" + String(sensorFresh ? f.actualHz : 0, 1) + ",\"aux_sample_hz\":20,\"missed_deadlines\":" + String(f.missedDeadlines);
   s += ",\"rssi\":" + String(WiFi.RSSI()) + ",\"free_heap\":" + String(ESP.getFreeHeap());
   s += ",\"pressure_count\":4,\"pressure_layout\":\"stepon-pressure-4-v1\",\"pressure_channels\":[";
@@ -75,13 +95,13 @@ String stateJson() {
   for (uint8_t i = 0; i < 4; ++i) { if (i) s += ','; s += f.thermalReady[i] && uint32_t(millis() - f.thermalAtMs[i]) < 1000 ? "true" : "false"; }
   s += "],\"tca_ready\":" + String(f.tcaReady ? "true" : "false") + ",\"drv2605_ready\":" + String(f.drvReady && sensorFresh ? "true" : "false") + ",\"imu_ready\":" + String(f.imuReady && sensorFresh ? "true" : "false");
   s += ",\"accel\":{\"x\":" + String(f.accel[0], 4) + ",\"y\":" + String(f.accel[1], 4) + ",\"z\":" + String(f.accel[2], 4) + "},\"gyro\":{\"x\":" + String(f.gyro[0], 4) + ",\"y\":" + String(f.gyro[1], 4) + ",\"z\":" + String(f.gyro[2], 4) + "}";
-  s += ",\"derived\":{\"fog_candidate\":" + String(candidate(f) && sensorFresh ? "true" : "false") + "},\"output\":{\"laser\":" + String(laserOn ? "true" : "false") + ",\"vibration\":" + String(lastVibrationAt && uint32_t(millis() - lastVibrationAt) < 400 ? "true" : "false") + ",\"auto_cue\":" + String(autoCue ? "true" : "false") + "}}";
+  s += ",\"derived\":{\"fog_candidate\":" + String(candidate(f) && sensorFresh ? "true" : "false") + "},\"output\":{\"laser\":" + String(laserOn ? "true" : "false") + ",\"vibration\":" + String(sustainedVibration || (lastVibrationAt && uint32_t(millis() - lastVibrationAt) < 400) ? "true" : "false") + ",\"auto_cue\":" + String(autoCue ? "true" : "false") + "}}";
   return s;
 }
 void sensorTask(void *) {
   StaSensors::Frame f;
   StaSensors::initialize(f);
-  uint32_t lastImu = micros(), lastAux = 0, rateAt = millis(), rateCount = 0, lastCue = 0;
+  uint32_t lastImu = micros(), lastAux = 0, rateAt = millis(), rateCount = 0;
   while (true) {
     const uint32_t nowUs = micros(), nowMs = millis();
     if (uint32_t(nowUs - lastImu) >= IMU_INTERVAL_US) {
@@ -92,10 +112,31 @@ void sensorTask(void *) {
     if (uint32_t(nowMs - lastAux) >= AUX_INTERVAL_MS) { lastAux = nowMs; StaSensors::readPressure(f); }
     StaSensors::thermalTick(f);
     uint8_t effect = 0;
-    if (autoCue && candidate(f) && uint32_t(nowMs - lastCue) > 1800) { effect = 47; lastCue = nowMs; }
+    const bool hold = fogCueActive(nowMs) && f.imuReady && uint32_t(nowMs - f.atMs) < 1000;
+    // This task enforces expiry even while HTTP handling is slow or blocked.
+    portENTER_CRITICAL(&cueLock);
+    if (manualLaserRequested && int32_t(laserOffAt - nowMs) <= 0) manualLaserRequested = false;
+    const bool manualLaser = manualLaserRequested;
+    portEXIT_CRITICAL(&cueLock);
+    const bool wantedLaser = ENABLE_LASER_OUTPUT && WiFi.status() == WL_CONNECTED && ((hold && f.drvReady) || manualLaser);
+    if (wantedLaser != laserOn) { digitalWrite(LASER_PIN, wantedLaser ? HIGH : LOW); laserOn = wantedLaser; }
+    if (hold != sustainedVibration) {
+      if (f.drvReady) {
+        StaSensors::driver.stop();
+        if (hold) {
+          StaSensors::driver.setMode(DRV2605_MODE_REALTIME);
+          StaSensors::driver.setRealtimeValue(FOG_VIBRATION_LEVEL);
+        } else {
+          StaSensors::driver.setRealtimeValue(0);
+          StaSensors::driver.setMode(DRV2605_MODE_INTTRIG);
+          lastVibrationAt = 0;
+        }
+      }
+      sustainedVibration = hold && f.drvReady;
+    }
     uint8_t requested = 0;
     if (xQueueReceive(vibrationQueue, &requested, 0) == pdTRUE) effect = requested;
-    if (effect && f.drvReady) { StaSensors::driver.setWaveform(0, effect); StaSensors::driver.setWaveform(1, 0); StaSensors::driver.go(); lastVibrationAt = millis(); }
+    if (effect && f.drvReady && !hold) { StaSensors::driver.setWaveform(0, effect); StaSensors::driver.setWaveform(1, 0); StaSensors::driver.go(); lastVibrationAt = millis(); }
     if (uint32_t(nowMs - rateAt) >= 2000) { f.actualHz = rateCount * 1000.0f / uint32_t(nowMs - rateAt); rateAt = nowMs; rateCount = 0; }
     publish(f);
     vTaskDelay(1);
@@ -153,7 +194,26 @@ void setup() {
     if (!ENABLE_LASER_OUTPUT && server.arg("on") == "1") { sendJson(409, "{\"error\":\"laser_disabled_for_safety\"}"); return; }
     setLaserOutput(server.arg("on") == "1"); sendJson(200, stateJson());
   });
-  server.on("/api/auto-cue", HTTP_GET, [] { autoCue = server.arg("enabled") == "1"; sendJson(200, stateJson()); });
+  server.on("/api/auto-cue", HTTP_GET, [] {
+    autoCue = false;
+    sendJson(409, "{\"error\":\"use_pc_ai_fog_cue\"}");
+  });
+  server.on("/api/fog-cue", HTTP_GET, [] {
+    if (server.arg("device_id") != deviceId || server.arg("boot_id") != bootId) {
+      sendJson(409, "{\"error\":\"cue_device_identity_mismatch\"}"); return;
+    }
+    if (server.arg("active") != "0" && server.arg("active") != "1") {
+      sendJson(400, "{\"error\":\"active_must_be_0_or_1\"}"); return;
+    }
+    const bool enabled = server.arg("active") == "1";
+    const auto f = copyFrame();
+    if (enabled && (!f.imuReady || !f.drvReady || !ENABLE_LASER_OUTPUT || uint32_t(millis() - f.atMs) >= 1000)) {
+      updateFogCue(false);
+      sendJson(409, "{\"error\":\"cue_hardware_not_ready\"}"); return;
+    }
+    updateFogCue(enabled);
+    sendJson(200, "{\"accepted\":true,\"cue_api_version\":1,\"lease_ms\":1500}");
+  });
   server.onNotFound([] { sendJson(404, "{\"error\":\"not_found\"}"); });
   server.begin();
   // All I2C operations live in one task. HTTP and registration never take its bus lock.
@@ -166,7 +226,7 @@ void loop() {
   WifiDiagnostics::drain();
   const bool connected = WiFi.status() == WL_CONNECTED;
   if (connected && !wasConnected) Serial.printf("[WiFi] STA connected foot=%s IP=%s gateway=%s\n", FOOT_SIDE, WiFi.localIP().toString().c_str(), WiFi.gatewayIP().toString().c_str());
-  if (!connected && wasConnected) { autoCue = false; setLaserOutput(false); Serial.println("[WiFi] disconnected; outputs disarmed"); }
+  if (!connected && wasConnected) { autoCue = false; updateFogCue(false); setLaserOutput(false); Serial.println("[WiFi] disconnected; outputs disarmed"); }
   wasConnected = connected;
   if (!connected && uint32_t(millis() - retryAt) >= 15000) {
     retryAt = millis();
@@ -175,7 +235,6 @@ void loop() {
     Serial.printf("[WIFI-DIAG] [RETRY] call_ok=%u (request accepted, NOT connection success)\n", retryOk);
   }
   server.handleClient();
-  if (laserOn && int32_t(millis() - laserOffAt) >= 0) setLaserOutput(false);
   if (uint32_t(millis() - logAt) >= 2000) {
     logAt = millis(); const auto f = copyFrame();
     Serial.printf("[STATE] foot=%s wifi=%d uptime=%lu frame=%lu IMU=%u rate=%.1fHz missed=%lu heap=%u\n", FOOT_SIDE, int(WiFi.status()), (unsigned long)millis(), (unsigned long)f.sequence, f.imuReady, f.actualHz, (unsigned long)f.missedDeadlines, ESP.getFreeHeap());
