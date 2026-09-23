@@ -38,12 +38,16 @@ export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, s
   const fresh = (d) => Boolean(d?.payload && !d.error && d.advancedAt !== null && now() - d.advancedAt <= staleMs);
   async function readJson(url, options = {}) {
     const response = await fetchImpl(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(timeoutMs), cache: 'no-store' });
-    if (!response.ok) throw new Error(`device_http_${response.status}`);
     if (Number(response.headers?.get('content-length')) > 65536) throw new Error('device_response_too_large');
     let body = '';
     for await (const chunk of response.body) {
       body += Buffer.from(chunk).toString('utf8');
       if (body.length > 65536) throw new Error('device_response_too_large');
+    }
+    if (!response.ok) {
+      let code;
+      try { code = JSON.parse(body)?.error; } catch {}
+      throw new Error(typeof code === 'string' && /^[a-z0-9_]{1,80}$/.test(code) ? code : `device_http_${response.status}`);
     }
     return JSON.parse(body);
   }
@@ -112,6 +116,7 @@ export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, s
   async function command(side, action, value) {
     const d = devices.get(side);
     if (!SIDES.includes(side) || !fresh(d)) throw new Error('selected_foot_offline');
+    if (action === 'vibrate' && d.payload.drv2605_ready === false) throw new Error('drv2605_not_ready');
     if (action === 'fog-cue') {
       if (typeof value?.active !== 'boolean' || value.device_id !== d.payload.device_id || value.boot_id !== d.payload.boot_id) throw new Error('cue_device_identity_mismatch');
       if (d.payload.cue_api_version !== 1) throw new Error('upload_fog_cue_firmware');

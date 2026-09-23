@@ -8,7 +8,7 @@ import { renderReportsView } from "./views/reports-view.js";
 import { renderDevicesView } from "./views/devices-view.js";
 import { renderMediaPipeView } from "./views/mediapipe-view.js";
 import { renderOnboarding } from "./views/onboarding-view.js";
-import { cueMessages, speakCue } from "./services/cue-controller.js";
+import { cueMessages, speakCue, runOutputTest, outputTestError } from "./services/cue-controller.js";
 import { observationGoals } from "./data/dashboard-data.js";
 import { escapeHtml } from "./utils/text.js";
 import { applyDirectTextOverrides, mountEditor } from "./editor/editor-view.js";
@@ -86,6 +86,7 @@ let romContext = null;
 let trendContext = null;
 let esp32RequestInFlight = false;
 let aiRequestInFlight = false;
+let outputTestInFlight = false;
 let renderedView = null;
 let toastMessage = '';
 let toastTimer;
@@ -301,12 +302,13 @@ async function handleAction(action, actionTarget) {
     if (key === "voice") {
       showToast(speakCue(message) ? "음성 안내를 재생했어요." : "이 브라우저는 음성 안내를 지원하지 않아요.");
     } else {
-      if (esp32Enabled) {
-        const side = state.rehab?.config?.activeFoot ?? 'left';
-        const request = key === "laser" ? setLaser(true, side) : vibrate(47, side);
-        void request.then(() => { if (key === "laser") window.setTimeout(() => void setLaser(false, side).catch(() => {}), 650); }).catch(() => showToast("선택한 발의 연결과 출력 활성화 설정을 확인하세요."));
-      }
-      showToast(`${key === "laser" ? "레이저" : "진동"} 출력 테스트를 실행했어요.`);
+      if (outputTestInFlight) { showToast('현재 출력 테스트가 끝난 뒤 다시 눌러 주세요.'); return; }
+      const side = state.rehab?.config?.activeFoot ?? 'left';
+      outputTestInFlight = true;
+      try {
+        await runOutputTest({ kind: key, side, enabled: esp32Enabled, laser: setLaser, vibration: vibrate, notify: showToast });
+      } catch (error) { showToast(outputTestError(error, side)); }
+      finally { outputTestInFlight = false; }
     }
   }
   if (action === "test-all") {
