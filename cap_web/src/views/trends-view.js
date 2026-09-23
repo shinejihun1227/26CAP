@@ -24,7 +24,7 @@ export function renderTrendsContent({ manage = false } = {}) {
       <div class="trends-filter-row"><label>센서·설정 조건<select data-trend-sensor><option value="">저장된 센서 기록 없음</option></select></label><label>관찰 지표<select data-trend-metric>${Object.entries(SENSOR_METRICS).map(([id, spec]) => `<option value="${id}">${e(spec.label)}</option>`).join('')}</select></label></div>
       <div data-trend-sensor-result class="trends-empty">ESP32를 연결한 후 센서 기록을 시작하세요. 기존 브라우저 임시 기록은 사람과 시연 여부를 구분할 수 없어 자동으로 가져오지 않습니다.</div>
     </section>
-    <section class="trends-panel trends-history"><div class="trends-panel-head"><div><span class="trends-kicker">RECORD COVERAGE</span><h2>날짜별 기록 현황</h2></div></div><div data-trend-calendar class="trends-empty">아직 저장된 개인 기록이 없습니다.</div></section>
+    <section class="trends-panel trends-history"><div class="trends-panel-head"><div><span class="trends-kicker">RECORD COVERAGE</span><h2>날짜별 기록 현황</h2></div></div><div data-trend-calendar class="record-calendar-host">아직 저장된 개인 기록이 없습니다.</div></section>
     <details class="simple-details"><summary>기록을 비교할 때 알아두세요</summary><aside class="trends-caution"><strong>변화와 건강 판정은 다릅니다.</strong><p>각도 범위 증가·감소, AI 판정 비율 변화는 관찰 결과입니다. 치료 효과나 악화 여부를 자동 확정하지 않습니다. 촬영 자세·신발·장비·보정값·모델을 바꾸면 비교 조건도 달라집니다. 통증이나 불편이 있으면 측정을 중단하고 전문가에게 기록을 보여 주세요.</p><p>관절·센서 기록은 서버 PC의 비공개 폴더에 저장됩니다. 같은 PC의 다른 사용자도 볼 수 있으며 로그인으로 분리된 의료 기록 시스템은 아닙니다. 카메라 영상은 저장하지 않습니다.</p></aside></details>
   </div>`;
 }

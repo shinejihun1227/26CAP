@@ -5,12 +5,12 @@ export function escapeHtml(value) {
 }
 
 export function formatDateLabel(date = new Date()) {
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "short",
+  return new Intl.DateTimeFormat("ko-KR", {
+    weekday: "short",
+    month: "long",
     day: "numeric",
     year: "numeric",
-  }).format(date).toUpperCase();
+  }).format(date);
 }
 
 export function formatTimeLabel(date = new Date()) {

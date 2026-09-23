@@ -81,6 +81,14 @@ export function mountRomWorkspace(root, context = null) {
     button("stop").disabled = !starting && !running;
     $("[data-rom-identity]").textContent = `내 기록 · ${config().participant || "이름표 입력 필요"}`;
     const readiness = recordReadiness(), help = $("[data-rom-record-help]");
+    for (const step of root.querySelectorAll('[data-rom-step]')) {
+      const id = step.dataset.romStep;
+      const complete = id === 'camera' ? running : id === 'pose' ? running && isFresh() && $('[data-rom-direction-confirmed]').checked : Boolean(draft);
+      const current = id === 'camera' ? !running : id === 'pose' ? running && !readiness.ready && !recording : Boolean(recording || readiness.ready);
+      step.classList.toggle('is-complete', complete);
+      step.classList.toggle('is-current', current && !complete);
+      step.querySelector('[data-rom-step-state]').textContent = complete ? '완료' : id === 'record' && recording ? '기록 중' : current ? '지금 할 일' : '대기';
+    }
     button("record").disabled = !readiness.ready;
     button("record").title = readiness.reason;
     if (help.textContent !== readiness.reason) help.textContent = readiness.reason;

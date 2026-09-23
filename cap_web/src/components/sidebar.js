@@ -41,9 +41,8 @@ export function renderSidebar(activeView, state) {
 
       <div class="sidebar-spacer"></div>
       <div class="care-card">
-        <div class="care-card-icon">${icon("shoe")}</div>
-        <strong>처음 사용하시나요?</strong>
-        <p>깔창 연결부터 확인해 보세요.</p>
+        <div class="sidebar-help-title">${icon('help')}<strong>도움이 필요하신가요?</strong></div>
+        <a href="https://github.com/shinejihun1227/26CAP/blob/final/README.md" target="_blank" rel="noopener noreferrer">사용 가이드 ↗</a>
         <button class="text-button" data-view="devices">기기 연결 확인 ${icon("arrow")}</button>
       </div>
       <div class="sidebar-footer connection-${connection.tone}">

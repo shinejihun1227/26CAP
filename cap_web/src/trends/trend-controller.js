@@ -1,6 +1,8 @@
 import { koreaDay, romGroups, romDays, sensorDays, compareDays, SENSOR_METRICS, buildSensorSample } from './trend-math.js';
 import { renderComparison, renderSensorSummary, changeText } from './trend-render.js';
 import { escapeHtml as e } from '../utils/text.js';
+import { renderRecordCalendar } from './record-calendar.js';
+import { syncLiveNode } from '../utils/app-shell.js';
 
 export function mountTrendWorkspace(root, getState, context = null) {
   const $ = (selector) => root.querySelector(selector), action = (id) => $(`[data-trend-action="${id}"]`);
@@ -12,6 +14,7 @@ export function mountTrendWorkspace(root, getState, context = null) {
   const notice = (message, error = false) => { if (!alive) return; $('[data-trend-notice]').textContent = message; $('[data-trend-notice]').classList.toggle('is-error', error); };
   const date = () => $('[data-trend-date]').value || koreaDay();
   const mode = () => $('[data-trend-comparison]').value;
+  let calendarMonth = context?.calendarMonth || (context?.date || date()).slice(0, 7);
   async function request(url, method = 'GET', body) {
     const response = await fetch(url, { method, cache: 'no-store', signal: AbortSignal.timeout(6000), headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
     if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('새 개인 기록 API가 필요합니다. 8000·8001 서버를 재시작해 주세요.');
@@ -58,8 +61,11 @@ export function mountTrendWorkspace(root, getState, context = null) {
     $('.trends-summary h2').textContent = changes.length ? `${changes.length}개 지표를 이전 기록과 비교했습니다` : '비교할 기록을 쌓고 있습니다';
     const attention = changes.filter((c) => c.attention);
     $('.trends-summary p').textContent = changes.length ? `${(attention.length ? attention : changes).slice(0, 3).map((c) => `${c.label}: ${changeText(c.delta, c.unit)}`).join(' · ')}. ${attention.length ? '다시 확인할 수치 변화입니다. 악화로 확정하지 않습니다.' : '수치 변화는 개선·악화 판정을 의미하지 않습니다.'}` : '선택한 날짜와 비교 날짜에 같은 조건의 유효 기록이 필요합니다. 전날 기록이 없다면 ‘직전 기록일’을 선택하세요.';
-    $('[data-trend-calendar]').classList.toggle('trends-empty', !allDays.size);
-    $('[data-trend-calendar]').innerHTML = allDays.size ? `<div class="trends-table-wrap"><table><thead><tr><th>날짜</th><th>관절 기록</th><th>센서 표본</th><th>센서 조건 수</th></tr></thead><tbody>${[...allDays].sort(([a], [b]) => b.localeCompare(a)).map(([day, d]) => `<tr><td><button class="trends-day-button" data-trend-action="day" data-day="${day}">${day}</button></td><td>${d.rom}회</td><td>${d.sensor}개</td><td>${d.conditions}개</td></tr>`).join('')}</tbody></table></div>${managing && mine.length ? `<details class="trends-detail"><summary>내보내기 후 날짜별 센서 기록 관리</summary>${mine.map((r) => `<p>${r.day} · ${e(r.condition.setup)} · ${r.conditionKey.slice(0, 6)} <button data-trend-action="delete" data-id="${r.id}" ${recording || saving ? 'disabled' : ''}>이 센서 기록 삭제</button></p>`).join('')}</details>` : ''}` : '저장된 개인 기록이 없습니다. 측정하지 않은 날짜는 정상이나 0으로 표시하지 않습니다.';
+    const calendar = $('[data-trend-calendar]'), nextCalendar = calendar.cloneNode(false);
+    nextCalendar.innerHTML = renderRecordCalendar(allDays, date(), calendarMonth) + (managing && mine.length ? `<details class="trends-detail"><summary>내보내기 후 날짜별 센서 기록 관리</summary>${mine.map((r) => `<p>${r.day} · ${e(r.condition.setup)} · ${r.conditionKey.slice(0, 6)} <button data-trend-action="delete" data-id="${r.id}" ${recording || saving ? 'disabled' : ''}>이 센서 기록 삭제</button></p>`).join('')}</details>` : '');
+    const open = calendar.querySelector('details')?.open;
+    if (nextCalendar.querySelector('details')) nextCalendar.querySelector('details').open = Boolean(open);
+    syncLiveNode(calendar, nextCalendar);
     const codes = [...new Set([...sessions.map((s) => s.config.participant), ...rows.map((r) => r.participant)])].sort();
     $('#trend-participants').innerHTML = codes.map((c) => `<option value="${e(c)}"></option>`).join('');
     buttons();
@@ -89,7 +95,7 @@ export function mountTrendWorkspace(root, getState, context = null) {
     catch (error) { errorMessage = `저장 중단: ${error.message}`; recording = false; notice(errorMessage, true); }
     finally { saving = false; buttons(); }
   }
-  root.addEventListener('change', (event) => { if (event.target.matches('[data-trend-participant]')) { $('[data-trend-rom]').value = ''; $('[data-trend-sensor]').value = ''; } render(); }, { signal: events.signal });
+  root.addEventListener('change', (event) => { if (event.target.matches('[data-trend-date]')) calendarMonth = date().slice(0, 7); if (event.target.matches('[data-trend-participant]')) { $('[data-trend-rom]').value = ''; $('[data-trend-sensor]').value = ''; } render(); }, { signal: events.signal });
   root.addEventListener('input', buttons, { signal: events.signal });
   root.addEventListener('click', async (event) => {
     const target = event.target.closest('[data-trend-action]'); if (!target || target.disabled) return;
@@ -97,7 +103,8 @@ export function mountTrendWorkspace(root, getState, context = null) {
     if (id === 'refresh') { errorMessage = ''; await refresh(); }
     else if (id === 'start' && managing) { recording = true; lastFrame = null; saved = 0; skipped = 0; errorMessage = ''; notice('실제 센서 관찰값을 저장합니다. 이 탭을 숨기면 기록이 중지됩니다.'); buttons(); void sample(); }
     else if (id === 'stop') stop();
-    else if (id === 'day') { $('[data-trend-date]').value = target.dataset.day; render(); }
+    else if (id === 'day') { $('[data-trend-date]').value = target.dataset.day; calendarMonth = date().slice(0, 7); render(); }
+    else if (id === 'calendar-month') { calendarMonth = target.dataset.month; render(); }
     else if (id === 'metric') { $('[data-trend-metric]').value = target.dataset.metric; render(); }
     else if (id === 'delete' && managing) {
       if (recording || saving || !window.confirm('이 날짜·조건의 센서 요약을 영구 삭제할까요? 내보낸 파일 외에는 복구할 수 없습니다. 관절 기록은 남습니다.')) return;
@@ -118,5 +125,5 @@ export function mountTrendWorkspace(root, getState, context = null) {
     if (context[key] !== undefined) $(`[data-trend-${key}]`).value = context[key];
   }
   void refresh(); buttons();
-  return { getContext: () => Object.fromEntries(['participant', 'setup', 'date', 'comparison', 'metric'].map(key => [key, $(`[data-trend-${key}]`).value])), canLeave() { if (saving) { notice('마지막 표본 저장이 끝나면 이동해 주세요.'); return false; } if (recording && !window.confirm('센서 기록을 중지하고 다른 화면으로 이동할까요? 저장 완료된 자료는 유지됩니다.')) return false; stop(); return true; }, destroy() { alive = false; recording = false; clearInterval(captureTimer); clearInterval(readTimer); events.abort(); } };
+  return { getContext: () => ({...Object.fromEntries(['participant', 'setup', 'date', 'comparison', 'metric'].map(key => [key, $(`[data-trend-${key}]`).value])), calendarMonth}), canLeave() { if (saving) { notice('마지막 표본 저장이 끝나면 이동해 주세요.'); return false; } if (recording && !window.confirm('센서 기록을 중지하고 다른 화면으로 이동할까요? 저장 완료된 자료는 유지됩니다.')) return false; stop(); return true; }, destroy() { alive = false; recording = false; clearInterval(captureTimer); clearInterval(readTimer); events.abort(); } };
 }

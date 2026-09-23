@@ -92,19 +92,20 @@ export function renderOverview(state, { embedded = false } = {}) {
       <section class="clarity-page-intro overview-intro"><div><h1>오늘 요약</h1><p>${greeting}</p></div><span class="overview-source ${connection.real ? '' : 'is-demo'}">${connection.real ? '실제 센서 모드' : '시연 모드 · 예시 수치'}</span></section>
       <section class="clarity-overview-hero" aria-label="현재 상태와 시작 안내">
         <article class="clarity-status-card">
-          <span class="clarity-card-kicker">지금의 보행 상태</span>
-          <div class="clarity-status-main"><div><h2 data-live-copy>${title}</h2><p data-live-copy>${description}</p><button class="clarity-primary-button" ${state.paused ? 'data-action="toggle-pause"' : `data-view="${view}"`}><span data-live-copy>${action}</span>${icon('arrow')}</button></div><div class="simple-status-symbol" aria-hidden="true">${icon(connection.count ? "shoe" : "device")}</div></div>
-          <div class="clarity-status-meta">${renderFootStatus(state, connection)}<span>${connection.real ? `${connection.activeLabel} 기준 · 센서 규칙` : '시연용 점수'}</span></div>
+          <div><span class="clarity-card-kicker">지금의 보행 상태</span><div class="clarity-status-main"><div><h2 data-live-copy>${title}</h2><p data-live-copy>${description}</p></div></div></div>
+          <div class="overview-status-actions"><div class="clarity-status-meta">${renderFootStatus(state, connection)}</div><button class="clarity-primary-button" ${state.paused ? 'data-action="toggle-pause"' : `data-view="${view}"`}><span data-live-copy>${action}</span>${icon('arrow')}</button><small>${connection.real ? `${connection.activeLabel} 기준 · 센서 규칙 관찰` : '실제 측정 전 시연 화면'}</small></div>
         </article>
-        <aside class="overview-ai-summary">${renderAiStatusCard(state, { compact: true })}<button class="simple-secondary" data-view="mediapipe">카메라로 관절 측정 →</button></aside>
       </section>
       <section class="clarity-section-heading overview-section-heading"><h2>핵심 측정값</h2><span>${connection.real ? '현재 수신 중인 세션 기준' : '시연 데이터'} · 미수신은 — 표시</span></section>
       <section class="metrics-grid clarity-metrics" aria-label="핵심 측정값">
-        ${renderMetricCard({ label: connection.real ? '이번 측정 걸음 수' : '시연 걸음 수', value: steps, unit: '걸음', delta: state.paused ? '일시정지' : usable ? '관찰값' : '측정 대기', description: '화면 수신 기반 참고값', tone: 'coral', iconName: 'activity' })}
-        ${renderMetricCard({ label: '좌우 하중 균형', value: display(balance, 0), unit: '점', delta: finite(balance) ? '100점 기준' : '양발 비교 대기', description: '좌우가 비슷할수록 높아요', tone: 'mint', iconName: 'shoe' })}
-        ${renderMetricCard({ label: '깔창 평균 온도', value: display(temperature), unit: '°C', delta: finite(temperature) ? '수신 부위 평균' : '센서값 대기', description: '연결된 온도센서 기준', tone: 'lavender', iconName: 'sun' })}
-        ${renderMetricCard({ label: '깔창 평균 습도', value: display(humidity, 0), unit: '%', delta: finite(humidity) ? '상대습도' : '센서값 대기', description: '신발 안의 습한 정도', tone: 'sky', iconName: 'sun' })}
+        ${renderMetricCard({ id: 'steps', label: connection.real ? '이번 측정 걸음 수' : '시연 걸음 수', value: steps, unit: '걸음', delta: state.paused ? '일시정지' : usable ? '관찰값' : '측정 대기', description: '화면 수신 기반 참고값', tone: 'mint', iconName: 'shoe' })}
+        ${renderMetricCard({ id: 'balance', label: '좌우 하중 균형', value: display(balance, 0), unit: '점', delta: finite(balance) ? '100점 기준' : '양발 비교 대기', description: '좌우가 비슷할수록 높아요', tone: 'lavender', iconName: 'balance' })}
+        <article class="overview-environment"><div class="environment-heading"><span class="environment-icon">${icon('thermometer')}</span><h3>신발 안 상태</h3></div><div class="environment-values">
+        ${renderMetricCard({ id: 'temperature', label: '깔창 평균 온도', value: display(temperature), unit: '°C', delta: finite(temperature) ? '수신 부위 평균' : '센서값 대기', description: '연결된 온도센서 기준', tone: 'coral', iconName: 'thermometer' })}
+        ${renderMetricCard({ id: 'humidity', label: '깔창 평균 습도', value: display(humidity, 0), unit: '%', delta: finite(humidity) ? '상대습도' : '센서값 대기', description: '신발 안의 습한 정도', tone: 'sky', iconName: 'drop' })}
+        </div></article>
       </section>
+      <aside class="overview-ai-summary">${renderAiStatusCard(state, { compact: true })}</aside>
       <details class="simple-details overview-more" data-ui-disclosure="overview-observations"><summary>AI 분석 · 발 상태 · 최근 알림 자세히 보기</summary><section class="clarity-section-heading overview-section-heading"><h2>분석 상태</h2><button class="text-button" data-view="safety">전체 분석 보기 ${icon('arrow')}</button></section>
       ${renderObservations(state, presentation)}
       <section class="overview-bottom-grid">

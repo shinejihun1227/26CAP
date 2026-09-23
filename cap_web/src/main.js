@@ -330,6 +330,7 @@ app.addEventListener("click", (event) => {
   const viewTarget = event.target.closest("[data-view]");
   if (viewTarget) {
     if (!validViews.has(viewTarget.dataset.view)) return;
+    const changingView = viewTarget.dataset.view !== activeView;
     if (viewTarget.dataset.view !== activeView && romWorkspace && !romWorkspace.canLeave()) return;
     if (viewTarget.dataset.view !== activeView && trendWorkspace && !trendWorkspace.canLeave()) return;
     activeView = viewTarget.dataset.view;
@@ -343,6 +344,12 @@ app.addEventListener("click", (event) => {
     renderView();
     const section = viewTarget.dataset.recordSection;
     if (activeView === 'records' && ['walking', 'joint'].includes(section)) app.querySelector(`#${section}-records`)?.scrollIntoView({ block: 'start' });
+    else if (changingView) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      const heading = app.querySelector('main h1');
+      heading?.setAttribute('tabindex', '-1');
+      heading?.focus({ preventScroll: true });
+    }
     return;
   }
   const actionTarget = event.target.closest("[data-action]");

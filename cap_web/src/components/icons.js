@@ -1,4 +1,8 @@
 const paths = {
+  thermometer: '<path d="M9 14.5V5a3 3 0 0 1 6 0v9.5a5 5 0 1 1-6 0Z"/><path d="M12 7v10"/><circle cx="12" cy="18" r="1.5"/>',
+  balance: '<path d="M12 3v18M6 21h12M3 7h18M6 7l-4 8h8L6 7ZM18 7l-4 8h8l-4-8Z"/><path d="M2 15a4 4 0 0 0 8 0M14 15a4 4 0 0 0 8 0"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1-1.5 2M12 17h.01"/>',
+
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   activity: '<path d="M3 12h4l2.1-6 4.2 12 2.1-6H21"/>',
