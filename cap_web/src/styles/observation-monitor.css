@@ -1,0 +1,84 @@
+/* Scoped observation workspace; shares the existing teal StepOn shell. */
+.observation-panel { margin:24px 0; padding:26px; background:linear-gradient(135deg,#fff,#f8fcfd); border:1px solid #dce9ef; border-radius:20px; box-shadow:0 5px 22px #193f4e05; }
+.observation-panel * { box-sizing:border-box; }
+.observation-panel h2,.observation-panel h3,.observation-panel p { margin:0; }
+.observation-heading { display:flex; align-items:center; justify-content:space-between; gap:24px; }
+.observation-heading h2 { margin:5px 0 7px; font-size:26px!important; }
+.observation-heading p { color:#536e7e; font-size:15px!important; }
+.observation-panel button { font:inherit; cursor:pointer; }
+.observation-mode-tabs { display:flex; gap:8px; flex-shrink:0; }
+.observation-mode-tabs button { display:flex; align-items:center; gap:10px; text-align:left; padding:12px 16px; min-height:64px; color:#526e83; background:#f5f9fc; border:1px solid #e3edf3; border-radius:12px; font-size:15px; font-weight:700; }
+.observation-mode-tabs button .icon { width:24px; height:24px; flex-shrink:0; }
+.observation-mode-tabs button small { display:block; font-size:12px; font-weight:500; margin-top:3px; }
+.observation-mode-tabs button.is-selected { color:#177c78; background:#ecfaf7; border-color:#61c4bc; box-shadow:inset 0 0 0 1px #b5e8e2; }
+.observation-panel button:hover { filter:brightness(.97); }
+.observation-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin:22px 0 18px; }
+.observation-toolbar > span { color:#657d8a; font-size:12px; }
+.observation-toolbar > div,.observation-metric-tabs { display:flex; padding:4px; background:#edf3f7; border-radius:10px; }
+.observation-toolbar button,.observation-metric-tabs button { min-height:36px; border:0; padding:7px 13px; color:#557084; background:transparent; border-radius:8px; font-size:13px; }
+.observation-toolbar button.is-selected,.observation-metric-tabs button.is-selected { color:#176d68; background:white; font-weight:700; box-shadow:0 1px 5px #183c4b0d; }
+.observation-metric-tabs { width:fit-content; margin-bottom:16px; }
+.observation-metric-tabs button { min-width:92px; font-size:14px; }
+.observation-stats { display:grid; grid-template-columns:1.25fr repeat(3,1fr); gap:12px; margin-bottom:18px; }
+.observation-stat { padding:17px 18px; border:1px solid #dfeaf0; background:white; border-radius:13px; min-width:0; }
+.observation-stat > span { font-size:13px; color:#557083; }
+.observation-stat > strong { display:block; margin:10px 0 6px; color:#143748; font-size:29px; line-height:1.35; font-weight:750; font-variant-numeric:tabular-nums; }
+.observation-stat > strong small { margin-left:6px; font-size:14px; color:#526e7e; font-weight:500; }
+.observation-stat p { font-size:12px!important; color:#657d8a; line-height:1.6; }
+.observation-stat.is-status { background:#eff8f6; border-color:#d6eae5; }
+.observation-stat.is-status > strong { font-size:20px; padding:5px 0; }
+.observation-stats.is-health { grid-template-columns:repeat(3,1fr); }
+.observation-stat.is-left > strong { color:#307ddb; }.observation-stat.is-right > strong { color:#d75469; }
+.observation-columns { display:grid; grid-template-columns:minmax(0,2.1fr) minmax(260px,1fr); gap:16px; align-items:stretch; }
+.observation-plot,.observation-recent { background:#fff; border:1px solid #e0eaf0; border-radius:15px; min-width:0; padding:20px; }
+.observation-plot > header,.observation-recent > header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.observation-panel h3 { font-size:18px!important; line-height:1.45; }
+.observation-plot header p { color:#617d8d; font-size:13px!important; margin-top:5px; }
+.observation-chip { flex-shrink:0; border-radius:20px; padding:7px 10px; background:#f0f7f8; color:#426a73; font-size:11px; }
+.observation-chart-scroll { max-width:100%; overflow-x:auto; overscroll-behavior-inline:contain; }
+.observation-chart { display:block; width:100%; min-width:480px; height:auto; font-family:inherit; }
+.observation-axis line { stroke:#e6eef4; stroke-dasharray:4 3; }.observation-axis text { fill:#647f90; font-size:20px; }
+.observation-line path { fill:none; stroke-width:2.8; stroke-linecap:round; stroke-linejoin:round; }.observation-line.is-left { stroke:#3a89e8; fill:#3a89e8; }.observation-line.is-right { stroke:#eb6d80; fill:#eb6d80; }
+.observation-event-bar { fill:#f17581; }.observation-chart-message { fill:#587c88; font-size:19px; }
+.observation-plot-note { color:#647f8b; font-size:12px!important; line-height:1.75!important; margin-top:13px!important; }
+.observation-legend { display:flex; flex-shrink:0; gap:13px; font-size:12px; color:#537182; }
+.observation-legend span { display:flex; align-items:center; gap:5px; }.observation-legend i,.observation-side-dot { display:block; width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.observation-panel .is-left:is(i) { background:#3a89e8; }.observation-panel .is-right:is(i) { background:#eb6d80; }
+.observation-comparison { display:flex; align-items:center; gap:10px; background:#f0f8f8; color:#226d6b; padding:11px 13px; border-radius:9px; font-size:14px!important; margin-top:12px!important; }
+.observation-comparison .icon { width:19px; height:19px; flex-shrink:0; }
+.observation-recent { display:flex; flex-direction:column; }
+.observation-recent header { padding-bottom:14px; border-bottom:1px solid #e6edf2; }
+.observation-recent header > span { color:#6a8591; font-size:11px; white-space:nowrap; }
+.observation-recent ul { padding:0; margin:0; list-style:none; }
+.observation-recent li { display:flex; align-items:flex-start; gap:9px; padding:15px 0; border-bottom:1px solid #edf2f6; }
+.observation-recent li:last-child { border-bottom:0; }.observation-recent li > i { margin-top:6px; }
+.observation-recent li > div { flex:1; min-width:0; }.observation-recent li b { display:block; font-size:14px; line-height:1.5; }
+.observation-recent li span,.observation-recent li small { display:block; font-size:13px; line-height:1.65; color:#627e8e; margin-top:4px; }
+.observation-recent li > strong { font-size:20px; white-space:nowrap; font-variant-numeric:tabular-nums; }.observation-recent li > strong small { display:inline; }
+.observation-event-dot { width:9px; height:9px; background:#ed7784; border-radius:50%; flex-shrink:0; }
+.observation-link { border:0; background:transparent; color:#247a75; padding:8px 0; font-size:13px!important; text-align:left; font-weight:600!important; }
+.observation-recent > .observation-link { margin-top:auto; }
+.observation-panel footer { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:16px; }
+.observation-panel footer > span { color:#68808c; font-size:12px; }
+.observation-empty { min-height:235px; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; text-align:center; background:linear-gradient(180deg,#f6fafc,#fff); border-radius:10px; padding:24px; }
+.observation-empty > span { display:grid; place-items:center; width:48px; height:48px; border-radius:50%; background:#e8f4f4; color:#348d88; }
+.observation-empty b { font-size:17px; }.observation-empty p { max-width:36ch; font-size:13px!important; color:#627e8e; }
+.observation-list-empty { flex:1; padding:45px 8px; color:#6b8491; line-height:1.85; font-size:14px; text-align:center; }
+@media(max-width:1250px) {
+  .observation-heading { align-items:flex-start; flex-direction:column; gap:18px; }
+  .observation-columns { grid-template-columns:minmax(0,1fr); }
+  .observation-recent ul { display:grid; grid-template-columns:1fr 1fr; gap:0 24px; }
+  .observation-list-empty { padding:20px 8px; }
+}
+@media(max-width:650px) {
+  .observation-panel { padding:17px 13px; border-radius:16px; }
+  .observation-heading { gap:15px; }.observation-heading h2 { font-size:23px!important; }
+  .observation-mode-tabs { width:100%; gap:6px; }.observation-mode-tabs button { flex:1; padding:10px; font-size:13px; gap:7px; }
+  .observation-mode-tabs button .icon { width:19px; height:19px; }.observation-mode-tabs button small { font-size:10px; }
+  .observation-toolbar { margin-top:18px; }.observation-toolbar > div { width:100%; }.observation-toolbar button { flex:1; }
+  .observation-stats { grid-template-columns:1fr 1fr; gap:8px; }.observation-stat { padding:13px 11px; }.observation-stat > strong { font-size:27px; }.observation-stat.is-status > strong { font-size:17px; }
+  .observation-stats.is-health { grid-template-columns:1fr 1fr; }.observation-stats.is-health .observation-stat:last-child { grid-column:1 / -1; }
+  .observation-plot,.observation-recent { padding:15px 12px; }.observation-plot > header { align-items:flex-start; flex-direction:column; }
+  .observation-panel h3 { font-size:17px!important; }.observation-recent ul { grid-template-columns:1fr; }
+  .observation-panel footer { flex-direction:column; align-items:flex-start; gap:5px; }
+}

@@ -3,6 +3,7 @@ import { renderBilateralHeatmap } from "../components/bilateral-heatmap.js";
 import { renderTopbar } from "../components/topbar.js";
 import { renderAiStatusCard } from "../components/ai-status-card.js";
 import { renderInsoleConnections } from '../components/insole-connection.js';
+import { renderObservationPanel } from '../components/observation-panel.js';
 
 function healthRow(label, detail, ready) {
   return `<div class="clarity-health-row ${ready ? "" : "is-waiting"}"><i></i><div><b>${label}</b><small>${detail}</small></div><strong>${ready ? "정상" : "확인 필요"}</strong></div>`;
@@ -37,7 +38,8 @@ export function renderLiveView(state, { embedded = false } = {}) {
         </section>
 
 
-        ${renderAiStatusCard(state)}
+        ${renderObservationPanel(state)}
+        <details class="simple-details" data-ui-disclosure="live-ai-monitor"><summary>AI 판정 점수 · 진동·레이저 안내 설정</summary>${renderAiStatusCard(state)}</details>
 
         <section class="clarity-section-heading"><div><span class="eyebrow">SENSOR SIGNALS</span><h2>발에 실리는 압력</h2></div><span>색이 진할수록 압력이 높아요</span></section>
         <section class="clarity-live-grid">

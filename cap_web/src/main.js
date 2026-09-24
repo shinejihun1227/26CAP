@@ -29,6 +29,7 @@ import { captureInsoleControls, restoreInsoleControls, isEditingInsole } from ".
 import { updateInsoleReadings } from "./components/insole-connection.js";
 import { createInteractionGuard } from './utils/interaction-guard.js';
 import { updateAppShell } from './utils/app-shell.js';
+import { createObservationMonitor } from './data/observation-monitor.js';
 
 const app = document.querySelector("#app");
 const profileStorageKey = "stepon-cap-web-profile";
@@ -92,6 +93,8 @@ let toastMessage = '';
 let toastTimer;
 const toastMarkup = () => `<div class="toast-region" aria-live="polite">${toastMessage ? `<div class="toast">${escapeHtml(toastMessage)}</div>` : ''}</div>`;
 const interactionGuard = createInteractionGuard(app, () => renderView());
+const observationMonitor = createObservationMonitor();
+let observationUi = { mode: 'fog', metric: 'temperature', minutes: 5 };
 
 function renderView(force = false) {
   if (isEditorMode) {
@@ -112,7 +115,7 @@ function renderView(force = false) {
     app.innerHTML = `${isMobileUi ? renderMobileOnboarding(state) : renderOnboarding(state)}${toastMarkup()}`;
     return;
   }
-  const viewState = { ...state, aiEnabled, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
+  const viewState = { ...state, aiEnabled, observation: observationMonitor.snapshot(), observationUi, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
   const continuity = renderedView === activeView ? captureViewContinuity(app) : null;
   const insoleControls = renderedView === activeView ? captureInsoleControls(app) : null;
   updateAppShell(app, `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${toastMarkup()}`, isMobileUi, renderedView === activeView);
@@ -321,6 +324,13 @@ async function handleAction(action, actionTarget) {
 
 function bindAppEvents() {
 app.addEventListener("click", (event) => {
+  const observationTarget = event.target.closest('[data-observation-control]');
+  if (observationTarget) {
+    const key = observationTarget.dataset.observationControl, value = observationTarget.dataset.value;
+    const allowed = { mode: ['fog', 'health'], metric: ['temperature', 'humidity', 'pressure'], minutes: ['5', '15', '30'] };
+    if (allowed[key]?.includes(value)) { observationUi = { ...observationUi, [key]: value }; renderView(); }
+    return;
+  }
   const heatmapTarget = event.target.closest("[data-heatmap-mode]");
   if (heatmapTarget) {
     state = { ...state, heatmapMode: heatmapTarget.dataset.heatmapMode };
@@ -490,9 +500,11 @@ async function refreshAiState(force = false) {
       }, ...(state.events ?? [])].slice(0, 3)
       : state.events;
     state = { ...state, ai: nextAi, events: nextEvents };
+    if (!document.hidden) observationMonitor.observeAi({ ...state, aiEnabled });
     if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
   } catch (error) {
     const nextAi = markAiUnavailable(state.ai, error);
+    observationMonitor.interrupt();
     if (JSON.stringify(nextAi) !== JSON.stringify(state.ai)) {
       state = { ...state, ai: nextAi };
       if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
@@ -510,6 +522,15 @@ if (isEditorMode) {
   window.setInterval(refreshEsp32State, usesBilateralSta() ? 250 : 750);
   void refreshAiState();
   window.setInterval(refreshAiState, 750);
+  // Short, in-memory observation only. Background time, pauses and stale data
+  // must never be counted as symptom-free time or a continuing FoG episode.
+  document.addEventListener('visibilitychange', () => observationMonitor.interrupt());
+  window.setInterval(() => {
+    if (document.hidden || showOnboarding) { observationMonitor.interrupt(); return; }
+    observationMonitor.observeAi({ ...state, aiEnabled });
+    observationMonitor.observeSensors(state);
+    if (activeView === 'live') renderView();
+  }, 1000);
   window.setInterval(() => {
     if (!esp32Enabled && !showOnboarding && !state.paused) {
       state = applyRehabAnalysis(evolveState(state));
