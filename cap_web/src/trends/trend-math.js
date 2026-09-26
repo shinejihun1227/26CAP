@@ -71,7 +71,9 @@ export function buildSensorSample(state, participant, setup, now = Date.now()) {
   if (state?.dataSource !== 'esp32' || !state.connected || state.paused || !finite(state.sensorReceivedAt) || now - state.sensorReceivedAt > 2500 || now < state.sensorReceivedAt || !finite(state.sensorAdvancedAt) || now - state.sensorAdvancedAt > 2500) return null;
   const hw = state.hardware ?? {}, raw = hw.raw ?? {}, m = state.rehab?.metrics ?? {};
   const side = hw.footSide === 'right' ? 'right' : 'left';
-  const thermal = (state.thermal?.[side] ?? []).filter((p) => p.available && finite(p.temp) && p.temp > -40 && p.temp <= 100 && finite(p.humidity) && p.humidity >= 0 && p.humidity <= 100);
+  const thermalRows = (state.thermal?.[side] ?? []).filter((p) => p.available && finite(p.temp) && p.temp > -40 && p.temp <= 100 && finite(p.humidity) && p.humidity >= 0 && p.humidity <= 100);
+  const seenThermal = new Set();
+  const thermal = thermalRows.filter((p) => { const key = p.sensorIndex ?? p.site; if (seenThermal.has(key)) return false; seenThermal.add(key); return true; });
   const channels = thermal.map((p) => p.site).sort();
   const values = {};
   const put = (key, value) => { const spec = SENSOR_METRICS[key]; if (finite(value) && value >= spec.min && value <= spec.max) values[key] = round(value, 3); };
@@ -84,14 +86,14 @@ export function buildSensorSample(state, participant, setup, now = Date.now()) {
     put('pressure', m.activeRelativePressure);
     if (m.contact?.[state.rehab?.config?.activeFoot ?? side]) { put('heel', m.heelLanding?.active); put('forefoot', m.propulsion?.active); put('lateral', m.lateralLoad?.active); }
     if (hw.bilateralAvailable && m.bilateralAvailable && validRaw(raw.bilateral_pressure?.left) && validRaw(raw.bilateral_pressure?.right)) put('loadDifference', m.loadDifferencePct);
-    if (state.rehab?.calibration?.status === 'ready' && state.rehab.calibration.pressureLayout === PRESSURE_LAYOUT_ID && hw.sensors?.imu?.ready) put('feedback', (state.rehab.alerts ?? []).some((a) => a.code !== 'fog_priority') ? 100 : 0);
+    if (state.rehab?.calibration?.status === 'ready' && state.rehab.calibration.pressureLayout === (hw.pressureLayout ?? PRESSURE_LAYOUT_ID) && hw.sensors?.imu?.ready) put('feedback', (state.rehab.alerts ?? []).some((a) => a.code !== 'fog_priority') ? 100 : 0);
   }
   if (thermal.length) { put('temperature', thermal.reduce((s, p) => s + p.temp, 0) / thermal.length); put('humidity', thermal.reduce((s, p) => s + p.humidity, 0) / thermal.length); }
   const ai = state.ai ?? {};
   if (ai.available && ai.ready && ai.windowReady && ai.deviceConnected && finite(ai.lastWindowAtMs) && now - ai.lastWindowAtMs >= 0 && now - ai.lastWindowAtMs <= 3000 && ['normal', 'warning', 'confirmed'].includes(ai.state)) put('fog', ai.state === 'confirmed' ? 100 : 0);
   if (!Object.keys(values).length) return null;
   const condition = { protocol: TREND_PROTOCOL, setup, side, activeFoot: state.rehab?.config?.activeFoot ?? side, device: String(state.device?.name ?? 'ESP32'), bilateral: Boolean(hw.bilateralAvailable), thermalChannels: channels,
-    algorithm: REHAB_ALGORITHM_ID, pressureLayout: PRESSURE_LAYOUT_ID, pressureChannels: [...(pressureChannelsFor(raw) ?? PRESSURE_CHANNELS)], rehabConfig: state.rehab?.config ?? {}, baseline: state.rehab?.calibration?.pressureLayout === PRESSURE_LAYOUT_ID ? state.rehab.calibration.baseline ?? null : null,
+    algorithm: REHAB_ALGORITHM_ID, sensorProfile: hw.sensorProfile ?? 'four-independent', pressureLayout: hw.pressureLayout ?? PRESSURE_LAYOUT_ID, pressureChannels: [...(pressureChannelsFor(raw) ?? PRESSURE_CHANNELS)], rehabConfig: state.rehab?.config ?? {}, baseline: state.rehab?.calibration?.pressureLayout === (hw.pressureLayout ?? PRESSURE_LAYOUT_ID) ? state.rehab.calibration.baseline ?? null : null,
     aiFoot: ai.selectedFoot ?? null, aiSession: ai.calibration?.id ?? null, aiArtifact: ai.artifactId ?? null,
     aiModel: ai.model ?? null, aiRate: ai.sampleRateHz ?? null, aiWindow: ai.windowSec ?? null, aiHop: ai.hopSec ?? null,
     aiCalibration: Object.fromEntries(['vertical_confidence', 'forward_confidence', 'yaw_enabled', 'yaw_confidence'].filter((key) => finite(ai.calibration?.[key]) || typeof ai.calibration?.[key] === 'boolean').map((key) => [key, ai.calibration[key]])) };

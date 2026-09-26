@@ -1,13 +1,19 @@
 // Shared contract with firmware/stepon_c3/*/sensor_core*.h.
 export const PRESSURE_LAYOUT_ID = 'stepon-pressure-4-v1';
-export const REHAB_ALGORITHM_ID = 'web-rehab-rules-pressure4-v2';
+export const PRESSURE_LAYOUT_2_SHARED_ID = 'stepon-pressure-2-shared-v1';
+export const REHAB_ALGORITHM_ID = 'web-rehab-rules-sensor-profile-v3';
 export const PRESSURE_CHANNELS = [0, 2, 4, 6];
 export const CONTIGUOUS_PRESSURE_CHANNELS = [0, 1, 2, 3];
+export const SHARED_SENSOR_MAP = [0, 0, 1, 1];
 // Both wirings use the same logical site order; retain older boards and records.
-export const validPressureChannels = (channels) => [PRESSURE_CHANNELS, CONTIGUOUS_PRESSURE_CHANNELS]
+export const validPressureChannels = (channels) => [PRESSURE_CHANNELS, CONTIGUOUS_PRESSURE_CHANNELS, SHARED_SENSOR_MAP]
   .some((mapping) => Array.isArray(channels) && channels.length === mapping.length && mapping.every((c, i) => channels[i] === c));
 export const pressureChannelsFor = (payload) => payload?.pressure_channels === undefined
   ? PRESSURE_CHANNELS : validPressureChannels(payload.pressure_channels) ? payload.pressure_channels : null;
+export const sensorProfileFor = (payload) => payload?.sensor_profile === 'two-shared' && payload?.pressure_layout === PRESSURE_LAYOUT_2_SHARED_ID
+  ? 'two-shared' : payload?.sensor_profile === 'four-independent' ? 'four-independent'
+    : payload?.pressure_layout === PRESSURE_LAYOUT_ID || payload?.pressure_layout === undefined ? 'four-independent' : null;
+export const hasSharedSensors = (payload) => sensorProfileFor(payload) === 'two-shared';
 export const THERMAL_CHANNELS = [3, 4, 5, 6];
 export const PRESSURE_COUNT = PRESSURE_CHANNELS.length;
 export const PRESSURE_SITES = ['앞쪽', '가운데 안쪽', '가운데 바깥쪽', '뒤꿈치'];
@@ -22,7 +28,16 @@ export const PRESSURE_ZONES = { toe: [0], forefoot: [0], midfoot: [1, 2], heel: 
 export const emptyPressure = () => Array(PRESSURE_COUNT).fill(null);
 export const validPressure = (values) => Array.isArray(values) && values.length === PRESSURE_COUNT && values.every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100);
 export function pressureContractMatches(payload) {
-  return (payload?.pressure_count === undefined || payload.pressure_count === PRESSURE_COUNT)
+  const profile = sensorProfileFor(payload);
+  if (profile === 'two-shared') return payload.pressure_count === 4 && payload.pressure_physical_count === 2
+    && validPressureChannels(payload.pressure_channels) && JSON.stringify(payload.pressure_channels) === JSON.stringify(SHARED_SENSOR_MAP)
+    && JSON.stringify(payload.pressure_sensor_map) === JSON.stringify(SHARED_SENSOR_MAP)
+    && payload.thermal_physical_count === 2 && JSON.stringify(payload.thermal_sensor_map) === JSON.stringify(SHARED_SENSOR_MAP)
+    && payload.thermal_transport === 'dual-i2c';
+  return profile === 'four-independent' && (payload?.pressure_count === undefined || payload.pressure_count === PRESSURE_COUNT)
     && (payload?.pressure_layout === undefined || payload.pressure_layout === PRESSURE_LAYOUT_ID)
-    && pressureChannelsFor(payload) !== null;
+    && (payload?.sensor_profile === undefined || payload.sensor_profile === 'four-independent')
+    && (payload?.pressure_sensor_map === undefined || JSON.stringify(payload.pressure_sensor_map) === JSON.stringify([0, 1, 2, 3]))
+    && (payload?.pressure_channels === undefined || [PRESSURE_CHANNELS, CONTIGUOUS_PRESSURE_CHANNELS]
+      .some((mapping) => JSON.stringify(payload.pressure_channels) === JSON.stringify(mapping)));
 }

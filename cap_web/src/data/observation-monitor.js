@@ -18,7 +18,9 @@ export function readObservationFeet(state, now = Date.now()) {
     const raw = hw.transport === 'sta' ? foot?.state : hw.raw;
     const pressureRaw = hw.transport === 'sta' ? raw?.pressure : raw?.bilateral_pressure?.[side] ?? (hw.footSide === side ? raw?.pressure : null);
     const pressure = connected && raw?.pressure_ready !== false && pressureContractMatches(raw) && validPressure(pressureRaw) ? [...pressureRaw] : null;
-    const readings = connected ? (state.thermal?.[side] ?? []).filter(p => p.available && sites.includes(p.site)) : [];
+    const physicalThermal = connected ? (state.thermal?.[side] ?? []).filter(p => p.available && sites.includes(p.site)) : [];
+    const seenThermalSensors = new Set();
+    const readings = physicalThermal.filter(p => { const key = p.sensorIndex ?? p.site; if (seenThermalSensors.has(key)) return false; seenThermalSensors.add(key); return true; });
     const temperatures = readings.filter(p => finite(p.temp) && p.temp > -40 && p.temp <= 100);
     const humidities = readings.filter(p => finite(p.humidity) && p.humidity >= 0 && p.humidity <= 100);
     const total = pressure?.reduce((sum, n) => sum + n, 0) ?? 0;
@@ -28,7 +30,7 @@ export function readObservationFeet(state, now = Date.now()) {
       pressure: pressure ? mean(pressure) : null, channels: pressure, temperatures, humidities,
       temperatureKey: temperatures.map(p => p.site).sort().join(','), humidityKey: humidities.map(p => p.site).sort().join(','),
       pressureKey: JSON.stringify([raw?.pressure_layout, raw?.pressure_channels]),
-      peak: total > 0 ? { site: PRESSURE_SITES[peakIndex], share: maximum / total * 100 } : null,
+      peak: total > 0 && raw?.sensor_profile !== 'two-shared' ? { site: PRESSURE_SITES[peakIndex], share: maximum / total * 100 } : null,
       frame: connected ? `${raw?.device_id ?? ''}:${raw?.boot_id ?? ''}:${raw?.frame ?? ''}` : null }];
   }));
 }

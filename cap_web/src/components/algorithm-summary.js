@@ -24,7 +24,7 @@ export function renderSystemPipeline(state, { compact = false } = {}) {
     { index: "01", label: "센서 수집", detail: "움직임 64Hz 목표 · 압력·온습도", tone: "mint" },
     { index: "02", label: "창 구성·보정", detail: `${ai.windowSec ?? 4}초 창 · ${ai.hopSec ?? 0.5}초 간격`, tone: "sky" },
     { index: "03", label: "AI 분석 (선택)", detail: state.aiEnabled === false ? '현재 사용 안 함' : `${model} · FoG 3단계`, tone: "lavender" },
-    { index: "04", label: "재활 지표", detail: "하중 · CoP · 착지 · 추진", tone: "orange" },
+    { index: "04", label: "재활 지표", detail: twoSensorProfile ? "전체 하중 · 움직임 · 발 상태" : "하중 · CoP · 착지 · 추진", tone: "orange" },
     { index: "05", label: "안내 출력", detail: "레이저 · 진동 · 음성", tone: "coral" },
   ];
 
@@ -39,7 +39,8 @@ export function renderSystemPipeline(state, { compact = false } = {}) {
 }
 
 export function renderAlgorithmSummary(state) {
-  const fog = analyzeFog({ imu: state.imu, pressure: state.pressure, cadence: state.metrics?.cadence });
+  const twoSensorProfile = state.hardware?.sensorProfile === 'two-shared';
+  const fog = analyzeFog({ imu: state.imu, pressure: state.pressure, cadence: state.metrics?.cadence, twoSensorProfile });
   const thermal = analyzeThermalDifference(state.thermal);
   const rehab = state.rehab ?? {};
   const rehabMetrics = rehab.metrics ?? {};
@@ -54,7 +55,7 @@ export function renderAlgorithmSummary(state) {
     <div class="section-heading-row"><div><span class="section-overline">ALGORITHM SNAPSHOT</span><h2>현재 적용 중인 판단 모듈</h2></div><button class="clarity-link-button" data-view="safety">전체 판단 근거 보기 ${icon("arrow")}</button></div>
     <div class="algorithm-summary-grid">
       <article class="algorithm-summary-card is-fog"><div class="algorithm-summary-top"><span class="algorithm-summary-icon">${icon("activity")}</span><span class="algorithm-summary-status ${toneClass(fog.stateTone)}">${escapeHtml(aiStatus)}</span></div><h3>보행동결 FoG</h3><p>센서 데이터로 계산한 모델 판정 점수입니다. 분석 준비 전에는 점수를 표시하지 않습니다.</p><div class="algorithm-summary-value"><strong>${aiScore}</strong><span>/ 100 score</span></div><small>${escapeHtml(aiSource)} · ${ai.windowSec ?? 4}초 창 · ${ai.hopSec ?? 0.5}초 hop</small></article>
-      <article class="algorithm-summary-card is-rehab"><div class="algorithm-summary-top"><span class="algorithm-summary-icon">${icon("shoe")}</span><span class="algorithm-summary-status ${toneClass(alerts ? "orange" : "mint")}">${alerts ? `${alerts}건 관찰` : "안정"}</span></div><h3>재활 보행 지표</h3><p>FSR406 4채널과 BMI270로 하중, 압력중심, 착지·추진·발 들림을 계산합니다.</p><div class="algorithm-summary-metrics"><span><b>${number(rehabMetrics.loadDifferencePct, 0, "%")}</b><small>좌우 하중 차이</small></span><span><b>${number(rehabMetrics.cop?.active?.x, 2)}</b><small>CoP 좌우</small></span><span><b>${number(rehabMetrics.fatigueScore, 0, "/4")}</b><small>피로 지표</small></span></div><small>${rehab.calibration?.status === "ready" ? "개인 기준선 사용 중" : "기준선 생성 필요"} · 최근 반복 관찰 기반</small></article>
+      <article class="algorithm-summary-card is-rehab"><div class="algorithm-summary-top"><span class="algorithm-summary-icon">${icon("shoe")}</span><span class="algorithm-summary-status ${toneClass(alerts ? "orange" : "mint")}">${alerts ? `${alerts}건 관찰` : "안정"}</span></div><h3>재활 보행 지표</h3><p>${twoSensorProfile ? "압력 2개 센서의 총량만 사용합니다. 위치별 CoP·착지·추진 분석은 표시하지 않습니다." : "FSR406 4채널과 BMI270로 하중, 압력중심, 착지·추진·발 들림을 계산합니다."}</p><div class="algorithm-summary-metrics"><span><b>${number(rehabMetrics.loadDifferencePct, 0, "%")}</b><small>좌우 하중 차이</small></span><span><b>${number(rehabMetrics.cop?.active?.x, 2)}</b><small>CoP 좌우</small></span><span><b>${number(rehabMetrics.fatigueScore, 0, "/4")}</b><small>피로 지표</small></span></div><small>${rehab.calibration?.status === "ready" ? "개인 기준선 사용 중" : "기준선 생성 필요"} · 최근 반복 관찰 기반</small></article>
       <article class="algorithm-summary-card is-thermal"><div class="algorithm-summary-top"><span class="algorithm-summary-icon">${icon("sun")}</span><span class="algorithm-summary-status ${toneClass(thermal.stageTone)}">${escapeHtml(thermal.stageLabel)}</span></div><h3>발 상태 차이</h3><p>SHTC3 같은 부위의 양발 온도·습도를 비교해 비대칭 변화를 단계적으로 관찰합니다.</p><div class="algorithm-summary-metrics"><span><b>${number(thermal.meanTemperatureDelta, 1, "°C")}</b><small>평균 온도 차이</small></span><span><b>${number(thermal.maxTemperatureDelta, 1, "°C")}</b><small>최대 온도 차이</small></span><span><b>${number(thermal.maxHumidityDelta, 0, "%")}</b><small>최대 습도 차이</small></span></div><small>정상 &lt; 1°C · 관찰 1–2°C · 우선 확인 ≥ 2°C</small></article>
     </div>
   </section>`;

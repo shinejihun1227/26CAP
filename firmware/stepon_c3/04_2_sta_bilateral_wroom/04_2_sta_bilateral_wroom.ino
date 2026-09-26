@@ -79,9 +79,13 @@ String stateJson() {
   s += ",\"cue_api_version\":1,\"frame\":" + String(f.sequence) + ",\"millis\":" + String(f.atMs) + ",\"uptime_ms\":" + String(millis());
   s += ",\"sample_hz\":64,\"actual_sample_hz\":" + String(sensorFresh ? f.actualHz : 0, 1) + ",\"aux_sample_hz\":20,\"missed_deadlines\":" + String(f.missedDeadlines);
   s += ",\"rssi\":" + String(WiFi.RSSI()) + ",\"free_heap\":" + String(ESP.getFreeHeap());
-  s += ",\"pressure_count\":4,\"pressure_layout\":\"stepon-pressure-4-v1\",\"pressure_channels\":[";
+#if STEPON_SENSOR_PROFILE == STEPON_SENSOR_PROFILE_4
+  s += ",\"sensor_profile\":\"four-independent\",\"pressure_count\":4,\"pressure_physical_count\":4,\"pressure_layout\":\"stepon-pressure-4-v1\",\"pressure_channels\":[";
   for (uint8_t i = 0; i < 4; ++i) { if (i) s += ','; s += PRESSURE_CHANNELS[i]; }
-  s += "],\"shtc3_channels\":[3,4,5,6]";
+  s += "],\"pressure_sensor_map\":[0,1,2,3],\"pressure_input_gpio\":[],\"thermal_physical_count\":4,\"thermal_sensor_map\":[0,1,2,3],\"thermal_transport\":\"tca9548a\",\"shtc3_channels\":[3,4,5,6]";
+#else
+  s += ",\"sensor_profile\":\"two-shared\",\"pressure_count\":4,\"pressure_physical_count\":2,\"pressure_layout\":\"stepon-pressure-2-shared-v1\",\"pressure_channels\":[0,0,1,1],\"pressure_sensor_map\":[0,0,1,1],\"pressure_input_gpio\":[34,35],\"thermal_physical_count\":2,\"thermal_sensor_map\":[0,0,1,1],\"thermal_transport\":\"dual-i2c\",\"shtc3_channels\":[]";
+#endif
   s += ",\"pressure_ready\":" + String(f.pressureReady && uint32_t(millis() - f.pressureAtMs) < 1000 ? "true" : "false");
   s += ",\"pressure\":[";
   for (uint8_t i = 0; i < 4; ++i) { if (i) s += ','; s += f.pressure[i]; }
@@ -238,10 +242,15 @@ void loop() {
   if (uint32_t(millis() - logAt) >= 2000) {
     logAt = millis(); const auto f = copyFrame();
     Serial.printf("[STATE] foot=%s wifi=%d uptime=%lu frame=%lu IMU=%u rate=%.1fHz missed=%lu heap=%u\n", FOOT_SIDE, int(WiFi.status()), (unsigned long)millis(), (unsigned long)f.sequence, f.imuReady, f.actualHz, (unsigned long)f.missedDeadlines, ESP.getFreeHeap());
-    Serial.printf("[PRESSURE] S0=%u S1=%u S2=%u S3=%u SIG=%u raw C%u=%u C%u=%u C%u=%u C%u=%u\n",
+#if STEPON_SENSOR_PROFILE == STEPON_SENSOR_PROFILE_4
+    Serial.printf("[PRESSURE] PROFILE=4 S0=%u S1=%u S2=%u S3=%u SIG=%u raw C%u=%u C%u=%u C%u=%u C%u=%u\n",
       MUX_S0, MUX_S1, MUX_S2, MUX_S3, MUX_SIG,
       PRESSURE_CHANNELS[0], f.pressureRaw[0], PRESSURE_CHANNELS[1], f.pressureRaw[1],
       PRESSURE_CHANNELS[2], f.pressureRaw[2], PRESSURE_CHANNELS[3], f.pressureRaw[3]);
+#else
+    Serial.printf("[PRESSURE] PROFILE=2 raw GPIO34=%u GPIO35=%u expanded P1=P2=%u P3=P4=%u\n",
+      f.pressureRaw[0], f.pressureRaw[2], f.pressureRaw[0], f.pressureRaw[2]);
+#endif
     WifiDiagnostics::printStatus();
   }
   delay(1);

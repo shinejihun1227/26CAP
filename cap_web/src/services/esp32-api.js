@@ -1,5 +1,5 @@
 const DEFAULT_ESP32_URL = "http://192.168.4.1";
-import { PRESSURE_COUNT, PRESSURE_LAYOUT_ID, THERMAL_CHANNELS, emptyPressure, pressureContractMatches, pressureChannelsFor } from '../data/sensor-config.js';
+import { PRESSURE_COUNT, PRESSURE_LAYOUT_ID, THERMAL_CHANNELS, emptyPressure, pressureContractMatches, pressureChannelsFor, sensorProfileFor } from '../data/sensor-config.js';
 const STORAGE_KEY = "stepon-esp32-base-url";
 const THERMAL_SITES = ["heel", "arch", "forefoot", "toe"];
 
@@ -93,7 +93,9 @@ function emptyThermal() {
   return THERMAL_SITES.map((site) => ({ site, temp: null, humidity: null, available: false }));
 }
 
-function normalizeThermal(values, humidityValues, readyFlags) {
+function normalizeThermal(values, humidityValues, readyFlags, payload = {}) {
+  const sensorMap = Array.isArray(payload.thermal_sensor_map) ? payload.thermal_sensor_map : [0, 1, 2, 3];
+  const shared = sensorProfileFor(payload) === 'two-shared';
   return THERMAL_SITES.map((site, index) => {
     const temp = finite(values?.[index]);
     const humidity = finite(humidityValues?.[index]);
@@ -106,6 +108,8 @@ function normalizeThermal(values, humidityValues, readyFlags) {
       temp: available ? temp : null,
       humidity: available ? humidity : null,
       available,
+      sensorIndex: sensorMap[index] ?? index,
+      shared: shared && sensorMap.filter((sensor) => sensor === sensorMap[index]).length > 1,
     };
   });
 }
@@ -139,7 +143,7 @@ export function normalizeEsp32State(payload, previous) {
   const temperature = Array.isArray(payload?.temperature) ? payload.temperature : [];
   const humidity = Array.isArray(payload?.humidity) ? payload.humidity : [];
   const readyFlags = Array.isArray(payload?.shtc3_ready) ? payload.shtc3_ready : undefined;
-  const measuredThermal = normalizeThermal(temperature, humidity, readyFlags);
+  const measuredThermal = normalizeThermal(temperature, humidity, readyFlags, payload);
   const leftThermal = side === "left" ? measuredThermal : emptyThermal();
   const rightThermal = side === "right" ? measuredThermal : emptyThermal();
   const accel = normalizeVector(payload?.accel, previous.imu.accel);
@@ -167,7 +171,8 @@ export function normalizeEsp32State(payload, previous) {
   // Count channels with a valid measurement, not only successful library
   // initialization. This keeps the web health indicator honest when a sensor
   // responds during init but later returns an invalid reading.
-  const thermalReadyCount = measuredThermal.filter((reading) => reading.available).length;
+  const thermalReadyCount = new Set(measuredThermal.filter((reading) => reading.available).map((reading) => reading.sensorIndex)).size;
+  const sensorProfile = sensorProfileFor(payload) ?? 'unknown';
   const calculatedBalance = bilateralAvailable
     ? (() => { const left = payloadLeftPressure.reduce((s, v) => s + v, 0), right = payloadRightPressure.reduce((s, v) => s + v, 0); return left + right > 0 ? Math.round((1 - Math.abs(left - right) / (left + right)) * 100) : null; })()
     : null;
@@ -216,16 +221,21 @@ export function normalizeEsp32State(payload, previous) {
       source: "esp32",
       footSide: side,
       bilateralAvailable,
-      pressureLayout: measuredPressure || hasBilateralPressure ? PRESSURE_LAYOUT_ID : null,
+      pressureLayout: measuredPressure || hasBilateralPressure ? payload?.pressure_layout ?? PRESSURE_LAYOUT_ID : null,
+      sensorProfile,
+      pressureSensorMap: payload?.pressure_sensor_map ?? [0, 1, 2, 3],
+      thermalSensorMap: payload?.thermal_sensor_map ?? [0, 1, 2, 3],
+      pressurePhysicalCount: payload?.pressure_physical_count ?? 4,
+      thermalPhysicalCount: payload?.thermal_physical_count ?? 4,
       pressureChannels: pressureChannelsFor(payload),
-      thermalChannels: THERMAL_CHANNELS,
+      thermalChannels: payload?.shtc3_channels ?? THERMAL_CHANNELS,
       layoutWarning: !contractMatches || (!measuredPressure && !hasBilateralPressure) ? '압력 데이터가 4개 배치와 다릅니다. 실제 MUX 배선과 펌웨어 채널 설정을 확인해 주세요.' : null,
       sampleHz: 64,
       auxSampleHz: 20,
       raw: payload,
       sensors: {
-        pressure: { ready: measuredPressure !== null || hasBilateralPressure, count: measuredPressure?.length ?? (hasBilateralPressure ? PRESSURE_COUNT : 0), total: PRESSURE_COUNT },
-        thermal: { ready: thermalReadyCount > 0, count: thermalReadyCount, total: 4, readyFlags: readyFlags ?? measuredThermal.map((reading) => reading.available) },
+        pressure: { ready: measuredPressure !== null || hasBilateralPressure, count: measuredPressure !== null ? payload?.pressure_physical_count ?? 4 : (hasBilateralPressure ? PRESSURE_COUNT : 0), total: payload?.pressure_physical_count ?? 4 },
+        thermal: { ready: thermalReadyCount > 0, count: thermalReadyCount, total: payload?.thermal_physical_count ?? 4, readyFlags: readyFlags ?? measuredThermal.map((reading) => reading.available) },
         imu: { ready: Boolean(payload?.imu_ready) },
         tca9548a: { ready: Boolean(payload?.tca_ready) },
         drv2605: { ready: Boolean(payload?.drv2605_ready) },
@@ -275,11 +285,11 @@ export function normalizeBilateralState(payload, previous) {
   const total = (values) => values.reduce((a, b) => a + b, 0);
   const left = bothPressure ? total(pressure.left) : 0, right = bothPressure ? total(pressure.right) : 0;
   const rawActive = feet[active].connected ? feet[active].state : {};
-  const raw = { ...rawActive, frame: payload.frame ?? previous.tick ?? 0, foot_side: active, pressure_count: 4, pressure_layout: PRESSURE_LAYOUT_ID,
+  const raw = { ...rawActive, frame: payload.frame ?? previous.tick ?? 0, foot_side: active,
     pressure_channels: pressureChannelsFor(rawActive), bilateral_pressure: pressure, bilateral_available: bothPressure, feet: payload.feet };
   const allThermal = [...thermal.left, ...thermal.right];
-  const thermalCount = allThermal.filter((x) => x.available).length;
-  const thermalTotal = 8;
+  const thermalCount = sides.reduce((n, side) => n + new Set(thermal[side].filter((x) => x.available).map((x) => x.sensorIndex)).size, 0);
+  const thermalTotal = sides.reduce((n, side) => n + (normalized[side]?.hardware?.thermalPhysicalCount ?? 4), 0);
   const missingImu = { accel: blankVector(), gyro: blankVector(), freezeBandEnergy: null, locomotorBandEnergy: null };
   return { ...previous, connected: available.length > 0, dataSource: 'esp32', tick: payload.frame ?? previous.tick ?? 0,
     pressure: pressure[active], bilateralPressure: pressure, thermal, imuBySide,
@@ -291,10 +301,14 @@ export function normalizeBilateralState(payload, previous) {
     outputs: { ...previous.outputs, laser: Boolean(rawActive.output?.laser), auto: Boolean(rawActive.output?.auto_cue), vibrationActive: Boolean(rawActive.output?.vibration) },
     device: { ...previous.device, name: 'StepOn 양발 · STA', battery: null, lastSync: available.length ? '방금 전' : '연결 대기', signal: `양발 ${available.length}/2 연결` },
     hardware: { source: 'esp32', transport: 'sta', footSide: active, feet, bilateralAvailable: bothPressure,
-      sampleHz: 64, auxSampleHz: 20, pressureLayout: PRESSURE_LAYOUT_ID, pressureChannels: pressureChannelsFor(rawActive), thermalChannels: THERMAL_CHANNELS,
+      sampleHz: 64, auxSampleHz: 20, pressureLayout: rawActive.pressure_layout ?? PRESSURE_LAYOUT_ID,
+      sensorProfile: sensorProfileFor(rawActive) ?? 'unknown', pressureSensorMap: rawActive.pressure_sensor_map ?? [0, 1, 2, 3],
+      thermalSensorMap: rawActive.thermal_sensor_map ?? [0, 1, 2, 3], pressurePhysicalCount: rawActive.pressure_physical_count ?? 4,
+      thermalPhysicalCount: rawActive.thermal_physical_count ?? 4,
+      pressureChannels: pressureChannelsFor(rawActive), thermalChannels: rawActive.shtc3_channels ?? THERMAL_CHANNELS,
       lastError: payload.error ?? null, layoutWarning: null, raw,
       clockNote: 'PC 수신 시각 기준 · 두 보드의 millis는 정밀 동기화되지 않음',
-      sensors: { pressure: { ready: pressure[active].every((v) => v !== null), count: sides.reduce((n, s) => n + pressure[s].filter((v) => v !== null).length, 0), total: 8 },
+      sensors: { pressure: { ready: pressure[active].every((v) => v !== null), count: sides.reduce((n, s) => n + (normalized[s]?.hardware?.pressurePhysicalCount ?? 4), 0), total: sides.reduce((n, s) => n + (normalized[s]?.hardware?.pressurePhysicalCount ?? 4), 0) },
         thermal: { ready: thermalCount > 0, count: thermalCount, total: thermalTotal },
         imu: { ready: Boolean(imuBySide[active]), count: sides.filter((s) => imuBySide[s]).length, total: 2 },
         tca9548a: { ready: Boolean(rawActive.tca_ready) }, drv2605: { ready: Boolean(rawActive.drv2605_ready) } } },
