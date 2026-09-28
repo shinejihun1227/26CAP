@@ -9,7 +9,7 @@ const mobileNavLabels = {
   reports: "리포트",
   trends: "변화 추이",
   devices: "기기",
-  mediapipe: "관절 측정",
+  mediapipe: "관절 관리",
 };
 
 export function renderSidebar(activeView, state) {

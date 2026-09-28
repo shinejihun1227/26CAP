@@ -17,7 +17,7 @@ export function renderMobileApp(state, activeView) {
   const content = pages[activeView] ? pages[activeView](state, { embedded: true })
     : activeView === 'mediapipe' ? renderMediaPipeContent() : activeView === 'records' ? renderRecordsContent()
     : activeView === 'reports' ? renderReportsContent(state) : renderTrendsContent();
-  const labels = { overview: '요약', live: '보행 측정', mediapipe: '관절 측정', trends: '변화 보기' };
+  const labels = { overview: '요약', live: '보행 측정', mediapipe: '관절 관리', trends: '변화 보기' };
   return `<div class="mobile-app simple-mobile"><header class="simple-mobile-header"><b>STEPON</b><span>${escapeHtml(connection.label)}</span><button data-action="profile" aria-label="프로필 수정">${icon('user')}</button></header>
     <nav class="mobile-management" aria-label="설정과 데이터 관리">${navItems.filter(item => item.group === 'manage').map(item => `<button data-view="${item.id}" ${activeView === item.id ? 'aria-current="page"' : ''}>${item.korean}</button>`).join('')}</nav>
     <main class="mobile-main">${content}</main><nav class="mobile-tabbar" aria-label="모바일 주요 메뉴">${navItems.filter(item => item.group !== 'manage').map(item => `<button class="mobile-tab ${activeView === item.id ? 'is-active' : ''}" data-view="${item.id}" ${activeView === item.id ? 'aria-current="page"' : ''}>${icon(item.icon)}<span>${labels[item.id]}</span></button>`).join('')}</nav></div>`;

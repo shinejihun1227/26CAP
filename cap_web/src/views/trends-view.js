@@ -14,7 +14,7 @@ export function renderTrendsContent({ manage = false } = {}) {
     ${manage ? "" : `<p class="simple-route-link"><button type="button" data-view="records">기록 저장 · 내보내기는 데이터 관리에서 →</button></p>`}
     <p class="trends-notice" role="status" data-trend-notice>저장한 기록을 불러오고 있어요.</p>
     <section ${manage ? "hidden" : ""} class="trends-summary" aria-label="변화 요약"><div><span class="trends-kicker">SUMMARY</span><h2>기록이 쌓이면 변화가 보입니다</h2><p>실제 저장된 기록만 비교합니다. 데이터가 없는 날은 0으로 채우지 않습니다.</p></div><div class="trends-summary-count"><strong data-trend-days>—</strong><span>기록이 있는 날</span></div></section>
-    <section class="trends-panel trends-rom" ${manage ? "hidden" : ""}><div class="trends-panel-head"><div><h2>나의 관절 움직임</h2></div><button type="button" data-view="mediapipe">관절 측정하기 →</button></div>
+    <section class="trends-panel trends-rom" ${manage ? "hidden" : ""}><div class="trends-panel-head"><div><h2>관절 건강 기록</h2></div><button type="button" data-view="mediapipe">관절 관리 열기 →</button></div>
       <label class="trends-wide-label">비교할 관절·촬영 조건<select data-trend-rom><option value="">저장된 관절 기록 없음</option></select></label>
       <div data-trend-rom-result class="trends-empty">MediaPipe에서 15초 측정을 완료하고 ‘기록 저장’을 눌러 주세요. 정면·좌측·우측은 각각 같은 조건끼리 비교합니다.</div>
     </section>

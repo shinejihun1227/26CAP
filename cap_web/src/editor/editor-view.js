@@ -27,7 +27,7 @@ const SCREEN_DEFS = [
   { id: "reports", label: "보행 리포트", short: "Reports", description: "일간·주간 보행 기록" },
   { id: "trends", label: "변화 추이", short: "Trends", description: "같은 조건의 개인 기록과 날짜별 비교" },
   { id: "devices", label: "기기 관리", short: "Devices", description: "ESP32와 센서 연결 상태" },
-  { id: "mediapipe", label: "관절 움직임", short: "MediaPipe", description: "웹캠 각도 기록과 개인 기준 비교" },
+  { id: "mediapipe", label: "관절 건강 관리", short: "MediaPipe", description: "여러 관절 측정·기록·목표·변화 확인" },
 ];
 
 const COMPONENT_CATALOG = [

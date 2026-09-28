@@ -110,7 +110,7 @@ export function renderOverview(state, { embedded = false } = {}) {
       ${renderObservations(state, presentation)}
       <section class="overview-bottom-grid">
         <article class="panel clarity-events-card"><div class="panel-heading"><h2>최근 기록</h2><button class="text-button" data-view="trends">지난 기록 보기 ${icon('arrow')}</button></div>${events.length ? `<ul class="clarity-event-list">${events.map(renderEvent).join('')}</ul>` : '<div class="overview-empty"><b>아직 기록된 변화가 없어요</b><p>측정 중 상태 변화가 기록되면 여기에 표시됩니다.</p></div>'}</article>
-        <article class="panel overview-camera-link"><span class="overview-small-icon">${icon('camera')}</span><div><h2>관절 움직임도 기록해 보세요</h2><p>노트북 카메라로 정면·측면의 움직임을 측정하고, 이전 기록과 비교할 수 있어요.</p><button class="text-button" data-view="mediapipe">관절 측정 열기 ${icon('arrow')}</button><small>카메라는 직접 시작할 때만 켜집니다.</small></div></article>
+        <article class="panel overview-camera-link"><span class="overview-small-icon">${icon('camera')}</span><div><h2>관절 건강을 기록하고 관리해 보세요</h2><p>MediaPipe 카메라 분석으로 여러 관절을 측정하고, 개인 기록·목표·날짜별 변화를 확인할 수 있어요.</p><button class="text-button" data-view="mediapipe">관절 건강 관리 열기 ${icon('arrow')}</button><small>카메라는 직접 시작할 때만 켜집니다.</small></div></article>
       </section>
       </details>
       <details class="overview-details" data-ui-disclosure="overview-guide"><summary><span><b>점수와 용어가 궁금한가요?</b><small>판단 기준 · 데이터 처리 과정</small></span>${icon('chevron')}</summary><div class="overview-details-content">
