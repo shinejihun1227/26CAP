@@ -91,14 +91,27 @@ for _d in (ML_DIR, ML_FIGS_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
-# The deployed StepOn live model and the common resampling grid use 20 Hz.
-# Public source datasets are resampled to this grid before windowing/training.
+# Target sampling rate. Daphnet is already exactly 64 Hz (pass-through).
+# FoG-STAR is exactly 60 Hz -> resampled with polyphase resample_poly(up=16,
+# down=15), which is exact since 64/60 = 16/15 (no approximation error from
+# the rate ratio itself; resample_poly's anti-aliasing filter is the only
+# approximation, standard for this kind of small-ratio resampling).
 # ---------------------------------------------------------------------------
-TARGET_FS_HZ = 20
+TARGET_FS_HZ = 20  # StepOn live hardware: two boards on one hotspot deliver ~10-25 Hz.
+                    # The deployed model artifact was retrained at 20 Hz; this value must
+                    # match the artifact's deploy_config.json "target_fs_hz".
 
-# Keep the deployed window duration and hop: 4 seconds with a 0.5-second
-# update interval. At 20Hz this is 80 samples per window and 10 per hop.
-# Environment overrides remain available for controlled experiments only.
+# Window length/hop are independently overridable via env vars so different
+# configs can be A/B compared (on VAL only) without editing this file.
+#
+# Default changed THIS session from the task's original spec (2.0s, 50%
+# overlap) to 4.0s / 0.5s hop, based on a real A/B run: RandomForest trained
+# identically on both, PD_only VAL AUC (Daphnet+FoG-STAR only, never test)
+# was 0.799 @ 4.0s/0.5s vs 0.768 @ 2.0s/1.0s. This matches an earlier,
+# independent window-length sweep on this same overall project (Daphnet
+# concurrent-framing AUC peaked around 4.0s and fell off below ~2.0s) - two
+# separate pipelines agreeing is a stronger signal than either alone.
+# Pass FOG_WINDOW_SEC=2.0 to reproduce the original 2.0s spec if needed.
 WINDOW_SEC = float(os.environ.get("FOG_WINDOW_SEC", 4.0))
 HOP_SEC = float(os.environ.get("FOG_HOP_SEC", 0.5))
 WINDOW_SAMPLES = int(round(WINDOW_SEC * TARGET_FS_HZ))

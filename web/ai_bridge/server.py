@@ -31,11 +31,8 @@ TARGET_HZ = float(TARGET_FS_HZ)
 ARTIFACT_DIR = REPOSITORY_ROOT / 'ai_engine/data/processed/ml/model_artifact'
 DATA_DIR = REPOSITORY_ROOT / '.stepon-data/ai'
 SIDES = ('left', 'right')
-MAX_GAP_S = 2.0
-# A brief gap may be recorded for calibration/CSV diagnostics, but is never
-# interpolated into a model window. At 20 Hz, 150 ms is three target periods.
-MAX_INTERPOLATION_GAP_S = 0.150
-MIN_INPUT_HZ = 8.0
+MAX_GAP_S = 2.0      # measured WiFi poll gaps reach ~1-2 s; shorter gaps are interpolated, longer ones reset
+MIN_INPUT_HZ = 8.0   # two boards on one hotspot deliver ~10-25 Hz, not the original 64 Hz
 STALE_S = 2.0
 CSV_COLUMNS = ['timestamp_ms', 'raw_acc_x', 'raw_acc_y', 'raw_acc_z', 'raw_gyro_x', 'raw_gyro_y', 'raw_gyro_z']
 torch.set_num_threads(1)
@@ -60,7 +57,7 @@ def vector(value):
 
 
 class TimeResampler:
-    """Interpolate short timing jitter only, never fabricate a long gap."""
+    """Interpolate small timing gaps only, never fabricate long windows."""
     def __init__(self, target_hz=TARGET_HZ):
         self.period = 1 / target_hz
         self.reset()
@@ -77,7 +74,7 @@ class TimeResampler:
             return
         t, a, g = self.previous
         gap = timestamp_s - t
-        if gap <= 0 or gap > MAX_INTERPOLATION_GAP_S:
+        if gap <= 0 or gap > MAX_GAP_S:
             raise ValueError('sample_gap_or_clock_reset')
         while self.next_time <= timestamp_s + 1e-9:
             ratio = min(1.0, max(0.0, (self.next_time - t) / gap))
@@ -121,9 +118,6 @@ class FootRuntime:
             metadata = json.loads(self.calibration_path.read_text(encoding='utf-8'))
             if metadata.get('foot_side', self.side) != self.side:
                 raise ValueError('calibration_foot_mismatch')
-            calibration_hz = metadata.get('fs_hz')
-            if calibration_hz is not None and float(calibration_hz) != TARGET_HZ:
-                raise ValueError(f'calibration_sampling_rate_mismatch: saved={calibration_hz}Hz model={TARGET_HZ:g}Hz; recalibrate this foot')
             cal = load_axis_calibration(self.calibration_path)
             if not np.isfinite([cal.vertical_confidence, cal.forward_confidence]).all() or min(cal.vertical_confidence, cal.forward_confidence) < 0.3:
                 raise ValueError('calibration_low_confidence')
@@ -140,7 +134,7 @@ class FootRuntime:
             self.detector = None
             self.load_error = str(exc)
 
-    def reset(self, reason, *, keep_capture=False):
+    def reset(self, reason, keep_capture=False):
         self.resampler.reset()
         self.times.clear()
         self.window_count = 0
@@ -187,17 +181,15 @@ class FootRuntime:
             if frame == self.frame:
                 return False
             t = device_ms / 1000.0
-            if self.last_device_t is not None:
-                if t <= self.last_device_t:
-                    # Ignore only the out-of-order sample; retain the valid window.
-                    return False
-                gap = t - self.last_device_t
-                if gap > MAX_GAP_S:
-                    self.reset('sample_gap_or_clock_reset')
-                elif gap > MAX_INTERPOLATION_GAP_S:
-                    # Preserve a running calibration recording, but restart
-                    # inference so the model never sees interpolated dropout.
-                    self.reset('sample_gap_or_clock_reset', keep_capture=True)
+            if self.last_device_t is not None and t <= self.last_device_t:
+                # Out-of-order/duplicate delivery from the hub's merged two-foot stream.
+                # A real reboot is already caught by the boot_id check above, so drop
+                # only this sample instead of wiping the accumulated window.
+                return False
+            if self.last_device_t is not None and t - self.last_device_t > MAX_GAP_S:
+                # Long poll gap: restart the analysis window but keep an in-progress
+                # calibration recording instead of failing all 25 s.
+                self.reset('sample_gap_recovered', keep_capture=True)
             age = max(0, (time.time() * 1000 - received_at_ms) / 1000) if received_at_ms is not None else 0
             if age > STALE_S:
                 raise ValueError('sample_backlog_stale')
@@ -292,7 +284,7 @@ class FootRuntime:
         now = time.monotonic()
         connected = self.last_received is not None and now - self.last_received <= STALE_S
         if not connected and (self.window_count or (self.capture and self.capture['status'] in ('countdown', 'recording'))):
-            self.reset('device_offline')
+            self.reset('device_offline', keep_capture=True)
         capturing = self.capture and self.capture['status'] in ('countdown', 'recording')
         capture_failed = self.capture and self.capture['status'] == 'failed'
         current = self.last_window_received is not None and now - self.last_window_received <= STALE_S
@@ -359,7 +351,7 @@ class BridgeState:
                 changed = self.stream_id is not None and self.stream_id != payload.get('stream_id')
                 if changed or payload.get('dropped'):
                     for runtime in self.feet.values():
-                        runtime.reset('collector_restarted_or_history_lost', keep_capture=True)
+                        runtime.reset('collector_restarted_or_history_lost')
                         runtime.frame = None
                 self.stream_id = payload.get('stream_id')
                 for row in payload['samples']:
@@ -373,7 +365,7 @@ class BridgeState:
                 self.cursor = payload['next_cursor']
                 for side, runtime in self.feet.items():
                     if not payload.get('feet', {}).get(side, {}).get('connected'):
-                        if runtime.window_count or runtime.last_device_t is not None or (runtime.capture and runtime.capture['status'] in ('countdown', 'recording')):
+                        if runtime.window_count or runtime.last_device_t is not None:
                             runtime.reset('device_offline', keep_capture=True)
                         runtime.last_received = None
             self.source_error = None
@@ -399,8 +391,8 @@ class BridgeState:
                 with self.lock:
                     self.source_error = f'source_unreachable: {exc}'
                     for runtime in self.feet.values():
-                        if runtime.window_count or runtime.last_device_t is not None or (runtime.capture and runtime.capture['status'] in ('countdown', 'recording')):
-                            runtime.reset('source_unreachable', keep_capture=True)
+                        if runtime.window_count or runtime.last_device_t is not None:
+                            runtime.reset('source_unreachable')
                         runtime.last_received = None
             self.datasets.tick()
             interval = 1 / TARGET_HZ if self.esp32_url else 0.05

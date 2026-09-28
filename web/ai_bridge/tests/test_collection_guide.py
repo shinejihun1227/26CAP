@@ -58,7 +58,7 @@ class GuidedCollectionTests(unittest.TestCase):
         self.feed(10); self.service.finish_recording(identifier)
         self.assertEqual(self.service.status(identifier)['status'],'failed')
         identifier=self.start('measurement',activity='standing',calibration_id=calibration)
-        self.feed(30,hz=4)
+        self.feed(30,hz=5)
         self.assertEqual(self.service.status(identifier)['status'],'failed')
 
     def test_session_history_survives_more_than_twenty_other_records_and_restart(self):

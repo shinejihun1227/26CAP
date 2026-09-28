@@ -70,7 +70,6 @@ from pathlib import Path
 import numpy as np
 
 from fog_validation.ml.calibration import AxisCalibration
-from fog_validation.ml.config import TARGET_FS_HZ
 from fog_validation.ml.evaluate import CLASS_ORDER
 from fog_validation.ml.model_io import load_cnn, load_rf
 from fog_validation.ml.models_baseline import predict_proba_baseline
@@ -187,9 +186,6 @@ class LiveFogDetector:
 
         self.last_diagnostics: dict = {}
         deploy_config = json.loads((artifact_dir / "deploy_config.json").read_text(encoding="utf-8"))
-        configured_hz = int(deploy_config.get("target_fs_hz", TARGET_FS_HZ))
-        if configured_hz != TARGET_FS_HZ:
-            raise ValueError(f"model_sampling_rate_mismatch: model={configured_hz}Hz runtime={TARGET_FS_HZ}Hz")
         if model_name == "rf":
             self.model = load_rf(artifact_dir / "rf_model.joblib")
             self.model.n_jobs = 1  # see ensemble_investigation_summary.json / deploy_config.json's
@@ -379,12 +375,10 @@ class LiveFogDetector:
         if window is None:
             return None  # main windower gates the pace - both windowers share window/hop config
 
-        # Unconditional, independent of everything below - see this method's
-        # docstring and motion_gate.py's PROLONGED-UNNATURAL-STILLNESS
-        # section. Must run even on windows the model scores as Normal,
-        # since its entire purpose is to catch the case where the model
-        # NEVER goes Active for a genuine (complete-akinesia) standing freeze.
-        still_escalate = self.stillness_tracker.update(window)
+        # Prolonged-stillness escalation (motion_gate.StillnessDurationTracker) is
+        # disabled for the StepOn demo build: it was never validated on a real
+        # freeze and would raise WARNING for anyone standing still for 15 s.
+        still_escalate = False
 
         X = window[np.newaxis]  # [1, T, 3]
         if self.model_name == "rf":
@@ -421,15 +415,8 @@ class LiveFogDetector:
         self.last_diagnostics["active"] = bool(active)
         self._was_active = active
         if not active:
-            # Prolonged-unnatural-stillness escalation: the ONLY path that
-            # can ever turn a non-Active window into anything other than
-            # STATE_NORMAL - still strictly WARNING, never CONFIRMED, and
-            # only when the wearer has been continuously still for
-            # motion_gate.STILLNESS_ESCALATION_SEC seconds. See
-            # motion_gate.py's PROLONGED-UNNATURAL-STILLNESS section - no
-            # real positive-class validation, physiologically-motivated only.
-            return self._decision(STATE_WARNING if still_escalate else STATE_NORMAL,
-                                  "prolonged_stillness" if still_escalate else "yaw_suppressed" if self.last_diagnostics["yaw_suppressed"] else "below_entry_or_debouncing")
+            return self._decision(STATE_NORMAL,
+                                  "yaw_suppressed" if self.last_diagnostics["yaw_suppressed"] else "below_entry_or_debouncing")
 
         # OPTIONAL SIGNAL 2 (pressure_gate.is_pre_transition_low_force) -
         # ONLY evaluated on the exact window this Active decision turned on

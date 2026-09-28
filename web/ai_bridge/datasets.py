@@ -13,9 +13,9 @@ import time
 import uuid
 
 if __package__:
-    from .csv_pipeline import COLUMNS, MAX_GAP_MS, MAX_ROWS, metadata, validate_pair, write_json, parse_csv, calibration_from_rows
+    from .csv_pipeline import COLUMNS, MAX_ROWS, MAX_GAP_MS, metadata, validate_pair, write_json, parse_csv, calibration_from_rows
 else:
-    from csv_pipeline import COLUMNS, MAX_GAP_MS, MAX_ROWS, metadata, validate_pair, write_json, parse_csv, calibration_from_rows
+    from csv_pipeline import COLUMNS, MAX_ROWS, MAX_GAP_MS, metadata, validate_pair, write_json, parse_csv, calibration_from_rows
 
 BODY_LIMIT = 20 * 1024 * 1024
 GUIDED_PROTOCOL = 'stepon-five-movements-v1'
@@ -84,7 +84,7 @@ class DatasetService:
         return {'calibration': calibration.quality, 'measurement': measurement.quality,
                 'metadata': measurement.context,
                 'calibration_confidence': {'vertical': cal['vertical_confidence'], 'forward': cal['forward_confidence']},
-                'gap_policy': f'{MAX_GAP_MS:g}ms 초과 누락은 분석을 중단합니다. 모델 입력은 {MAX_GAP_MS:g}ms보다 짧은 연속 구간만 사용합니다.'}
+                'gap_policy': '100ms 초과 누락 뒤에는 이전 판단을 버리고 새 4초 창부터 분석합니다.'}
 
     def analyze(self, body):
         with self.lock:
@@ -230,8 +230,8 @@ class DatasetService:
             if now < self.starts_at:
                 return
             t = payload['millis']
-            if self.last_t is not None and (t <= self.last_t or t - self.last_t > MAX_GAP_MS + 1e-6):
-                self.finish_recording(c['id'], f'{MAX_GAP_MS:g}ms 초과 누락 또는 시각 역순이 발생했습니다. 연결을 확인하고 다시 기록하세요.')
+            if self.last_t is not None and (t <= self.last_t or t - self.last_t > MAX_GAP_MS + 0.000001):
+                self.finish_recording(c['id'], f'{MAX_GAP_MS:.0f}ms 초과 누락 또는 시각 역순이 발생했습니다. 연결을 확인하고 다시 기록하세요.')
                 return
             if self.first_t is None:
                 self.first_t = t
@@ -258,8 +258,8 @@ class DatasetService:
                     write_json(self.path(self.active_job) / 'manifest.json', manifest)
                 self.active_job = None
                 self.process = None
-            if self.capture and self.capture['status'] in ('countdown', 'recording') and time.monotonic() - self.last_received > MAX_GAP_MS / 1000:
-                self.finish_recording(self.capture['id'], f'{MAX_GAP_MS:g}ms 동안 유효한 IMU 데이터가 들어오지 않아 기록을 중단했습니다.')
+            if self.capture and self.capture['status'] in ('countdown', 'recording') and time.monotonic() - self.last_received > 2:
+                self.finish_recording(self.capture['id'], '2초 동안 유효한 IMU 데이터가 들어오지 않아 기록을 중단했습니다.')
 
     def download(self, identifier, name):
         if name not in DOWNLOADS:

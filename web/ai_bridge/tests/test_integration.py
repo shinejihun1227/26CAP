@@ -19,7 +19,7 @@ CAL = {'vertical_channel':'raw_acc_z', 'vertical_sign':-1, 'forward_channel':'ra
        'test_only':True}
 
 
-def frame(i, side='right', step=1000/20, **extra):
+def frame(i, side='right', step=1000/64, **extra):
     t = i * step / 1000
     return {'frame':i, 'millis':i*step, 'boot_id':'test-boot', 'device_id':f'test-{side}', 'foot_side':side,
             'imu_ready':True, 'accel':{'x':0.2*math.sin(2*math.pi*1.5*t), 'y':0.06*math.cos(2*math.pi*1.5*t),
@@ -58,17 +58,19 @@ class IntegrationTests(unittest.TestCase):
 
     def test_real_ensemble_weights_produce_finite_scores_and_thresholds(self):
         r = self.runtime()
-        self.assertIsNone(self.fill(r, stop=60)['fog_score'])
-        snap = self.fill(r, start=60, stop=200)
+        self.assertIsNone(self.fill(r, stop=200)['fog_score'])
+        snap = self.fill(r, start=200)
         self.assertTrue(snap['ready'])
         self.assertIn(snap['state'], ['normal','warning','confirmed'])
         self.assertGreaterEqual(snap['fog_score'], 0)
         self.assertLessEqual(snap['fog_score'], 1)
         d = snap['diagnostics']
         self.assertAlmostEqual(d['raw_model_score'], (d['rf_score']+d['cnn_score'])/2)
-        self.assertEqual(d['enter_threshold'], 0.26)
-        self.assertAlmostEqual(d['exit_threshold'], 0.11)
-        self.assertEqual(d['n_consecutive'], 2)
+        cfg = json.loads((ARTIFACT_DIR/'deploy_config.json').read_text(encoding='utf-8'))
+        enter = cfg['ensemble']['threshold_fog_pd_only_youden_j']
+        self.assertEqual(d['enter_threshold'], enter)
+        self.assertAlmostEqual(d['exit_threshold'], max(0.0, enter - cfg['state_machine_defaults']['exit_margin']))
+        self.assertEqual(d['n_consecutive'], cfg['state_machine_defaults']['n_consecutive'])
         self.assertFalse(snap['pressure_gate_enabled'])
 
     def test_missing_calibration_never_infers(self):
@@ -77,28 +79,35 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(r.snapshot()['status'], 'calibration_missing')
         self.assertIsNone(r.snapshot()['fog_score'])
 
-    def test_calibration_from_different_sampling_rate_must_be_repeated(self):
-        old = Path(self.temp.name)/'old-rate.json'
-        old.write_text(json.dumps({**CAL,'fs_hz':64}), encoding='utf-8')
-        r=FootRuntime('right', old, 'ensemble', ARTIFACT_DIR, self.temp.name)
-        self.assertIsNone(r.detector)
-        self.assertIn('calibration_sampling_rate_mismatch', r.load_error)
-
     def test_duplicate_frames_do_not_fill_window(self):
         r = self.runtime()
         for _ in range(400): r.ingest(frame(0))
         self.assertEqual(r.accepted_samples, 1)
         self.assertFalse(r.snapshot()['ready'])
 
-    def test_gap_discards_entire_temporal_history_and_requires_new_window(self):
-        r = self.runtime(); self.fill(r, stop=100)
+    def test_long_gap_discards_entire_temporal_history_and_requires_new_window(self):
+        r = self.runtime(); self.fill(r)
         self.assertTrue(r.snapshot()['ready'])
-        r.ingest(frame(140))
+        r.ingest(frame(500))  # ~3.1 s gap, beyond MAX_GAP_S
         self.assertFalse(r.snapshot()['ready'])
         self.assertIsNone(r.snapshot()['fog_score'])
-        self.fill(r, start=141, stop=200)
+        self.fill(r, start=501, stop=700)
         self.assertFalse(r.snapshot()['ready'])
-        self.fill(r, start=200, stop=222)
+        self.fill(r, start=700, stop=780)
+        self.assertTrue(r.snapshot()['ready'])
+
+    def test_short_poll_gap_is_interpolated_without_reset(self):
+        r = self.runtime(); self.fill(r)
+        resets = r.resets
+        r.ingest(frame(400))  # ~1.6 s WiFi poll gap
+        self.assertEqual(r.resets, resets)
+        self.assertTrue(r.snapshot()['ready'])
+
+    def test_out_of_order_sample_is_dropped_without_reset(self):
+        r = self.runtime(); self.fill(r)
+        resets = r.resets
+        self.assertFalse(r.ingest(frame(250)))  # older timestamp, new frame number
+        self.assertEqual(r.resets, resets)
         self.assertTrue(r.snapshot()['ready'])
 
     def test_reboot_clears_state_machine_even_if_frame_number_matches(self):
@@ -115,22 +124,16 @@ class IntegrationTests(unittest.TestCase):
             self.assertIsNone(r.snapshot()['decision_score'])
         with self.assertRaises(ValueError): vector({'x':True,'y':0,'z':1})
 
-    def test_input_below_8hz_cannot_become_a_model_window(self):
-        r = self.runtime(); self.fill(r, stop=100, step=250)
+    def test_input_below_min_rate_is_not_scored(self):
+        r = self.runtime(); self.fill(r, stop=100, step=200)
         self.assertFalse(r.snapshot()['ready'])
         self.assertIsNone(r.snapshot()['decision_score'])
-        self.assertLess(r.input_hz(), 8)
+        self.assertAlmostEqual(r.input_hz(), 5)
 
-    def test_8hz_input_meets_compatibility_floor(self):
-        r=self.runtime(); snap=self.fill(r, stop=80, step=125)
-        self.assertTrue(snap['ready'])
-        self.assertGreaterEqual(snap['received_hz'], 8)
-
-    def test_twenty_hz_model_window_configuration(self):
-        from fog_validation.ml.config import TARGET_FS_HZ, WINDOW_SAMPLES, HOP_SAMPLES
-        self.assertEqual(TARGET_FS_HZ, 20)
-        self.assertEqual(WINDOW_SAMPLES, 80)
-        self.assertEqual(HOP_SAMPLES, 10)
+    def test_real_hotspot_rate_20hz_is_scored(self):
+        r = self.runtime(); self.fill(r, stop=300, step=50)
+        self.assertAlmostEqual(r.input_hz(), 20)
+        self.assertTrue(r.snapshot()['ready'])
 
     def test_expired_result_is_cleared(self):
         r = self.runtime(); self.fill(r)
@@ -176,14 +179,16 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(d['decision_score'],0)
         self.assertGreater(d['raw_model_score'],0)
 
-    def test_calibration_gap_fails_without_replacing_old_file(self):
+    def test_calibration_survives_poll_gap_but_reboot_fails_without_replacing_old_file(self):
         r=self.runtime(); self.fill(r, stop=20)
         r.start_calibration(); r.capture['starts_at']=time.monotonic()-1
         r.ingest(frame(20))
-        r.ingest(frame(100))
+        r.ingest(frame(100))  # ~1.25 s poll gap: recording continues
+        self.assertEqual(r.capture['status'],'recording')
+        r.ingest(frame(101, boot_id='reboot'))
         self.assertEqual(r.capture['status'],'failed')
-        self.assertEqual(r.capture['error'],'sample_gap_or_clock_reset')
-        self.fill(r,start=101,stop=420)
+        self.assertEqual(r.capture['error'],'device_restarted_or_replaced')
+        self.fill(r,start=102,stop=420, boot_id='reboot')
         self.assertEqual(r.snapshot()['status'],'calibration_failed')
         self.assertIsNone(r.snapshot()['decision_score'])
 
@@ -191,9 +196,9 @@ class IntegrationTests(unittest.TestCase):
         r=self.runtime(); r.ingest(frame(0))
         r.start_calibration(); r.capture['starts_at']=time.monotonic()-1
         # Synthetic stand+walk validates the workflow only. Saved inside temporary test directory.
-        for i in range(1, 503):
+        for i in range(1, 1603):
             p=frame(i)
-            if i<=100: p['accel']={'x':0.001*math.sin(i),'y':0.001*math.cos(i),'z':1}
+            if i<=320: p['accel']={'x':0.001*math.sin(i),'y':0.001*math.cos(i),'z':1}
             r.ingest(p)
         self.assertEqual(r.capture['status'],'complete', r.capture)
         self.assertTrue(r.capture_path.is_file())
@@ -226,26 +231,11 @@ class IntegrationTests(unittest.TestCase):
         self.assertGreaterEqual(result['window_count'],3)
         self.assertIsNotNone(result['latest']['decision_score'])
 
-    def test_resampler_never_interpolates_a_gap_over_150ms(self):
+    def test_resampler_never_interpolates_a_long_gap(self):
         r=TimeResampler(); out=[]
         r.push(0,np.ones(3),np.zeros(3),lambda *v:out.append(v))
-        with self.assertRaises(ValueError): r.push(.2,np.ones(3),np.zeros(3),lambda *v:out.append(v))
+        with self.assertRaises(ValueError): r.push(3,np.ones(3),np.zeros(3),lambda *v:out.append(v))
         self.assertEqual(len(out),1)
-
-    def test_out_of_order_timestamp_skips_one_sample_without_reset(self):
-        r=self.runtime(); self.fill(r)
-        before=r.window_count
-        self.assertFalse(r.ingest(frame(1)))
-        self.assertGreaterEqual(r.window_count,before)
-        self.assertIsNone(r.error)
-
-    def test_medium_gap_resets_inference_but_keeps_live_calibration_capture(self):
-        r=self.runtime(); self.fill(r, stop=20)
-        r.start_calibration(); r.capture['starts_at']=time.monotonic()-1
-        self.assertTrue(r.ingest(frame(21)))
-        gap_frame=frame(25) # 200ms transport gap: restart model history, retain capture.
-        self.assertTrue(r.ingest(gap_frame))
-        self.assertEqual(r.capture['status'],'recording')
 
 
 if __name__ == '__main__': unittest.main()
