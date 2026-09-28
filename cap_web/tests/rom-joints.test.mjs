@@ -83,6 +83,7 @@ test('initial 8000/8001 shared view explains participant ID and offers full sele
   assert.match(html, /카메라·장소 설정 코드/); assert.match(html, /관절 인식 신뢰도 기준/);
   assert.match(html, /질환의 심각도나 의학적 신뢰도가 아닙니다/);
   assert.match(html, /data-rom-step="camera"[\s\S]*data-rom-consent[\s\S]*data-rom-action="start"[\s\S]*data-rom-config="metric"/);
+  assert.match(html, /data-rom-step="camera"[\s\S]*data-rom-mirror[\s\S]*data-rom-config="metric"/);
   assert.match(html, /rom-camera-panel[\s\S]*data-rom-step="camera"[\s\S]*rom-setup-panel[\s\S]*<ol class="motion-preparation-steps" start="2"/);
   assert.match(html, /data-rom-step="pose"[\s\S]*data-rom-direction-confirmed/);
   assert.match(html, /data-rom-step="record"[\s\S]*data-rom-action="record"/);
