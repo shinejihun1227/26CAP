@@ -7,6 +7,7 @@
 .rom-workspace .motion-capture :is(.rom-camera-panel,.rom-setup-panel) { border:0; padding:0; box-shadow:none; border-radius:0; }
 .motion-capture .rom-panel-head { margin-bottom:14px!important; }
 .motion-capture .rom-panel-head h2 { font-size:19px; }.motion-capture .rom-panel-head > span { font-size:12px; }
+.motion-capture .rom-camera-panel > .motion-prep-card { margin-top:18px; }
 .motion-capture .rom-video-empty b { font-size:17px; }.motion-capture .rom-video-empty p { font-size:13px!important; max-width:30ch; margin:8px 0; }
 .motion-capture .rom-framing-figure { height:58%; max-height:240px; }
 .motion-capture .rom-consent { margin:14px 0 10px; font-size:13px; line-height:1.65; }
@@ -117,7 +118,7 @@
  .motion-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.motion-analysis-grid { grid-template-columns:1fr; }.motion-insights ol { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 @media(max-width:800px) {
- .rom-workspace .motion-capture { grid-template-columns:1fr; padding:18px; gap:25px; }.rom-heading-actions { margin-top:12px; }
+ .rom-workspace .motion-capture { grid-template-columns:1fr; padding:18px; gap:22px; }.rom-heading-actions { margin-top:12px; }
  .motion-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }.motion-stat { padding:15px; }.motion-stat > div { gap:7px; flex-wrap:wrap; }.rom-workspace .motion-stat h3 { font-size:13px; }.motion-stat > strong { font-size:32px; }
  .motion-analysis-grid,.motion-comparison-grid { grid-template-columns:1fr; }.motion-panel { padding:18px; }.motion-section-heading { flex-wrap:wrap; gap:9px; }
  .motion-save-panel { flex-direction:column; align-items:stretch; padding:18px; }.motion-save-panel .rom-buttons { justify-content:flex-start; }

@@ -25,17 +25,17 @@ export function renderMediaPipeContent({ manage = false } = {}) {
         <div class="rom-panel-head"><h2>카메라</h2><span data-rom-camera-status>카메라 대기</span></div>
         <div class="rom-video-stage" data-rom-stage><video data-rom-video autoplay muted playsinline aria-label="노트북 웹캠 영상"></video><canvas data-rom-overlay aria-label="인식된 관절 위치"></canvas><div class="rom-video-empty" data-rom-empty><img class="rom-framing-figure" src="/assets/pose-framing.svg" alt="" aria-hidden="true" /><b>관절이 잘 보이게 서거나 앉아 주세요</b><p>선택한 관절과 어깨·골반을 화면에 넣어 주세요.</p></div><span class="rom-video-label" data-rom-view-label>정면 · 좌우는 본인 기준</span></div>
         <div class="rom-camera-tools"><label><input type="checkbox" data-rom-mirror> 거울 보기</label><span data-rom-fps>분석 대기</span></div>
+        <div class="motion-prep-card" data-rom-step="camera"><header><span class="step-number">1</span><div><b>카메라와 측정 항목</b><small data-rom-step-state>지금 할 일</small></div></header>
+          <label class="rom-consent"><input type="checkbox" data-rom-consent> 웹캠 사용에 동의합니다. 영상·음성은 저장하지 않습니다.</label>
+          <div class="rom-camera-tools"><button type="button" class="rom-primary" data-rom-action="start">웹캠 켜기</button><button type="button" data-rom-action="stop" disabled>끄기</button><span data-rom-fps>분석 대기</span></div>
+          <div class="rom-form-grid motion-essential"><label class="rom-joint-field">관절·동작<select data-rom-config="metric" aria-describedby="rom-joint-help">${renderJointOptions()}</select></label><label>자세<select data-rom-config="posture"><option value="seated">앉아서</option><option value="standing">서서</option></select></label></div>
+          <p id="rom-joint-help" class="rom-joint-help">관절을 고르면 필요한 촬영 방향으로 바뀌어요.</p>
+          <fieldset class="rom-directions"><legend>촬영 방향을 선택하세요</legend><label><input type="radio" name="rom-view" value="front" checked><span>정면</span></label><label><input type="radio" name="rom-view" value="left"><span>좌측면</span></label><label><input type="radio" name="rom-view" value="right"><span>우측면</span></label></fieldset>
+        </div>
       </section>
       <section class="rom-setup-panel" aria-label="측정 설정과 기록" ${manage ? "hidden" : ""}>
         <div class="rom-panel-head"><h2>측정 준비</h2><span>한 단계씩 따라와 주세요</span></div>
-        <ol class="motion-preparation-steps" aria-label="관절 측정 준비">
-          <li class="motion-prep-card" data-rom-step="camera"><header><span class="step-number">1</span><div><b>카메라와 측정 항목</b><small data-rom-step-state>지금 할 일</small></div></header>
-            <label class="rom-consent"><input type="checkbox" data-rom-consent> 웹캠 사용에 동의합니다. 영상·음성은 저장하지 않습니다.</label>
-            <div class="rom-camera-tools"><button type="button" class="rom-primary" data-rom-action="start">웹캠 켜기</button><button type="button" data-rom-action="stop" disabled>끄기</button><span data-rom-fps>분석 대기</span></div>
-            <div class="rom-form-grid motion-essential"><label class="rom-joint-field">관절·동작<select data-rom-config="metric" aria-describedby="rom-joint-help">${renderJointOptions()}</select></label><label>자세<select data-rom-config="posture"><option value="seated">앉아서</option><option value="standing">서서</option></select></label></div>
-            <p id="rom-joint-help" class="rom-joint-help">관절을 고르면 필요한 촬영 방향으로 바뀌어요.</p>
-            <fieldset class="rom-directions"><legend>촬영 방향을 선택하세요</legend><label><input type="radio" name="rom-view" value="front" checked><span>정면</span></label><label><input type="radio" name="rom-view" value="left"><span>좌측면</span></label><label><input type="radio" name="rom-view" value="right"><span>우측면</span></label></fieldset>
-          </li>
+        <ol class="motion-preparation-steps" start="2" aria-label="관절 측정 준비 2단계와 3단계">
           <li class="motion-prep-card" data-rom-step="pose"><header><span class="step-number">2</span><div><b>카메라 화면에서 몸 위치 확인</b><small data-rom-step-state>대기</small></div></header>
             <p class="rom-view-guide" data-rom-guide></p>
             <p class="motion-prep-hint">왼쪽 미리보기에서 선택한 관절과 어깨·골반이 보이는지 확인하세요. 정면/측면 안내와 실제 몸 방향이 맞아야 합니다.</p>
