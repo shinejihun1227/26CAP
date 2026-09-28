@@ -3,6 +3,10 @@
 .rom-workspace.is-measurement .rom-heading h1 { margin:3px 0 6px; }
 .rom-workspace.is-measurement .rom-heading p { margin:6px 0 0; }
 .rom-heading-actions .simple-route-link { display:flex; gap:10px; flex-wrap:wrap; }
+.motion-purpose { display:grid; grid-template-columns:auto minmax(0,1fr) minmax(230px,.8fr); align-items:center; gap:12px 16px; margin:-6px 0 18px; padding:14px 17px; border:1px solid #c9e2d9; border-radius:13px; background:#eff8f4; }
+.motion-purpose-badge { align-self:start; padding:6px 9px; border-radius:20px; color:#176d68; background:#dcefe7; font-size:11px; font-weight:750; white-space:nowrap; }
+.motion-purpose > div { min-width:0; }.motion-purpose > div b { color:#183f48; font-size:14px; }.motion-purpose > div p { margin:3px 0 0; color:#546f73; font-size:12px; line-height:1.55; }
+.motion-purpose ul { display:grid; gap:4px; margin:0; padding:0; list-style:none; color:#42676a; font-size:11px; }.motion-purpose li::before { content:'✓'; margin-right:7px; color:#218a78; font-weight:800; }
 .rom-workspace .motion-capture { background:#fff; border:1px solid #dce8ed; border-radius:18px; padding:18px; gap:20px; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); align-items:stretch; }
 .rom-workspace .motion-capture :is(.rom-camera-panel,.rom-setup-panel) { border:0; padding:0; box-shadow:none; border-radius:0; }
 .rom-workspace .motion-capture .rom-setup-panel { display:flex; flex-direction:column; }
@@ -124,6 +128,7 @@
  .motion-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }.motion-analysis-grid { grid-template-columns:1fr; }.motion-insights ol { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 @media(max-width:800px) {
+ .motion-purpose { grid-template-columns:auto 1fr; align-items:start; }.motion-purpose ul { grid-column:1 / -1; grid-template-columns:1fr; padding-left:2px; }
  .rom-workspace .motion-capture { grid-template-columns:1fr; padding:16px; gap:16px; }.rom-workspace .motion-capture .motion-preparation-steps { grid-template-rows:auto auto; }.rom-workspace .motion-capture .motion-prep-card { padding:12px; }.rom-heading-actions { margin-top:12px; }
  .motion-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }.motion-stat { padding:15px; }.motion-stat > div { gap:7px; flex-wrap:wrap; }.rom-workspace .motion-stat h3 { font-size:13px; }.motion-stat > strong { font-size:32px; }
  .motion-analysis-grid,.motion-comparison-grid { grid-template-columns:1fr; }.motion-panel { padding:18px; }.motion-section-heading { flex-wrap:wrap; gap:9px; }

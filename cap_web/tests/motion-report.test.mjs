@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { session } from './rom-fixtures.mjs';
-import { comparableRecords, motionCards, recordInsights, angleSeries, renderAngleChart, renderDailyAngleChart, dailyAnglePoints, renderRecordComparison } from '../src/mediapipe/motion-report.js';
+import { comparableRecords, motionCards, recordInsights, angleSeries, renderAngleChart, renderDailyAngleChart, dailyAnglePoints, renderRecordComparison, renderMotionDashboard } from '../src/mediapipe/motion-report.js';
 
 const current = () => session({id:'now',capturedAt:'2026-09-23T08:00:00.000Z'});
 const before = () => session({id:'before',capturedAt:'2026-09-22T08:00:00.000Z'});
@@ -19,6 +19,14 @@ test('empty or stale camera data stays unknown; real zero angles remain zero', (
   assert.equal(motionCards(live)[0].value,'0°');
   assert.equal(motionCards({...live,fresh:false})[0].value,'—');
   assert.equal(motionCards({...live,analysis:{valid:false,primary:90}})[0].value,'—');
+});
+test('dashboard frames MediaPipe as personal observation and same-condition trend tracking', () => {
+  const html = renderMotionDashboard();
+  assert.match(html, /내 움직임 기록/);
+  assert.match(html, /같은 조건의 내 기록과 비교/);
+  assert.match(html, /내 관찰 계획/);
+  assert.match(html, /수치 차이는 측정값의 차이이며 개선이나 악화를 판정하지 않습니다/);
+  assert.doesNotMatch(html, /정상 범위/);
 });
 test('saved cards and comparison bars use stored range, median and valid sample ratio', () => {
   const record=current(), baseline=before(), cards=motionCards({record,baseline});

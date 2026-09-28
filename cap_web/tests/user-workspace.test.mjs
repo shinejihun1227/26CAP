@@ -12,9 +12,10 @@ test('four everyday tasks are separate from settings and data management', () =>
   assert.equal(navItems.find(i => i.id === 'mediapipe').korean, '관절 관리');
   assert.deepEqual(navItems.filter(i => i.group === 'manage').map(i => i.id), ['devices', 'records']);
   const jointHtml = renderMediaPipeContent();
-  assert.match(jointHtml, /MEDIAPIPE · JOINT CARE/);
-  assert.match(jointHtml, /관절 건강 관리/);
-  assert.match(jointHtml, /측정하고, 기록·목표·변화를 한곳에서 관리/);
+  assert.match(jointHtml, /MEDIAPIPE · JOINT OBSERVATION/);
+  assert.match(jointHtml, /관절 움직임 기록/);
+  assert.match(jointHtml, /진단이 아니라, 내 움직임의 변화를 살펴보는 도구/);
+  assert.match(jointHtml, /같은 촬영 조건의 내 기록끼리 비교/);
 });
 
 test('measurement preserves save and recording controls while moving sets and history out of sight', () => {
