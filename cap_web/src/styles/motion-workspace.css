@@ -47,7 +47,10 @@
 .motion-prep-card .rom-mirror-toggle { display:inline-flex; align-items:center; gap:5px; color:#526e76; font-size:11px; white-space:nowrap; }
 .motion-prep-card .rom-mirror-toggle input { width:15px; height:15px; margin:0; accent-color:#176d68; }
 .motion-prep-card .rom-form-grid { margin-bottom:0; }.motion-prep-card .motion-essential { grid-template-columns:minmax(0,1.5fr) minmax(90px,.8fr); }
-.motion-prep-hint { margin:0 0 10px; padding:10px 12px; border-radius:9px; background:#f0f5f8; color:#536e7a; font-size:12px; line-height:1.6; }
+.motion-prep-hint { margin:0 0 9px; padding:9px 11px; border-radius:9px; background:#f0f5f8; color:#536e7a; font-size:12px; line-height:1.55; }
+.motion-framing-checklist { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin:0 0 10px; padding:0; list-style:none; }
+.motion-framing-checklist li { display:flex; align-items:center; gap:6px; min-width:0; padding:8px 9px; border:1px solid #e0eae9; border-radius:9px; background:#fff; color:#526d76; font-size:11px; line-height:1.35; }
+.motion-framing-checklist li span { flex:0 0 6px; width:6px; height:6px; border-radius:50%; background:#38a18c; font-size:0; }
 .motion-prep-card .rom-quality[data-rom-quality] { margin:9px 0 0; padding:9px 11px; font-size:12px; line-height:1.55; border-radius:8px; }
 .motion-prep-card .rom-record-box { margin:0; }.motion-prep-card .rom-record-box .rom-quality { min-height:1.6em; }
 .motion-prep-card .rom-record-box .rom-buttons { flex-wrap:nowrap; }
@@ -66,6 +69,12 @@
 .motion-capture .rom-record-box .rom-buttons { flex-wrap:nowrap; }.rom-workspace .motion-capture .rom-record-box button { min-height:46px; font-size:14px; }
 .motion-capture .rom-record-box > small { display:block; font-size:11px!important; color:#637e87; margin-top:10px; }
 .motion-capture .rom-record-box progress { margin:7px 0 0; height:6px; }
+.motion-record-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
+.motion-record-facts > div { display:flex; align-items:center; gap:9px; min-width:0; padding:9px 10px; border:1px solid #e1ece9; border-radius:10px; background:#fbfdfc; }
+.motion-record-facts > div > span { display:grid; place-items:center; flex:0 0 25px; width:25px; height:25px; border-radius:8px; background:#eaf5f1; color:#248575; font-size:9px; font-weight:800; }
+.motion-record-facts p { display:grid; gap:1px; min-width:0; margin:0; line-height:1.35; }
+.motion-record-facts b { color:#31545c; font-size:11px; }
+.motion-record-facts small { overflow:hidden; color:#71858b; font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
 .rom-workspace.is-measurement > .rom-notice { background:transparent; margin:8px 2px; padding:6px 0; font-size:13px; }
 .rom-workspace.is-measurement > .rom-notice.is-error { background:#fff1ed; padding:12px; }
 .rom-workspace .motion-settings { margin:10px 0 24px; }

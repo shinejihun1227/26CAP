@@ -42,12 +42,14 @@ export function renderMediaPipeContent({ manage = false } = {}) {
         <ol class="motion-preparation-steps" start="2" aria-label="관절 측정 준비 2단계와 3단계">
           <li class="motion-prep-card" data-rom-step="pose"><header><span class="step-number">2</span><div><b>카메라 화면에서 몸 위치 확인</b><small data-rom-step-state>대기</small></div></header>
             <p class="rom-view-guide" data-rom-guide></p>
-            <p class="motion-prep-hint">왼쪽 미리보기에서 선택한 관절과 어깨·골반이 보이는지 확인하세요. 정면/측면 안내와 실제 몸 방향이 맞아야 합니다.</p>
+            <p class="motion-prep-hint">안내된 방향으로 서서, 선택한 관절이 화면 안에 있는지 확인하세요.</p>
+            <ul class="motion-framing-checklist" aria-label="촬영 화면에 들어와야 할 항목"><li><span aria-hidden="true"></span>선택한 관절</li><li><span aria-hidden="true"></span>어깨와 골반</li><li><span aria-hidden="true"></span>화면에 한 사람</li></ul>
             <label class="rom-check"><input type="checkbox" data-rom-direction-confirmed> 안내된 방향을 향했고, 화면에 나만 있어요.</label>
             <p class="rom-quality" data-rom-quality role="status">카메라를 켜고 몸 위치를 확인해 주세요.</p>
           </li>
           <li class="motion-prep-card" data-rom-step="record"><header><span class="step-number">3</span><div><b>15초 기록하고 저장</b><small data-rom-step-state>대기</small></div></header>
             <div class="rom-record-box"><div><b data-rom-record-title>15초 움직임 기록</b><span data-rom-progress-text>0 / 15초</span></div><progress data-rom-progress max="15" value="0" aria-label="기록 진행률"></progress><p class="rom-quality" id="rom-record-help" data-rom-record-help role="status">1단계 동의와 웹캠, 2단계 몸 위치 확인을 마쳐 주세요.</p><div class="rom-buttons"><button type="button" class="rom-primary" data-rom-action="record" aria-describedby="rom-record-help" disabled>15초 기록 시작</button><button type="button" class="rom-danger" data-rom-action="abort" disabled>중단</button></div><small>편안한 범위에서 움직이세요. 통증·어지러움이 있으면 중단하세요.</small></div>
+            <div class="motion-record-facts" aria-label="기록 방법"><div><span>01</span><p><b>편안한 움직임</b><small>통증이 있으면 중단</small></p></div><div><span>02</span><p><b>15초만 기록</b><small>각도 변화와 기록 품질 확인</small></p></div></div>
           </li>
         </ol>
       </section>
