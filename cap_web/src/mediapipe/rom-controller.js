@@ -11,9 +11,9 @@ const CONNECTIONS = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23
 export function recordingReadiness({ consent, starting, running, participant, setup, directionConfirmed, analysis, fresh, recording, pendingSave }) {
   if (recording) return { ready: false, reason: "15초 기록 중입니다. 불편하면 ‘중단’을 누르세요." };
   if (pendingSave) return { ready: false, reason: "기록 저장이 끝날 때까지 기다려 주세요." };
-  if (!consent) return { ready: false, reason: "카메라 아래의 ‘웹캠 사용에 동의합니다’를 체크하세요." };
+  if (!consent) return { ready: false, reason: "1단계에서 웹캠 사용에 동의하세요." };
   if (starting) return { ready: false, reason: "모델과 웹캠을 준비 중입니다. 카메라 권한 요청이 뜨면 허용해 주세요." };
-  if (!running) return { ready: false, reason: "‘웹캠 켜기’를 누르세요. 연결에 실패했다면 화면 위의 오류 안내를 확인하세요." };
+  if (!running) return { ready: false, reason: "1단계의 ‘웹캠 켜기’를 누르세요. 연결에 실패했다면 화면 위 오류 안내를 확인하세요." };
   if (!participant?.trim()) return { ready: false, reason: "사용자 코드(예: P01)를 입력하세요." };
   if (!setup?.trim()) return { ready: false, reason: "촬영 환경 코드를 입력하세요." };
   if (!directionConfirmed) return { ready: false, reason: "촬영 방향 아래의 ‘선택한 방향을 향했고, 화면에는 나만 있어요’를 체크하세요." };
@@ -55,7 +55,7 @@ export function mountRomWorkspace(root, context = null) {
   let recording = null, draft = null, frozen = null, selectedId = null, pendingSave = false, storageReady = false;
   let data = { sessions: [], references: [], baselineIds: [], sets: [] };
   let activeSetId = null, comparisonChoice = null;
-  let chartMode = 'live', activeGoal = null;
+  let chartMode = 'live', activeGoal = null, localFeedback = null;
   let workerTimeout = 0, permissionTimeout = 0, startupReject = null;
   let fpsSamples = [];
 
@@ -84,7 +84,7 @@ export function mountRomWorkspace(root, context = null) {
     try {
       const value = JSON.parse(localStorage.getItem(goalKey()) || 'null');
       if (value?.version !== 1 || !METRICS[value.config?.metric] || !Number.isFinite(value.start) || !Number.isFinite(value.target)
-        || value.start < 0 || value.start > 180 || value.target < 0 || value.target > 180 || value.start === value.target
+        || value.start < 0 || value.start > 180 || value.target < 0 || value.target > 180 || (value.start === value.target && value.mode !== 'observe')
         || !/^\d{4}-\d{2}-\d{2}$/.test(value.startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(value.endDate) || value.endDate < value.startDate) return null;
       return value;
     }
@@ -99,8 +99,27 @@ export function mountRomWorkspace(root, context = null) {
       .sort((a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt));
     const latest = records.at(-1), value = latest?.summary.byMetric[goal.config.metric]?.median;
     const distance = goal.target - goal.start;
-    if (!latest || !Number.isFinite(value) || distance === 0) return null;
+    if (!latest || !Number.isFinite(value)) return null;
+    if (goal.mode === 'observe') {
+      const planStart = new Date(`${goal.startDate}T00:00:00`).getTime();
+      const weeks = new Set(records.map(record => Math.max(0, Math.floor((Date.parse(record.capturedAt) - planStart) / (7 * 86400000)))));
+      return { value, count: weeks.size, targetCount: 4, percent: Math.min(100, Math.round(weeks.size / 4 * 100)), latest };
+    }
+    if (distance === 0) return null;
     return { value, count: records.length, percent: Math.max(0, Math.min(100, Math.round((value - goal.start) / distance * 100))), latest };
+  }
+  function startObservationPlan(record) {
+    const metric = record?.config?.metric, median = record?.summary?.byMetric?.[metric]?.median;
+    if (!record?.summary?.eligible || !['left_ankle', 'right_ankle'].includes(metric) || !Number.isFinite(median)) return false;
+    const localDay = value => { const date = new Date(value); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
+    const startDate = localDay(record.capturedAt), end = new Date(`${startDate}T12:00:00`); end.setDate(end.getDate() + 28);
+    const goal = { version: 1, mode: 'observe', participant: record.config.participant, config: record.config,
+      start: median, target: median, startDate, endDate: localDay(end), frequency: 1, source: 'measurement',
+      note: '첫 유효 발목 기록을 개인 기준으로 사용합니다. 치료 목표가 아닙니다.', updatedAt: new Date().toISOString() };
+    try { localStorage.setItem(goalKey(record.config.participant), JSON.stringify(goal)); }
+    catch { return false; }
+    activeGoal = { participant: record.config.participant, goal };
+    return true;
   }
   function renderGoal(record = selectedRecord()) {
     if (managing) return;
@@ -112,13 +131,20 @@ export function mountRomWorkspace(root, context = null) {
     const panel = $('[data-motion-goal-panel]');
     panel.classList.toggle('has-goal', Boolean(goal));
     if (!goal) {
-      box.innerHTML = '<p>목표는 선택 사항이에요. 목표를 저장한 뒤 같은 조건의 유효 기록을 쌓으면 진행도를 확인할 수 있어요.</p>';
+      const ankle = ['left_ankle', 'right_ankle'].includes(record?.config?.metric) ? record : data.sessions
+        .filter(s => s.config.participant === participant && ['left_ankle', 'right_ankle'].includes(s.config.metric) && s.summary?.eligible)
+        .sort((a,b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))[0];
+      const stats = ankle?.summary?.byMetric?.[ankle.config.metric];
+      box.innerHTML = ankle && stats ? `<div><span>첫 유효 발목 기록 · 개인 기준 제안</span><strong>${escapeHtml(METRICS[ankle.config.metric]?.label || '발목 움직임')} ${stats.median}°</strong><small>이 각도를 기준점으로 두고, 같은 자세·방향·카메라 조건으로 반복 기록해요.</small></div><button type="button" class="rom-primary" data-motion-goal-auto>4주 관찰 계획 시작</button><p>자동으로 치료 각도를 높이지 않아요. 임상 목표는 담당 전문가 안내값을 사용하세요.</p>` : '<p>발목의 첫 유효 기록을 저장하면 이 측정값을 개인 기준으로 삼아 4주 관찰 계획을 자동으로 시작해요. 의학적 치료 목표 각도는 대신 정하지 않습니다.</p>';
+      root.querySelectorAll('[data-motion-goal-toggle]').forEach(button => { button.textContent = '전문가 목표 직접 입력 (선택)'; button.hidden = Boolean(ankle && !stats); });
       return;
     }
     const compatible = goal.config?.metric === (record?.config.metric || config().metric);
     const progress = compatible ? goalProgress(goal) : null;
-    const sourceLabel = goal.source === 'clinician' ? '전문가 안내값' : '내가 정한 관찰 목표';
-    box.innerHTML = `<div><span>현재 목표 · ${sourceLabel}</span><strong>${escapeHtml(METRICS[goal.config.metric]?.label || '선택 관절')} · ${goal.start}° → ${goal.target}°</strong><small>${escapeHtml(goal.startDate)} ~ ${escapeHtml(goal.endDate)} · 주 ${goal.frequency}회${goal.note ? ` · ${escapeHtml(goal.note)}` : ''}</small></div><div class="motion-goal-bar" role="img" aria-label="목표 진행도 ${progress?.percent ?? 0}%"><i style="width:${progress?.percent ?? 0}%"></i></div><p>${progress ? `최근 유효 기록 ${progress.value}° · 진행 표시 ${progress.percent}% · 비교 기록 ${progress.count}개` : compatible ? '목표 기간 안의 같은 조건을 충족한 저장 기록이 아직 없어요.' : '관절을 바꾸면 해당 관절의 목표는 표시되지 않아요.'}</p><div class="motion-goal-actions"><button type="button" data-motion-goal-toggle aria-expanded="false">목표 수정</button><button type="button" data-motion-goal-clear>목표 삭제</button></div>`;
+    const sourceLabel = goal.mode === 'observe' ? '첫 유효 측정값 기반' : goal.source === 'clinician' ? '전문가 안내값' : '내가 정한 관찰 목표';
+    const isObservationPlan = goal.mode === 'observe';
+    box.innerHTML = `<div><span>현재 계획 · ${sourceLabel}</span><strong>${escapeHtml(METRICS[goal.config.metric]?.label || '선택 관절')} ${isObservationPlan ? `개인 기준 ${goal.start}°` : `${goal.start}° → ${goal.target}°`}</strong><small>${escapeHtml(goal.startDate)} ~ ${escapeHtml(goal.endDate)} · ${isObservationPlan ? '4주 동안 주 1회 관찰' : `주 ${goal.frequency}회${goal.note ? ` · ${escapeHtml(goal.note)}` : ''}`}</small></div><div class="motion-goal-bar" role="img" aria-label="${isObservationPlan ? `관찰 주차 ${progress?.count ?? 0}/4주` : `목표 진행도 ${progress?.percent ?? 0}%`}"><i style="width:${progress?.percent ?? 0}%"></i></div><p>${progress ? isObservationPlan ? `최근 기록 ${progress.value}° · 기록을 남긴 주 ${progress.count}/4주 · 치료 효과나 회복률이 아닙니다.` : `최근 유효 기록 ${progress.value}° · 관찰 표시 ${progress.percent}% · 비교 기록 ${progress.count}개` : compatible ? '목표 기간 안의 같은 조건을 충족한 저장 기록이 아직 없어요.' : '관절을 바꾸면 해당 관절의 목표는 표시되지 않아요.'}</p><div class="motion-goal-actions"><button type="button" data-motion-goal-toggle aria-expanded="false">${isObservationPlan ? '전문가 목표 직접 입력 (선택)' : '목표 수정'}</button><button type="button" data-motion-goal-clear>${isObservationPlan ? '관찰 계획 종료' : '목표 삭제'}</button></div>`;
+    root.querySelectorAll('[data-motion-goal-toggle]').forEach(button => { button.hidden = false; button.textContent = isObservationPlan ? '전문가 목표 직접 입력 (선택)' : '목표 수정'; });
   }
   function updateGoalForm() {
     const selected = selectedRecord() || { config: config() };
@@ -127,11 +153,11 @@ export function mountRomWorkspace(root, context = null) {
     const existing = readGoal();
     $('[data-goal-joint]').value = METRICS[selected.config.metric]?.label || '선택 관절';
     $('[data-goal-start]').value = existing?.config?.metric === selected.config.metric ? existing.start : candidates[0]?.summary.byMetric[selected.config.metric]?.median ?? '';
-    $('[data-goal-target]').value = existing?.config?.metric === selected.config.metric ? existing.target : '';
+    $('[data-goal-target]').value = existing?.config?.metric === selected.config.metric && existing.mode !== 'observe' ? existing.target : '';
     $('[data-goal-start-date]').value = existing?.startDate || new Date().toISOString().slice(0, 10);
     $('[data-goal-end-date]').value = existing?.endDate || new Date(Date.now() + 28 * 86400000).toISOString().slice(0, 10);
     $('[data-goal-frequency]').value = String(existing?.frequency || 3);
-    $('[data-goal-source]').value = existing?.source || 'clinician';
+    $('[data-goal-source]').value = existing?.source === 'personal' ? 'personal' : 'clinician';
     $('[data-goal-note]').value = existing?.note || '';
   }
   function setButtons() {
@@ -198,7 +224,8 @@ export function mountRomWorkspace(root, context = null) {
         .sort((a,b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))[0]?.config || config();
       const goal = readGoal();
       const points = dailyAnglePoints(data.sessions, chartConfig);
-      replaceHtml(graph, renderDailyAngleChart(points, metric, goal?.config?.metric === metric ? goal.target : null));
+      const line = goal?.config?.metric === metric ? goal.mode === 'observe' ? goal.start : goal.target : null;
+      replaceHtml(graph, renderDailyAngleChart(points, metric, line, goal?.mode === 'observe' ? '첫 기준' : '목표'));
       $('[data-motion-chart-label]').textContent = '날짜별 변화';
       $('[data-motion-chart-caption]').textContent = points.length ? `같은 관절·자세·촬영 조건의 품질 통과 기록 날짜 평균 · ${points.length}일 · 목표선은 설정한 각도예요.` : '비교 조건이 다른 기록은 제외합니다. 기록을 저장하면 날짜별로 비교할 수 있어요.';
       $('[data-motion-chart-label]').parentElement.classList.remove('has-baseline');
@@ -215,7 +242,7 @@ export function mountRomWorkspace(root, context = null) {
     const record = liveRecord(), baseline = !recording && reportBaseline(record);
     replaceHtml($('[data-motion-cards]'), renderMotionCards({ record, baseline, metric: config().metric, analysis: lastAnalysis, fresh: isFresh(), recording: Boolean(recording) }));
     const goal = readGoal();
-    replaceHtml($('[data-motion-insights]'), recording ? '<p class="motion-empty">기록 중이에요. 15초가 끝나면 현재 상태·변화·목표·다음 행동을 확인할 수 있어요.</p>' : renderMotionInsights(record, baseline, goal, goalProgress(goal)));
+    replaceHtml($('[data-motion-insights]'), recording ? '<p class="motion-empty">기록 중이에요. 15초가 끝나면 현재 상태·변화·목표·다음 행동을 확인할 수 있어요.</p>' : renderMotionInsights(record, baseline, goal, goalProgress(goal), localFeedback));
     const status = $('[data-motion-state]');
     status.textContent = recording ? '15초 기록 중' : record ? draft ? '기록 완료 · 저장 전' : '저장 기록 보기' : recordReadiness().ready ? '측정 준비 완료' : running ? '몸 위치 확인' : '측정 대기';
     status.classList.toggle('is-ready', Boolean(recording || recordReadiness().ready || record?.summary.eligible));
@@ -358,7 +385,7 @@ export function mountRomWorkspace(root, context = null) {
     video.pause(); video.srcObject = null;
     busyFrame = false; lastVideoTime = -1; resultAt = 0; lastAnalysis = null; lastPoses = []; trace = [];
     $("[data-rom-empty]").hidden = false; $("[data-rom-camera-status]").textContent = "카메라 꺼짐";
-    $("[data-rom-fps]").textContent = "분석 대기"; updateAngles(null); drawOverlay([], false); resetFrozen(); setButtons(); drawTrace();
+    root.querySelectorAll("[data-rom-fps]").forEach(el => { el.textContent = "분석 대기"; }); updateAngles(null); drawOverlay([], false); resetFrozen(); setButtons(); drawTrace();
     if (!quiet) notice("카메라를 껐습니다. 영상은 저장하지 않았습니다.");
   }
   async function startCamera() {
@@ -393,7 +420,7 @@ export function mountRomWorkspace(root, context = null) {
             updateAngles(lastAnalysis); drawOverlay(result.poses, lastAnalysis.valid);
             trace.push({ t: resultAt, valid: lastAnalysis.valid, values: { ...lastAnalysis.values } }); trace = trace.slice(-100); drawTrace();
             fpsSamples = [...fpsSamples.filter((t) => resultAt - t < 2000), resultAt];
-            $("[data-rom-fps]").textContent = `${round(fpsSamples.length / 2)} 분석/초 · 기록 5 Hz`;
+            root.querySelectorAll("[data-rom-fps]").forEach(el => { el.textContent = `${round(fpsSamples.length / 2)} 분석/초 · 기록 5 Hz`; });
             setButtons();
           }
         };
@@ -485,13 +512,49 @@ export function mountRomWorkspace(root, context = null) {
       const open = form.hidden;
       if (open) updateGoalForm();
       form.hidden = !open;
-      root.querySelectorAll('[data-motion-goal-toggle]').forEach(button => { button.setAttribute('aria-expanded', String(open)); button.textContent = open ? '목표 설정 닫기' : (readGoal() ? '목표 수정' : '목표 설정'); });
+      root.querySelectorAll('[data-motion-goal-toggle]').forEach(button => { button.setAttribute('aria-expanded', String(open)); button.textContent = open ? '전문가 목표 입력 닫기' : (readGoal() ? '전문가 목표 직접 입력 (선택)' : '전문가 목표 직접 입력 (선택)'); });
       return;
+    }
+    if (event.target.closest('[data-motion-goal-auto]')) {
+      const selected = selectedRecord();
+      const candidate = selected?.summary?.eligible && ['left_ankle','right_ankle'].includes(selected.config?.metric) ? selected : data.sessions
+        .filter(s => s.config.participant === config().participant && ['left_ankle','right_ankle'].includes(s.config.metric) && s.summary?.eligible)
+        .sort((a,b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))[0];
+      if (!startObservationPlan(candidate)) { notice('품질 기준을 통과한 발목 기록이 필요합니다.', true); return; }
+      notice('첫 측정값을 개인 기준으로 삼는 4주 관찰 계획을 시작했어요. 치료 목표나 회복률은 아닙니다.'); renderDashboard(); return;
     }
     if (event.target.closest('[data-motion-goal-cancel]')) { $('[data-motion-goal-form]').hidden = true; return; }
     if (event.target.closest('[data-motion-goal-clear]')) {
       localStorage.removeItem(goalKey()); activeGoal = { participant: config().participant, goal: null }; renderDashboard(); return;
     }
+  }, { signal: abortEvents.signal });
+  root.addEventListener('click', async (event) => {
+    if (!event.target.closest('[data-motion-ai-feedback]')) return;
+    const record = selectedRecord(), metric = record?.config?.metric;
+    const stats = record?.summary?.byMetric?.[metric];
+    if (!record?.summary?.eligible || !['left_ankle', 'right_ankle'].includes(metric) || !stats) return;
+    const baseline = reportBaseline(record);
+    const previous = baseline?.summary?.byMetric?.[metric];
+    localFeedback = { key: record.capturedAt, loading: true };
+    renderDashboard();
+    try {
+      const response = await fetch('/api/rom/feedback', {
+        method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ metric, medianDeg: stats.median, observedRangeDeg: stats.observedRange,
+          validRatio: record.summary.validRatio, previousRangeDeltaDeg: Number.isFinite(previous?.observedRange)
+            ? Math.round((stats.observedRange - previous.observedRange) * 10) / 10 : null }),
+        signal: AbortSignal.timeout(65_000),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || (result.error === 'local_model_unavailable'
+        ? '이 PC에서 Ollama가 실행 중인지, qwen2.5:3b 모델이 준비됐는지 확인하세요.'
+        : `로컬 AI 요청 실패 (${result.error || response.status})`));
+      localFeedback = { key: record.capturedAt, text: result.text };
+    } catch (error) {
+      localFeedback = { key: record.capturedAt, error: error?.name === 'TimeoutError'
+        ? '로컬 모델 응답 시간이 초과됐어요. Ollama 상태를 확인하고 다시 시도하세요.' : error.message };
+    }
+    if (alive) renderDashboard();
   }, { signal: abortEvents.signal });
   root.addEventListener('submit', (event) => {
     if (!event.target.matches('[data-motion-goal-form]')) return;
@@ -502,6 +565,7 @@ export function mountRomWorkspace(root, context = null) {
       notice('시작 각도와 목표 각도를 0~180° 범위에서 서로 다르게 입력하세요.', true); return;
     }
     if (!startDate || !endDate || endDate < startDate) { notice('목표일은 시작일과 같거나 이후 날짜로 선택하세요.', true); return; }
+    if (start === target) { notice('시작값과 같은 목표는 자동 관찰 계획에서만 사용합니다. 전문가 목표는 다른 각도값을 입력하세요.', true); return; }
     const record = selectedRecord(), goalConfig = record?.summary?.eligible && record.config.metric === config().metric ? record.config : config();
     const goal = { version: 1, participant: config().participant, config: goalConfig, start, target, startDate, endDate, frequency: Number($('[data-goal-frequency]').value), source: $('[data-goal-source]').value, note: $('[data-goal-note]').value.trim(), updatedAt: new Date().toISOString() };
     try { localStorage.setItem(goalKey(), JSON.stringify(goal)); }
@@ -584,6 +648,8 @@ export function mountRomWorkspace(root, context = null) {
       if (await mutate("POST", { action: "save_session", record: toSave, setId, setRevision: set?.revision }, set ? "각도 기록을 저장하고 현재 측정 세트에 연결했습니다." : "이 PC에 각도 기록을 저장했습니다. 영상은 저장하지 않았습니다.")) {
         selectedId = data.savedSessionId || data.sessions.find((s) => s.capturedAt === toSave.capturedAt && sameConfig(s.config, toSave.config))?.id;
         draft = null; renderResult(); setButtons();
+        const saved = data.sessions.find(s => s.id === selectedId);
+        if (!readGoal() && startObservationPlan(saved)) { notice('첫 유효 발목 측정값을 개인 기준으로 저장하고 4주 관찰 계획을 시작했어요. 치료 목표나 회복률은 아닙니다.'); renderDashboard(); }
       }
       return;
     }

@@ -6,6 +6,7 @@ import { createRomHandler } from "./server/rom-store.mjs";
 import { createTrendHandler } from "./server/trend-store.mjs";
 import { createInsoleHub, createInsoleHandler, forwardInsoleRequest } from "./server/insole-hub.mjs";
 import { createAiHandler } from "./server/ai-proxy.mjs";
+import { createLocalMotionAiHandler } from "./server/local-motion-ai.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const port = Number(process.argv[2] || 8000);
@@ -13,6 +14,7 @@ const host = process.argv[3] || "127.0.0.1";
 const insoleHub = port === 8001 ? null : createInsoleHub();
 const handleInsoles = insoleHub ? createInsoleHandler(insoleHub) : forwardInsoleRequest;
 const handleAi = createAiHandler();
+const handleLocalMotionAi = createLocalMotionAiHandler();
 const sharedEditorStatePath = path.join(root, ".stepon-editor-state.json");
 const handleRom = createRomHandler(process.env.STEPON_ROM_DATA_DIR || path.resolve(root, "..", ".stepon-data", "mediapipe"));
 const handleTrends = createTrendHandler(process.env.STEPON_TREND_DATA_DIR || path.resolve(root, "..", ".stepon-data", "trends"));
@@ -74,6 +76,7 @@ function readSharedEditorState(callback) {
 const server = http.createServer((request, response) => {
   const pathname = new URL(request.url || "/", `http://${host}`).pathname;
   if (pathname.startsWith('/api/ai/')) { void handleAi(request, response); return; }
+  if (pathname === "/api/rom/feedback") { void handleLocalMotionAi(request, response); return; }
   if (pathname.startsWith('/api/insoles/')) { void handleInsoles(request, response); return; }
   if (pathname === "/api/rom") { void handleRom(request, response); return; }
   if (pathname === "/api/trends") { void handleTrends(request, response); return; }

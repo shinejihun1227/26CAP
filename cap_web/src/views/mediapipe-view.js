@@ -24,25 +24,35 @@ export function renderMediaPipeContent({ manage = false } = {}) {
       <section class="rom-camera-panel" aria-label="웹캠 관절 분석" ${manage ? "hidden" : ""}>
         <div class="rom-panel-head"><h2>카메라</h2><span data-rom-camera-status>카메라 대기</span></div>
         <div class="rom-video-stage" data-rom-stage><video data-rom-video autoplay muted playsinline aria-label="노트북 웹캠 영상"></video><canvas data-rom-overlay aria-label="인식된 관절 위치"></canvas><div class="rom-video-empty" data-rom-empty><img class="rom-framing-figure" src="/assets/pose-framing.svg" alt="" aria-hidden="true" /><b>관절이 잘 보이게 서거나 앉아 주세요</b><p>선택한 관절과 어깨·골반을 화면에 넣어 주세요.</p></div><span class="rom-video-label" data-rom-view-label>정면 · 좌우는 본인 기준</span></div>
-        <label class="rom-consent"><input type="checkbox" data-rom-consent> 웹캠 사용에 동의합니다. 영상·음성은 저장하지 않습니다.</label>
-        <div class="rom-camera-tools"><button type="button" class="rom-primary" data-rom-action="start">웹캠 켜기</button><button type="button" data-rom-action="stop" disabled>끄기</button><label><input type="checkbox" data-rom-mirror> 거울 보기</label><span data-rom-fps>분석 대기</span></div>
-        <p class="rom-quality" data-rom-quality role="status">카메라를 켜고 몸 위치를 확인해 주세요.</p>
+        <div class="rom-camera-tools"><label><input type="checkbox" data-rom-mirror> 거울 보기</label><span data-rom-fps>분석 대기</span></div>
       </section>
       <section class="rom-setup-panel" aria-label="측정 설정과 기록" ${manage ? "hidden" : ""}>
-        <div class="rom-panel-head"><h2>측정 준비</h2><span>선택하고, 확인하고, 시작해요</span></div>
-        <ol class="motion-preparation" aria-label="관절 측정 준비 순서"><li data-rom-step="camera"><span class="step-number">1</span><b>카메라</b><small data-rom-step-state>대기</small></li><li data-rom-step="pose"><span class="step-number">2</span><b>몸 위치</b><small data-rom-step-state>대기</small></li><li data-rom-step="record"><span class="step-number">3</span><b>15초 기록</b><small data-rom-step-state>대기</small></li></ol>
-        <div class="rom-form-grid motion-essential"><label class="rom-joint-field">관절·동작<select data-rom-config="metric" aria-describedby="rom-joint-help">${renderJointOptions()}</select></label><label>자세<select data-rom-config="posture"><option value="seated">앉아서</option><option value="standing">서서</option></select></label></div>
-        <p id="rom-joint-help" class="rom-joint-help">관절을 고르면 필요한 촬영 방향으로 바뀌어요.</p>
-        <fieldset class="rom-directions"><legend>촬영 방향</legend><label><input type="radio" name="rom-view" value="front" checked><span>정면</span></label><label><input type="radio" name="rom-view" value="left"><span>좌측면</span></label><label><input type="radio" name="rom-view" value="right"><span>우측면</span></label></fieldset>
-        <p class="rom-view-guide" data-rom-guide></p>
-        <label class="rom-check"><input type="checkbox" data-rom-direction-confirmed> 선택한 방향을 향했고, 화면에는 나만 있어요.</label>
-        <div class="rom-record-box"><div><b data-rom-record-title>15초 움직임 기록</b><span data-rom-progress-text>0 / 15초</span></div><progress data-rom-progress max="15" value="0" aria-label="기록 진행률"></progress><p class="rom-quality" id="rom-record-help" data-rom-record-help role="status">웹캠 동의 후 카메라를 켜 주세요.</p><div class="rom-buttons"><button type="button" class="rom-primary" data-rom-action="record" aria-describedby="rom-record-help" disabled>15초 기록 시작</button><button type="button" class="rom-danger" data-rom-action="abort" disabled>중단</button></div><small>편안하게 움직이세요. 통증·어지러움이 있으면 중단하세요.</small></div>
+        <div class="rom-panel-head"><h2>측정 준비</h2><span>한 단계씩 따라와 주세요</span></div>
+        <ol class="motion-preparation-steps" aria-label="관절 측정 준비">
+          <li class="motion-prep-card" data-rom-step="camera"><header><span class="step-number">1</span><div><b>카메라와 측정 항목</b><small data-rom-step-state>지금 할 일</small></div></header>
+            <label class="rom-consent"><input type="checkbox" data-rom-consent> 웹캠 사용에 동의합니다. 영상·음성은 저장하지 않습니다.</label>
+            <div class="rom-camera-tools"><button type="button" class="rom-primary" data-rom-action="start">웹캠 켜기</button><button type="button" data-rom-action="stop" disabled>끄기</button><span data-rom-fps>분석 대기</span></div>
+            <div class="rom-form-grid motion-essential"><label class="rom-joint-field">관절·동작<select data-rom-config="metric" aria-describedby="rom-joint-help">${renderJointOptions()}</select></label><label>자세<select data-rom-config="posture"><option value="seated">앉아서</option><option value="standing">서서</option></select></label></div>
+            <p id="rom-joint-help" class="rom-joint-help">관절을 고르면 필요한 촬영 방향으로 바뀌어요.</p>
+            <fieldset class="rom-directions"><legend>촬영 방향을 선택하세요</legend><label><input type="radio" name="rom-view" value="front" checked><span>정면</span></label><label><input type="radio" name="rom-view" value="left"><span>좌측면</span></label><label><input type="radio" name="rom-view" value="right"><span>우측면</span></label></fieldset>
+          </li>
+          <li class="motion-prep-card" data-rom-step="pose"><header><span class="step-number">2</span><div><b>카메라 화면에서 몸 위치 확인</b><small data-rom-step-state>대기</small></div></header>
+            <p class="rom-view-guide" data-rom-guide></p>
+            <p class="motion-prep-hint">왼쪽 미리보기에서 선택한 관절과 어깨·골반이 보이는지 확인하세요. 정면/측면 안내와 실제 몸 방향이 맞아야 합니다.</p>
+            <label class="rom-check"><input type="checkbox" data-rom-direction-confirmed> 안내된 방향을 향했고, 화면에 나만 있어요.</label>
+            <p class="rom-quality" data-rom-quality role="status">카메라를 켜고 몸 위치를 확인해 주세요.</p>
+          </li>
+          <li class="motion-prep-card" data-rom-step="record"><header><span class="step-number">3</span><div><b>15초 기록하고 저장</b><small data-rom-step-state>대기</small></div></header>
+            <div class="rom-record-box"><div><b data-rom-record-title>15초 움직임 기록</b><span data-rom-progress-text>0 / 15초</span></div><progress data-rom-progress max="15" value="0" aria-label="기록 진행률"></progress><p class="rom-quality" id="rom-record-help" data-rom-record-help role="status">1단계 동의와 웹캠, 2단계 몸 위치 확인을 마쳐 주세요.</p><div class="rom-buttons"><button type="button" class="rom-primary" data-rom-action="record" aria-describedby="rom-record-help" disabled>15초 기록 시작</button><button type="button" class="rom-danger" data-rom-action="abort" disabled>중단</button></div><small>편안한 범위에서 움직이세요. 통증·어지러움이 있으면 중단하세요.</small></div>
+          </li>
+        </ol>
       </section>
     </div>
     <div class="rom-notice" role="status" data-rom-notice>웹캠 사용 동의 → 카메라 켜기 → 몸 위치 확인 순서로 준비하세요.</div>
-    <details class="simple-details rom-identity motion-settings" ${manage ? "open" : ""}><summary data-rom-identity>추가 설정 · 내 기록 P01</summary>
-      <div class="rom-form-grid"><label>사용자 코드 (측정 코드)<input data-rom-config="participant" value="P01" maxlength="30" autocomplete="off" aria-describedby="rom-participant-note"></label><label>촬영 환경 코드<input data-rom-config="setup" value="책상-기본" maxlength="60" autocomplete="off"></label><label>관절 신뢰도 하한<select data-rom-config="confidence"><option value="0.65">65% · 낮음</option><option value="0.75" selected>75% · 기본</option><option value="0.85">85% · 엄격</option></select></label></div>
-      <p id="rom-participant-note" class="rom-participant-help"><b>P01 = 한 사람의 기록 이름표</b> · 예: 본인 P01, 팀원 P02. 날짜·관절·촬영 방향이 달라도 같은 코드를 쓰세요. 카메라 위치가 바뀌면 촬영 환경 코드를 바꾸세요.</p><p class="motion-footnote">저장 버튼을 누른 각도·측정 코드는 이 PC에 30일 보관됩니다. 영상·음성은 저장하지 않습니다.</p>
+    <details class="simple-details rom-identity motion-settings" ${manage ? "open" : ""}><summary data-rom-identity>기록 구분 설정 · 내 기록 P01</summary>
+      <p class="motion-settings-intro">기본값으로 측정할 수 있어요. 기록을 나중에 구분하고 싶을 때만 바꾸세요.</p>
+      <div class="rom-form-grid"><label>누구의 기록인가요? (개인 코드)<input data-rom-config="participant" value="P01" maxlength="30" autocomplete="off" aria-describedby="rom-participant-note"></label><label>카메라·장소 설정 코드<input data-rom-config="setup" value="책상-기본" maxlength="60" autocomplete="off" aria-describedby="rom-setup-note"></label><label>관절 인식 신뢰도 기준<select data-rom-config="confidence" aria-describedby="rom-confidence-note"><option value="0.65">65% · 더 많이 표시</option><option value="0.75" selected>75% · 기본</option><option value="0.85">85% · 더 엄격</option></select></label></div>
+      <p id="rom-participant-note" class="rom-participant-help"><b>개인 코드</b>: 이름 대신 P01처럼 씁니다. 같은 사람의 날짜·관절·방향이 다른 기록도 같은 코드를 사용하세요.</p><p id="rom-setup-note" class="rom-participant-help"><b>카메라·장소 설정 코드</b>: 카메라 위치·거리·조명·장소가 달라진 기록을 구분하는 이름표예요. 예: 책상-기본, 거실-창가. 조건이 같으면 같은 코드를 유지하세요.</p><p id="rom-confidence-note" class="rom-participant-help"><b>신뢰도 기준</b>: 카메라가 관절을 얼마나 뚜렷하게 찾았을 때 각도를 기록할지 정합니다. 85%는 흐릿한 점을 더 많이 제외해 기록이 비는 구간이 늘 수 있고, 65%는 불확실한 점도 더 포함할 수 있어요. 질환의 심각도나 의학적 신뢰도가 아닙니다.</p><p class="motion-footnote">각도·개인 코드·촬영 설정은 이 PC에 최대 30일 보관합니다. 영상·음성은 저장하지 않습니다.</p>
       <details class="motion-more"><summary>선택한 관절의 촬영 방법과 각도 정의</summary><section class="rom-joint-guide" data-rom-joint-guide aria-label="선택 관절의 촬영 방법과 각도 정의">${renderJointGuide('left_shoulder')}</section></details>
     </details>
     <section class="motion-save-panel" data-motion-save><div><div class="rom-result" data-rom-result>아직 선택한 기록이 없습니다.</div><p class="rom-comparison" data-rom-comparison></p></div><div class="rom-buttons"><button type="button" class="rom-primary" data-rom-action="save" ${manage ? "hidden" : ""} disabled>기록 저장</button><button type="button" data-rom-action="baseline" disabled>개인 기준으로 지정</button><button type="button" data-rom-action="discard" ${manage ? "hidden" : ""} disabled>미저장 기록 버리기</button><button type="button" data-rom-action="save-alone" hidden disabled>개별 기록으로 저장</button></div></section>
