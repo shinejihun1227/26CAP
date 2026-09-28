@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { session } from './rom-fixtures.mjs';
-import { comparableRecords, motionCards, recordInsights, angleSeries, renderAngleChart, renderDailyAngleChart, dailyAnglePoints, renderRecordComparison, renderMotionDashboard } from '../src/mediapipe/motion-report.js';
+import { comparableRecords, observationPlanFromRecord, motionCards, recordInsights, angleSeries, renderAngleChart, renderDailyAngleChart, dailyAnglePoints, renderRecordComparison, renderMotionDashboard } from '../src/mediapipe/motion-report.js';
+import { METRICS } from '../src/mediapipe/rom-math.js';
 
 const current = () => session({id:'now',capturedAt:'2026-09-23T08:00:00.000Z'});
 const before = () => session({id:'before',capturedAt:'2026-09-22T08:00:00.000Z'});
@@ -27,6 +28,20 @@ test('dashboard frames MediaPipe as personal observation and same-condition tren
   assert.match(html, /내 관찰 계획/);
   assert.match(html, /수치 차이는 측정값의 차이이며 개선이나 악화를 판정하지 않습니다/);
   assert.doesNotMatch(html, /정상 범위/);
+});
+test('first eligible record creates a personal observation plan for every supported joint', () => {
+  for (const [metric, definition] of Object.entries(METRICS)) {
+    const record = session({ capturedAt: '2026-09-28T08:00:00.000Z', config: { metric, view: definition.views[0] } });
+    const plan = observationPlanFromRecord(record);
+    assert.ok(plan, `${metric} should be eligible for an observation plan`);
+    assert.equal(plan.mode, 'observe');
+    assert.equal(plan.config.metric, metric);
+    assert.equal(plan.start, record.summary.byMetric[metric].median);
+    assert.equal(plan.target, plan.start);
+    assert.equal(plan.startDate, '2026-09-28');
+    assert.equal(Date.parse(`${plan.endDate}T12:00:00`) - Date.parse(`${plan.startDate}T12:00:00`), 28 * 86400000);
+  }
+  assert.equal(observationPlanFromRecord(session({ interrupted: true })), null);
 });
 test('saved cards and comparison bars use stored range, median and valid sample ratio', () => {
   const record=current(), baseline=before(), cards=motionCards({record,baseline});

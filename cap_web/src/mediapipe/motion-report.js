@@ -3,6 +3,17 @@ import { escapeHtml as e } from '../utils/text.js';
 import { icon } from '../components/icons.js';
 
 const number = (value, suffix = '°') => Number.isFinite(value) ? `${round(value)}${suffix}` : '—';
+export function observationPlanFromRecord(record) {
+  const metric = record?.config?.metric, median = record?.summary?.byMetric?.[metric]?.median;
+  const capturedAt = Date.parse(record?.capturedAt);
+  if (!record?.summary?.eligible || !METRICS[metric] || !Number.isFinite(median) || !Number.isFinite(capturedAt)) return null;
+  const localDay = value => { const date = new Date(value); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
+  const startDate = localDay(capturedAt), end = new Date(`${startDate}T12:00:00`);
+  end.setDate(end.getDate() + 28);
+  return { version: 1, mode: 'observe', participant: record.config.participant, config: record.config,
+    start: median, target: median, startDate, endDate: localDay(end), frequency: 1, source: 'measurement',
+    note: '첫 유효 기록을 개인 기준으로 사용합니다. 치료 목표가 아닙니다.', updatedAt: new Date().toISOString() };
+}
 export function comparableRecords(record, sessions) {
   if (!record?.summary?.eligible) return [];
   return sessions.filter(s => s.id !== record.id && s.summary?.eligible
