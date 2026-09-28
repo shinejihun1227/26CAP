@@ -23,6 +23,25 @@ const foot = (side, extra = {}) => ({ connected: true, status: 'online', age_ms:
 const both = () => ({ service: 'stepon-bilateral-v1', frame: 20, feet: { left: foot('left'), right: foot('right') } });
 const until = async (predicate) => { for (let i = 0; i < 200; i++) { if (predicate()) return; await new Promise((r) => setTimeout(r, 10)); } throw new Error('test condition timeout'); };
 
+test('FoG cue commands bind to the live device and boot and require compatible firmware', async t => {
+  const commands=[]; let sequence=0, capability=1;
+  const hub=createInsoleHub({pollIntervalMs:10,fetchImpl:async url=> {
+    const path=new URL(url).pathname;
+    if(path==='/api/state') return new Response(JSON.stringify(frame('left',++sequence,{cue_api_version:capability})));
+    commands.push(url); return new Response(JSON.stringify({accepted:true,cue_api_version:1}));
+  }});
+  t.after(()=>hub.stop()); hub.register({side:'left',url:'http://192.168.0.12'});
+  await until(()=>hub.snapshot().feet.left.connected);
+  const value={active:true,device_id:'c3-left',boot_id:'boot-1'};
+  await hub.command('left','fog-cue',value);
+  await hub.command('left','fog-cue',{...value,active:false});
+  assert.match(commands[0],/active=1/); assert.match(commands[1],/active=0/);
+  await assert.rejects(hub.command('left','fog-cue',{...value,boot_id:'old-boot'}),/identity/);
+  capability=0; await until(()=>hub.snapshot().feet.left.state?.cue_api_version===0);
+  await assert.rejects(hub.command('left','fog-cue',value),/upload_fog_cue_firmware/);
+  assert.equal(commands.length,2);
+});
+
 test('bilateral normalizer keeps two independent pressure, thermal and IMU values', () => {
   const s = normalizeBilateralState(both(), structuredClone(initialState));
   assert.deepEqual(s.bilateralPressure.left, [10, 20, 30, 40]); assert.deepEqual(s.bilateralPressure.right, [80, 60, 40, 20]);
@@ -63,7 +82,7 @@ test('private IPv4 targets only, strict firmware identity and four-channel contr
   assert.equal(validateDeviceUrl('http://192.168.137.2'), 'http://192.168.137.2');
   for (const url of ['http://example.com', 'http://127.0.0.1', 'http://169.254.169.254', 'https://192.168.1.2', 'http://x:y@192.168.1.2', 'http://192.168.1.2/private', 'file:///tmp']) assert.throws(() => validateDeviceUrl(url));
   assert.throws(() => validateFrame(frame('right'), 'left'), /foot_side/);
-  assert.throws(() => validateFrame(frame('left', 1, { pressure_channels: [0, 1, 2, 3] }), 'left'), /layout/);
+  assert.throws(() => validateFrame(frame('left', 1, { pressure_channels: [0, 1, 2, 4] }), 'left'), /layout/);
   assert.throws(() => validateFrame(frame('left'), 'left', 'another'), /device_id/);
 });
 test('C3 and WROOM STA frames share the sensor contract without accepting other firmware', () => {
@@ -71,7 +90,7 @@ test('C3 and WROOM STA frames share the sensor contract without accepting other 
     const payload = frame('right', 2, { firmware, device_id: 'wroom-right' });
     assert.equal(validateFrame(payload, 'right', 'wroom-right'), payload);
     assert.throws(() => validateFrame({ ...payload, wifi_mode: 'AP' }, 'right'), /sta_firmware/);
-    assert.throws(() => validateFrame({ ...payload, pressure_channels: [0, 1, 2, 3] }, 'right'), /layout/);
+    assert.throws(() => validateFrame({ ...payload, pressure_channels: [0, 1, 2, 4] }, 'right'), /layout/);
     assert.throws(() => validateFrame({ ...payload, accel: { x: NaN, y: 0, z: 1 } }, 'right'), /invalid_imu/);
   }
   for (const firmware of ['03_final', '06_bmi270_csv_wroom', '04_2_unknown', null]) {

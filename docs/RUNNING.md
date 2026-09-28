@@ -86,11 +86,11 @@ AI 8787은 웹 화면이 아니라 Python API입니다. 일반 사용에서는 8
 
 **휴대폰 핫스팟에 노트북과 ESP32를 함께 연결하는 경우에는 [휴대폰 핫스팟 연결 안내](PHONE_HOTSPOT.md)를 따릅니다.** `check-network.bat`으로 노트북 IPv4를 확인하고, ESP32의 `PC_HOST`에 그 주소를 지정하세요. 게이트웨이인 휴대폰 주소를 넣으면 안 됩니다.
 
-1. 처음 보드를 준비할 때만 Arduino IDE에서 C3는 [`04_sta_bilateral`](../firmware/stepon_c3/04_sta_bilateral/README.md), WROOM-32/WROOM-DA는 [`04_2_sta_bilateral_wroom`](../firmware/stepon_c3/04_2_sta_bilateral_wroom/README.md)을 업로드합니다. **C3와 WROOM의 배선과 보드 선택은 다릅니다.** 4-2는 MUX S2를 GPIO25에서 GPIO18로 옮긴 공통 배선표(GPIO13·14 / 32·33·18·26 / 34 / 27)에 맞추고 실제 일반 WROOM-32는 `ESP32 Dev Module`, 실제 DA는 `ESP32-WROOM-DA Module`로 선택합니다. 왼발/오른발 설정, 실제 핫스팟 정보가 들어갈 `wifi_secrets.h`, 보드·라이브러리 설정은 해당 펌웨어 안내를 따릅니다. 실제 Wi-Fi 암호 파일은 GitHub에 포함되지 않습니다. 이전 웹에 WROOM 지원을 처음 적용할 때는 작업을 마친 후 `run-web.bat --restart`로 갱신합니다. 이번 핀 변경은 펌웨어를 다시 업로드하면 되며 이미 WROOM을 인식하는 웹은 재시작할 필요가 없습니다.
+1. 처음 보드를 준비할 때만 Arduino IDE에서 C3는 [`04_sta_bilateral`](../firmware/stepon_c3/04_sta_bilateral/README.md), WROOM-32/WROOM-DA는 [`04_2_sta_bilateral_wroom`](../firmware/stepon_c3/04_2_sta_bilateral_wroom/README.md)을 업로드합니다. **C3와 WROOM의 배선과 보드 선택은 다릅니다.** 4-2의 주 I²C는 SDA21/SCL22, 2센서 구성의 별도 온습도 버스는 SDA13/SCL14이며, MUX S0·S1·S2·S3는 GPIO32·33·4·26입니다. 실제 일반 WROOM-32는 `ESP32 Dev Module`, 실제 DA는 `ESP32-WROOM-DA Module`로 선택합니다. 왼발/오른발 설정, 실제 핫스팟 정보가 들어갈 `wifi_secrets.h`, 보드·라이브러리 설정은 해당 펌웨어 안내를 따릅니다. 실제 Wi-Fi 암호 파일은 GitHub에 포함되지 않습니다. 이전 웹에 WROOM 지원을 처음 적용할 때는 작업을 마친 후 `run-web.bat --restart`로 갱신합니다. 이번 핀 변경은 펌웨어를 다시 업로드하면 되며 이미 WROOM을 인식하는 웹은 재시작할 필요가 없습니다.
 2. PC의 **2.4GHz 모바일 핫스팟**을 켜고 깔창 보드에 전원을 공급합니다. 두 보드가 이 네트워크에 연결되어야 합니다.
 3. `run.bat`을 실행하고 웹 **기기 연결**에서 좌우 발과 IMU 수신을 확인합니다.
 4. 웹 **보행 분석 센터 → 해당 발 개인 IMU 보정**을 실행합니다. 3초 준비 후 5초 정지, 이어서 20초 일반 보행입니다.
-5. 보정 성공 후 새로운 약 4초의 유효 데이터가 들어오면 모델 점수와 상태가 나타납니다.
+5. 보정 성공 후 새로운 연속 4초의 유효 데이터가 들어오면 20Hz 모델 점수와 상태가 나타납니다. AI 상태의 목표 샘플링률은 20Hz이며, 150ms보다 긴 공백 뒤에는 새 4초 창을 다시 채웁니다.
 
 보드가 이미 업로드되어 있으면 매번 Arduino IDE나 별도 시리얼 프로그램을 실행할 필요가 없습니다. 착용자·부착 방향이 바뀌면 다시 보정합니다. 실제 연결이 없거나 보정이 없으면 점수는 `—`이며 서버 실행 실패와는 다릅니다.
 

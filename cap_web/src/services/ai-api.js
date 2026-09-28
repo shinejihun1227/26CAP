@@ -63,6 +63,7 @@ export function fetchAiEvents(options) {
 export function calibrateAi(side, action = 'start') {
   return request(`/api/ai/calibration/${action}`, { method: 'POST', body: { side }, timeoutMs: 9000 });
 }
+export function setFogCue(enabled) { return request('/api/ai/cue', { method: 'POST', body: { enabled } }); }
 
 export function markAiUnavailable(previous, error) {
   return {
@@ -75,6 +76,7 @@ export function markAiUnavailable(previous, error) {
     windowReady: false,
     deviceConnected: false,
     feet: {},
+    cue: null,
     status: "unavailable",
     lastError: error?.message ?? "AI 브리지 연결 실패",
   };
@@ -99,12 +101,13 @@ export function normalizeAiState(payload, previous = {}) {
     artifactId: payload.artifact_id ?? null,
     diagnostics: ready ? payload.diagnostics ?? {} : {},
     feet: payload.feet ?? {},
+    cue: payload.cue ?? null,
     model: String(payload?.model ?? "ensemble"),
     deviceConnected: Boolean(payload?.device_connected),
     detectorLoaded: Boolean(payload?.detector_loaded),
     windowReady: Boolean(payload?.window_ready),
     windowCount: Number(payload?.window_count ?? 0),
-    sampleRateHz: Number(payload?.sample_rate_hz ?? 64),
+    sampleRateHz: Number(payload?.sample_rate_hz ?? 20),
     windowSec: Number(payload?.window_sec ?? 4),
     hopSec: Number(payload?.hop_sec ?? 0.5),
     calibration: payload?.calibration ?? {},

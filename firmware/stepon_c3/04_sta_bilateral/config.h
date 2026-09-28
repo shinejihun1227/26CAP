@@ -18,4 +18,6 @@ constexpr uint8_t PRESSURE_CHANNELS[4] = {0, 2, 4, 6};
 constexpr uint8_t THERMAL_CHANNELS[4] = {3, 4, 5, 6};
 constexpr uint32_t IMU_INTERVAL_US = 15625, AUX_INTERVAL_MS = 50;
 constexpr uint8_t LASER_PIN = 10;
-constexpr bool ENABLE_LASER_OUTPUT = false; // Keep disabled until hardware safety verification.
+constexpr bool ENABLE_LASER_OUTPUT = true; // Use the configured transistor driver pin, never power a laser directly from GPIO.
+constexpr uint32_t FOG_CUE_LEASE_MS = 1500;
+constexpr uint8_t FOG_VIBRATION_LEVEL = 70; // DRV2605 real-time amplitude (0..127).

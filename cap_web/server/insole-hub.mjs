@@ -1,7 +1,7 @@
 // One collector on 8000; browsers and 8001 only read its cache.
 import { isIP } from 'node:net';
 import { randomUUID } from 'node:crypto';
-import { PRESSURE_LAYOUT_ID, PRESSURE_CHANNELS, THERMAL_CHANNELS } from '../src/data/sensor-config.js';
+import { PRESSURE_LAYOUT_ID, PRESSURE_LAYOUT_2_SHARED_ID, validPressureChannels, THERMAL_CHANNELS, SHARED_SENSOR_MAP } from '../src/data/sensor-config.js';
 export const SIDES = ['left', 'right'];
 export const HUB_SERVICE = 'stepon-bilateral-v1';
 const STA_FIRMWARES = new Set(['04_sta_bilateral', '04_2_sta_bilateral_wroom']);
@@ -23,9 +23,28 @@ export function validateFrame(p, side, deviceId) {
   if (!identity(p.device_id) || (deviceId && p.device_id !== deviceId)) throw new Error('device_id_mismatch');
   if (!STA_FIRMWARES.has(p.firmware) || p.wifi_mode !== 'STA' || !identity(p.boot_id)) throw new Error('sta_firmware_required');
   if (!Number.isInteger(p.frame) || p.frame < 0 || !Number.isFinite(p.millis)) throw new Error('invalid_frame_clock');
-  if (p.pressure_count !== 4 || p.pressure_layout !== PRESSURE_LAYOUT_ID || JSON.stringify(p.pressure_channels) !== JSON.stringify(PRESSURE_CHANNELS)) throw new Error('pressure_layout_mismatch');
+  const twoShared = p.sensor_profile === 'two-shared' && p.pressure_count === 4 && p.pressure_physical_count === 2
+    && p.pressure_layout === PRESSURE_LAYOUT_2_SHARED_ID && JSON.stringify(p.pressure_channels) === JSON.stringify(SHARED_SENSOR_MAP)
+    && JSON.stringify(p.pressure_sensor_map) === JSON.stringify(SHARED_SENSOR_MAP)
+    && p.thermal_physical_count === 2 && JSON.stringify(p.thermal_sensor_map) === JSON.stringify(SHARED_SENSOR_MAP)
+    && p.thermal_transport === 'dual-i2c' && Array.isArray(p.shtc3_channels) && p.shtc3_channels.length === 0;
+  const fourIndependent = (p.sensor_profile === undefined || p.sensor_profile === 'four-independent')
+    && p.pressure_count === 4 && p.pressure_layout === PRESSURE_LAYOUT_ID && validPressureChannels(p.pressure_channels)
+    && JSON.stringify(p.pressure_channels) !== JSON.stringify(SHARED_SENSOR_MAP)
+    && (p.pressure_physical_count === undefined || p.pressure_physical_count === 4)
+    && (p.pressure_sensor_map === undefined || JSON.stringify(p.pressure_sensor_map) === '[0,1,2,3]');
+  if (!twoShared && !fourIndependent) throw new Error('pressure_layout_mismatch');
   if (!Array.isArray(p.pressure) || p.pressure.length !== 4 || !p.pressure.every((v) => Number.isFinite(v) && v >= 0 && v <= 100)) throw new Error('invalid_pressure');
-  if (JSON.stringify(p.shtc3_channels) !== JSON.stringify(THERMAL_CHANNELS) || !['temperature', 'humidity', 'shtc3_ready'].every((k) => Array.isArray(p[k]) && p[k].length === 4)) throw new Error('thermal_layout_mismatch');
+  if (twoShared && (p.pressure[0] !== p.pressure[1] || p.pressure[2] !== p.pressure[3])) throw new Error('shared_pressure_values_mismatch');
+  const thermalLayoutValid = twoShared
+    ? p.thermal_physical_count === 2 && JSON.stringify(p.thermal_sensor_map) === JSON.stringify(SHARED_SENSOR_MAP) && p.thermal_transport === 'dual-i2c'
+    : JSON.stringify(p.shtc3_channels) === JSON.stringify(THERMAL_CHANNELS)
+      && (p.thermal_physical_count === undefined || p.thermal_physical_count === 4)
+      && (p.thermal_sensor_map === undefined || JSON.stringify(p.thermal_sensor_map) === '[0,1,2,3]');
+  if (!thermalLayoutValid || !['temperature', 'humidity', 'shtc3_ready'].every((k) => Array.isArray(p[k]) && p[k].length === 4)) throw new Error('thermal_layout_mismatch');
+  if (twoShared && ['temperature', 'humidity'].some((key) => !Number.isFinite(p[key][0]) || !Number.isFinite(p[key][1])
+    || !Number.isFinite(p[key][2]) || !Number.isFinite(p[key][3])
+    || Math.abs(p[key][0] - p[key][1]) > 0.1 || Math.abs(p[key][2] - p[key][3]) > 0.1)) throw new Error('shared_thermal_values_mismatch');
   if (p.imu_ready && (!vector(p.accel) || !vector(p.gyro))) throw new Error('invalid_imu');
   return p;
 }
@@ -38,12 +57,16 @@ export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, s
   const fresh = (d) => Boolean(d?.payload && !d.error && d.advancedAt !== null && now() - d.advancedAt <= staleMs);
   async function readJson(url, options = {}) {
     const response = await fetchImpl(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(timeoutMs), cache: 'no-store' });
-    if (!response.ok) throw new Error(`device_http_${response.status}`);
     if (Number(response.headers?.get('content-length')) > 65536) throw new Error('device_response_too_large');
     let body = '';
     for await (const chunk of response.body) {
       body += Buffer.from(chunk).toString('utf8');
       if (body.length > 65536) throw new Error('device_response_too_large');
+    }
+    if (!response.ok) {
+      let code;
+      try { code = JSON.parse(body)?.error; } catch {}
+      throw new Error(typeof code === 'string' && /^[a-z0-9_]{1,80}$/.test(code) ? code : `device_http_${response.status}`);
     }
     return JSON.parse(body);
   }
@@ -112,6 +135,13 @@ export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, s
   async function command(side, action, value) {
     const d = devices.get(side);
     if (!SIDES.includes(side) || !fresh(d)) throw new Error('selected_foot_offline');
+    if (action === 'vibrate' && d.payload.drv2605_ready === false) throw new Error('drv2605_not_ready');
+    if (action === 'fog-cue') {
+      if (typeof value?.active !== 'boolean' || value.device_id !== d.payload.device_id || value.boot_id !== d.payload.boot_id) throw new Error('cue_device_identity_mismatch');
+      if (d.payload.cue_api_version !== 1) throw new Error('upload_fog_cue_firmware');
+      const query = new URLSearchParams({ active: value.active ? '1' : '0', device_id: value.device_id, boot_id: value.boot_id });
+      return readJson(`${d.url}/api/fog-cue?${query}`);
+    }
     const paths = { laser: `/api/laser?on=${value === true ? 1 : 0}`, vibrate: '/api/vibrate?effect=47', 'auto-cue': `/api/auto-cue?enabled=${value === true ? 1 : 0}` };
     if (!Object.hasOwn(paths, action)) throw new Error('invalid_action');
     return readJson(d.url + paths[action]);

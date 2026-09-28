@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1180" viewBox="0 0 1800 1180">
+  <defs>
+    <style>
+      .title{font:700 30px Arial,sans-serif;fill:#152238}
+      .subtitle{font:16px Arial,sans-serif;fill:#526175}
+      .h{font:700 18px Arial,sans-serif;fill:#152238}
+      .t{font:15px Arial,sans-serif;fill:#152238}
+      .small{font:13px Arial,sans-serif;fill:#526175}
+      .tiny{font:12px Arial,sans-serif;fill:#526175}
+      .net{font:700 14px Arial,sans-serif;fill:#0b6075}
+      .pin{font:700 13px Arial,sans-serif;fill:#28384d}
+      .box{stroke:#31445b;stroke-width:2;rx:12}
+      .wire{stroke:#263b55;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .thin{stroke:#526175;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .gnd{stroke:#384b61;stroke-width:2;fill:none}
+      .dot{fill:#263b55}
+      .note{fill:#fff7df;stroke:#d9a62e;stroke-width:1.5;rx:10}
+      .warn{fill:#fff0f0;stroke:#c94a4a;stroke-width:1.5;rx:10}
+      .power{fill:#e8f6ff}
+      .charge{fill:#f2edff}
+      .reg{fill:#eaf8ef}
+      .conn{fill:#fff4e8}
+      .optional{fill:#f5f6f8;stroke:#8995a5;stroke-width:1.5;stroke-dasharray:7 5;rx:10}
+      .ground-fill{fill:#eef1f4;stroke:#627286;stroke-width:1.5;rx:8}
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5 L0,10 z" fill="#263b55"/>
+    </marker>
+  </defs>
+
+  <rect width="1800" height="1180" fill="#ffffff"/>
+  <text x="60" y="58" class="title">SHEET 1 — POWER / USB-C / Li-Po 충전·Power Path</text>
+  <text x="60" y="88" class="subtitle">한쪽 발 기준 · MCP73871-2CAI/ML(4.20 V) · 보호된 1S Li-Po · 3.3 V 시스템 + 5 V 레이저</text>
+
+  <!-- Main power flow -->
+  <rect x="60" y="135" width="190" height="180" class="box conn"/>
+  <text x="85" y="168" class="h">J1 USB-C</text>
+  <text x="85" y="195" class="t">TYPE-C-31-M-12</text>
+  <text x="85" y="219" class="small">16P SMD / C165948</text>
+  <text x="85" y="252" class="pin">VBUS</text>
+  <text x="85" y="275" class="pin">D+ / D−</text>
+  <text x="85" y="298" class="pin">CC1 / CC2</text>
+  <path d="M250 252 H302" class="wire" marker-end="url(#arrow)"/>
+  <text x="260" y="241" class="net">VBUS_5V</text>
+
+  <rect x="300" y="135" width="205" height="180" class="box power"/>
+  <text x="325" y="168" class="h">입력 보호</text>
+  <text x="325" y="199" class="t">F1: MF-MSMF050-2</text>
+  <text x="325" y="223" class="t">D1: USBLC6-2SC6</text>
+  <text x="325" y="247" class="t">D2: 5 V TVS(선택)</text>
+  <text x="325" y="278" class="small">CC1, CC2 → 각각 5.1 kΩ → GND</text>
+  <path d="M505 252 H565" class="wire" marker-end="url(#arrow)"/>
+  <text x="510" y="241" class="net">VBUS_FUSED</text>
+
+  <rect x="565" y="120" width="370" height="430" class="box charge"/>
+  <text x="595" y="158" class="h">U1 MCP73871-2CAI/ML</text>
+  <text x="595" y="183" class="small">QFN-20 · 4.20 V · Charger + Power Path</text>
+
+  <!-- U1 simplified pin field -->
+  <rect x="640" y="215" width="220" height="240" fill="#ffffff" stroke="#6e63a2" stroke-width="2" rx="8"/>
+  <text x="690" y="252" class="h">MCP73871</text>
+  <text x="675" y="280" class="pin">IN</text>
+  <text x="675" y="307" class="pin">OUT</text>
+  <text x="675" y="334" class="pin">VBAT</text>
+  <text x="675" y="361" class="pin">VPCC</text>
+  <text x="675" y="388" class="pin">THERM</text>
+  <text x="675" y="415" class="pin">VSS / EP</text>
+  <text x="785" y="280" class="pin">CE</text>
+  <text x="785" y="307" class="pin">SEL</text>
+  <text x="785" y="334" class="pin">PROG2</text>
+  <text x="785" y="361" class="pin">TE</text>
+  <text x="785" y="388" class="pin">STAT / PG</text>
+  <text x="785" y="415" class="pin">PROG1/3</text>
+
+  <!-- IN -->
+  <path d="M565 252 H640" class="wire"/>
+  <circle cx="640" cy="252" r="5" class="dot"/>
+  <text x="575" y="241" class="net">VBUS_FUSED</text>
+  <path d="M595 252 V500 H640" class="thin"/>
+  <text x="575" y="489" class="small">CIN 10 µF → GND</text>
+
+  <!-- OUT -->
+  <path d="M860 280 H1010" class="wire" marker-end="url(#arrow)"/>
+  <text x="885" y="269" class="net">SYS_RAW</text>
+  <path d="M955 280 V500 H1010" class="thin"/>
+  <text x="885" y="489" class="small">COUT 4.7~10 µF → GND</text>
+
+  <!-- VBAT -->
+  <path d="M640 334 H520 V640 H1005" class="wire"/>
+  <text x="535" y="625" class="net">BAT+</text>
+  <path d="M580 640 V700" class="thin"/>
+  <text x="515" y="721" class="small">CBAT 4.7 µF → GND</text>
+
+  <!-- VPCC -->
+  <path d="M640 361 H600 V505" class="thin"/>
+  <text x="575" y="525" class="small">CVPCC 4.7 µF → GND</text>
+
+  <!-- THERM -->
+  <path d="M640 388 H550 V640" class="thin"/>
+  <text x="575" y="405" class="small">NTC 10 kΩ</text>
+
+  <!-- GND -->
+  <path d="M640 415 H600 V485" class="wire"/>
+  <path d="M600 485 v18 M582 503 h36 M587 510 h26 M592 517 h16" class="gnd"/>
+  <text x="545" y="475" class="net">GND</text>
+
+  <!-- control pins -->
+  <path d="M860 280 H900 V235 H935" class="thin"/>
+  <text x="905" y="225" class="small">CE = 3V3 (충전 활성)</text>
+  <path d="M860 307 H900 V210 H935" class="thin"/>
+  <text x="905" y="200" class="small">SEL = GND (USB 모드)</text>
+  <path d="M860 334 H900 V185 H935" class="thin"/>
+  <text x="905" y="175" class="small">PROG2 = 3V3 (USB 500 mA)</text>
+  <path d="M860 361 H900 V160 H935" class="thin"/>
+  <text x="905" y="150" class="small">TE = GND (타이머 활성)</text>
+  <path d="M860 415 H900 V445 H935" class="thin"/>
+  <text x="905" y="465" class="small">STAT1/2, PG → LED 또는 MCU(선택)</text>
+
+  <!-- PROG resistors -->
+  <rect x="675" y="505" width="100" height="32" fill="#ffffff" stroke="#66788c"/>
+  <text x="687" y="527" class="t">RPROG1</text>
+  <text x="687" y="550" class="small">2 kΩ 시작값</text>
+  <path d="M725 455 V505" class="thin"/>
+  <path d="M725 537 v25 M707 562 h36 M712 569 h26 M717 576 h16" class="gnd"/>
+  <rect x="785" y="505" width="100" height="32" fill="#ffffff" stroke="#66788c"/>
+  <text x="797" y="527" class="t">RPROG3</text>
+  <text x="797" y="550" class="small">데이터시트 계산</text>
+  <path d="M835 455 V505" class="thin"/>
+  <path d="M835 537 v25 M817 562 h36 M822 569 h26 M827 576 h16" class="gnd"/>
+
+  <!-- Battery -->
+  <rect x="1005" y="560" width="260" height="180" class="box conn"/>
+  <text x="1030" y="595" class="h">J2 1S Li-Po</text>
+  <text x="1030" y="622" class="t">Protected 3.7 V / 4.2 V</text>
+  <text x="1030" y="652" class="pin">BAT+ → VBAT</text>
+  <text x="1030" y="679" class="pin">BAT− → GND</text>
+  <text x="1030" y="710" class="small">NTC가 있으면 THERM으로 연결</text>
+  <path d="M1005 640 H945 V334" class="wire"/>
+  <path d="M1265 679 H1300" class="wire"/>
+  <path d="M1300 679 v18 M1282 697 h36 M1287 704 h26 M1292 711 h16" class="gnd"/>
+  <text x="1280" y="670" class="net">GND</text>
+
+  <!-- Main switch -->
+  <rect x="1010" y="120" width="235" height="130" class="box power"/>
+  <text x="1035" y="155" class="h">SW1 시스템 전원</text>
+  <text x="1035" y="184" class="t">SMD SPST Slide Switch</text>
+  <text x="1035" y="212" class="small">SYS_RAW → SYS_SW</text>
+  <path d="M1010 280 H1010 V235" class="wire"/>
+  <path d="M1125 250 V280" class="wire"/>
+  <text x="1138" y="273" class="net">SYS_SW</text>
+
+  <!-- 3V3 regulator -->
+  <rect x="1280" y="100" width="235" height="220" class="box reg"/>
+  <text x="1305" y="135" class="h">U2 3.3 V 전원</text>
+  <text x="1305" y="163" class="t">TPS63031DSKR</text>
+  <text x="1305" y="188" class="small">Buck-Boost / 3.3 V</text>
+  <text x="1305" y="222" class="pin">VIN ← SYS_SW</text>
+  <text x="1305" y="247" class="pin">VOUT → 3V3</text>
+  <text x="1305" y="272" class="small">L=1.5 µH, CIN=10 µF</text>
+  <text x="1305" y="294" class="small">COUT=10 µF ×2, CVINA=100 nF</text>
+  <path d="M1245 235 H1280" class="wire" marker-end="url(#arrow)"/>
+  <path d="M1515 235 H1600" class="wire" marker-end="url(#arrow)"/>
+  <text x="1530" y="224" class="net">3V3</text>
+
+  <!-- 5V boost -->
+  <rect x="1280" y="370" width="235" height="270" class="box reg"/>
+  <text x="1305" y="405" class="h">U3 레이저 5 V 승압</text>
+  <text x="1305" y="433" class="t">TPS61023DRLT</text>
+  <text x="1305" y="458" class="small">또는 시제품 MT3608</text>
+  <text x="1305" y="493" class="pin">VIN ← SYS_SW</text>
+  <text x="1305" y="518" class="pin">VOUT → 5V_LASER</text>
+  <text x="1305" y="545" class="small">L=1 µH, CIN=10 µF</text>
+  <text x="1305" y="568" class="small">COUT=22 µF ×2</text>
+  <text x="1305" y="591" class="small">RFB=732 kΩ / 100 kΩ</text>
+  <text x="1305" y="615" class="small">EN ← MCU LASER_BOOST_EN</text>
+  <path d="M1245 235 H1260 V493 H1280" class="wire" marker-end="url(#arrow)"/>
+  <path d="M1515 518 H1600" class="wire" marker-end="url(#arrow)"/>
+  <text x="1525" y="507" class="net">5V_LASER</text>
+
+  <!-- Sheet outputs -->
+  <rect x="1600" y="120" width="150" height="120" class="box optional"/>
+  <text x="1620" y="155" class="h">→ Sheet 2</text>
+  <text x="1620" y="184" class="t">3V3</text>
+  <text x="1620" y="210" class="t">GND</text>
+  <path d="M1600 235 V240" class="wire"/>
+
+  <rect x="1600" y="390" width="150" height="120" class="box optional"/>
+  <text x="1620" y="425" class="h">→ Sheet 5</text>
+  <text x="1620" y="454" class="t">5V_LASER</text>
+  <text x="1620" y="480" class="t">SYS_SW / GND</text>
+
+  <rect x="60" y="820" width="790" height="270" class="note"/>
+  <text x="85" y="858" class="h">USB-C 연결 규칙</text>
+  <text x="85" y="890" class="t">• VBUS → F1 → MCP73871 IN</text>
+  <text x="85" y="918" class="t">• CC1, CC2 → 각각 5.1 kΩ → GND</text>
+  <text x="85" y="946" class="t">• D+ / D−는 Sheet 2의 USB_D+ / USB_D− 네트로 이동</text>
+  <text x="85" y="974" class="t">• USB-C VBUS를 배터리나 ESP32 3.3 V에 직접 연결하지 않음</text>
+  <text x="85" y="1018" class="small">USB로 펌웨어 업로드를 하지 않는다면 6P 전원 전용 USB-C도 가능하지만,</text>
+  <text x="85" y="1042" class="small">최초 제작은 16P USB-C를 사용해 두는 편이 편리합니다.</text>
+
+  <rect x="900" y="820" width="850" height="270" class="warn"/>
+  <text x="925" y="858" class="h">주의</text>
+  <text x="925" y="890" class="t">• MCP73871 OUT/SYS는 고정 3.3 V가 아닙니다. 반드시 U2를 거칩니다.</text>
+  <text x="925" y="918" class="t">• MCP73871은 Power Path와 충전관리 IC이지, 완전한 배터리 보호 IC는 아닙니다.</text>
+  <text x="925" y="946" class="t">• 보호된 1S Li-Po를 사용하거나 별도 보호회로(DW01A + 보호 MOSFET)를 추가합니다.</text>
+  <text x="925" y="974" class="t">• U1 QFN-20과 U3 초소형 패키지는 첫 PCB에서 JLCPCB 조립을 권장합니다.</text>
+  <text x="925" y="1020" class="small">이 그림은 EasyEDA의 Sheet 1용 기능 연결도입니다. 실제 PCB에서는 각 IC의</text>
+  <text x="925" y="1044" class="small">최신 데이터시트 핀 번호·EPAD·GND 비아·부품 배치를 최종 검증해야 합니다.</text>
+
+  <!-- ground rail -->
+  <path d="M60 770 H1750" class="thin"/>
+  <text x="65" y="795" class="net">GND 공통 평면</text>
+  <text x="390" y="795" class="small">USB-C · MCP73871 · 배터리 · 레귤레이터 · 출력부 모두 공통 GND</text>
+</svg>

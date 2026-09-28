@@ -15,7 +15,7 @@ import time
 from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 from urllib.request import Request, urlopen
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -31,8 +31,11 @@ TARGET_HZ = float(TARGET_FS_HZ)
 ARTIFACT_DIR = REPOSITORY_ROOT / 'ai_engine/data/processed/ml/model_artifact'
 DATA_DIR = REPOSITORY_ROOT / '.stepon-data/ai'
 SIDES = ('left', 'right')
-MAX_GAP_S = 0.100
-MIN_INPUT_HZ = 32.0
+MAX_GAP_S = 2.0
+# A brief gap may be recorded for calibration/CSV diagnostics, but is never
+# interpolated into a model window. At 20 Hz, 150 ms is three target periods.
+MAX_INTERPOLATION_GAP_S = 0.150
+MIN_INPUT_HZ = 8.0
 STALE_S = 2.0
 CSV_COLUMNS = ['timestamp_ms', 'raw_acc_x', 'raw_acc_y', 'raw_acc_z', 'raw_gyro_x', 'raw_gyro_y', 'raw_gyro_z']
 torch.set_num_threads(1)
@@ -57,7 +60,7 @@ def vector(value):
 
 
 class TimeResampler:
-    """Interpolate small timing gaps only, never fabricate long windows."""
+    """Interpolate short timing jitter only, never fabricate a long gap."""
     def __init__(self, target_hz=TARGET_HZ):
         self.period = 1 / target_hz
         self.reset()
@@ -74,7 +77,7 @@ class TimeResampler:
             return
         t, a, g = self.previous
         gap = timestamp_s - t
-        if gap <= 0 or gap > MAX_GAP_S:
+        if gap <= 0 or gap > MAX_INTERPOLATION_GAP_S:
             raise ValueError('sample_gap_or_clock_reset')
         while self.next_time <= timestamp_s + 1e-9:
             ratio = min(1.0, max(0.0, (self.next_time - t) / gap))
@@ -118,6 +121,9 @@ class FootRuntime:
             metadata = json.loads(self.calibration_path.read_text(encoding='utf-8'))
             if metadata.get('foot_side', self.side) != self.side:
                 raise ValueError('calibration_foot_mismatch')
+            calibration_hz = metadata.get('fs_hz')
+            if calibration_hz is not None and float(calibration_hz) != TARGET_HZ:
+                raise ValueError(f'calibration_sampling_rate_mismatch: saved={calibration_hz}Hz model={TARGET_HZ:g}Hz; recalibrate this foot')
             cal = load_axis_calibration(self.calibration_path)
             if not np.isfinite([cal.vertical_confidence, cal.forward_confidence]).all() or min(cal.vertical_confidence, cal.forward_confidence) < 0.3:
                 raise ValueError('calibration_low_confidence')
@@ -134,7 +140,7 @@ class FootRuntime:
             self.detector = None
             self.load_error = str(exc)
 
-    def reset(self, reason):
+    def reset(self, reason, *, keep_capture=False):
         self.resampler.reset()
         self.times.clear()
         self.window_count = 0
@@ -146,7 +152,7 @@ class FootRuntime:
         self.resets += 1
         if self.detector:
             self.detector.reset_stream()
-        if self.capture and self.capture['status'] in ('countdown', 'recording'):
+        if not keep_capture and self.capture and self.capture['status'] in ('countdown', 'recording'):
             self.capture.update(status='failed', error=reason)
             self.capture_rows = []
 
@@ -181,8 +187,17 @@ class FootRuntime:
             if frame == self.frame:
                 return False
             t = device_ms / 1000.0
-            if self.last_device_t is not None and (t <= self.last_device_t or t - self.last_device_t > MAX_GAP_S):
-                self.reset('sample_gap_or_clock_reset')
+            if self.last_device_t is not None:
+                if t <= self.last_device_t:
+                    # Ignore only the out-of-order sample; retain the valid window.
+                    return False
+                gap = t - self.last_device_t
+                if gap > MAX_GAP_S:
+                    self.reset('sample_gap_or_clock_reset')
+                elif gap > MAX_INTERPOLATION_GAP_S:
+                    # Preserve a running calibration recording, but restart
+                    # inference so the model never sees interpolated dropout.
+                    self.reset('sample_gap_or_clock_reset', keep_capture=True)
             age = max(0, (time.time() * 1000 - received_at_ms) / 1000) if received_at_ms is not None else 0
             if age > STALE_S:
                 raise ValueError('sample_backlog_stale')
@@ -295,6 +310,7 @@ class FootRuntime:
                 'window_ready': ready, 'window_count': self.window_count, 'total_windows': self.total_windows,
                 'received_hz': round(self.input_hz(), 1), 'sample_rate_hz': TARGET_HZ,
                 'accepted_samples': self.accepted_samples, 'resets': self.resets, 'device_id': self.identity[0] if self.identity else None,
+                'boot_id': self.identity[1] if self.identity else None,
                 'last_error': self.load_error or self.error, 'calibration': self.calibration_info, 'capture': capture,
                 'pressure_gate_enabled': False, 'pressure_note': 'relative_4_channel_pressure_not_force_calibrated'}
 
@@ -326,6 +342,11 @@ class BridgeState:
         self.last_decision = None
         self.source_error = None
         self.datasets = DatasetService(data_dir, artifact_dir, self.artifact_id, model_name)
+        if __package__:
+            from .fog_cue import FogCueController
+        else:
+            from fog_cue import FogCueController
+        self.cue = FogCueController(self, data_dir)
 
     def consume(self, payload):
         with self.lock:
@@ -338,7 +359,7 @@ class BridgeState:
                 changed = self.stream_id is not None and self.stream_id != payload.get('stream_id')
                 if changed or payload.get('dropped'):
                     for runtime in self.feet.values():
-                        runtime.reset('collector_restarted_or_history_lost')
+                        runtime.reset('collector_restarted_or_history_lost', keep_capture=True)
                         runtime.frame = None
                 self.stream_id = payload.get('stream_id')
                 for row in payload['samples']:
@@ -352,8 +373,8 @@ class BridgeState:
                 self.cursor = payload['next_cursor']
                 for side, runtime in self.feet.items():
                     if not payload.get('feet', {}).get(side, {}).get('connected'):
-                        if runtime.window_count or runtime.last_device_t is not None:
-                            runtime.reset('device_offline')
+                        if runtime.window_count or runtime.last_device_t is not None or (runtime.capture and runtime.capture['status'] in ('countdown', 'recording')):
+                            runtime.reset('device_offline', keep_capture=True)
                         runtime.last_received = None
             self.source_error = None
             snap = self.snapshot()
@@ -378,8 +399,8 @@ class BridgeState:
                 with self.lock:
                     self.source_error = f'source_unreachable: {exc}'
                     for runtime in self.feet.values():
-                        if runtime.window_count or runtime.last_device_t is not None:
-                            runtime.reset('source_unreachable')
+                        if runtime.window_count or runtime.last_device_t is not None or (runtime.capture and runtime.capture['status'] in ('countdown', 'recording')):
+                            runtime.reset('source_unreachable', keep_capture=True)
                         runtime.last_received = None
             self.datasets.tick()
             interval = 1 / TARGET_HZ if self.esp32_url else 0.05
@@ -406,7 +427,8 @@ class BridgeState:
                     'window_count': sum(s['window_count'] for s in feet.values()), 'sample_rate_hz': TARGET_HZ,
                     'window_sec': 4, 'hop_sec': 0.5, 'calibration': result['calibration'],
                     'last_error': self.source_error or (result['last_error'] if not selected else None),
-                    'source': 'esp32' if self.esp32_url else 'insole_hub', 'device_url': self.esp32_url or self.hub_url}
+                    'source': 'esp32' if self.esp32_url else 'insole_hub', 'device_url': self.esp32_url or self.hub_url,
+                    'cue': self.cue.snapshot()}
 
 
 class BridgeHandler(BaseHTTPRequestHandler):
@@ -431,7 +453,16 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 with self.bridge.lock:
                     self.send_json(200, {'events': list(self.bridge.events)})
             elif route == '/api/ai/datasets':
-                self.send_json(200, self.bridge.datasets.list())
+                query = parse_qs(urlparse(self.path).query)
+                context = None
+                if query:
+                    from_context = {key: query.get(key, [''])[0] for key in ('participant_id', 'session_id', 'side', 'placement')}
+                    if __package__:
+                        from .csv_pipeline import metadata
+                    else:
+                        from csv_pipeline import metadata
+                    context = metadata(from_context)
+                self.send_json(200, self.bridge.datasets.list(context))
             elif route.startswith('/api/ai/datasets/'):
                 parts = route.removeprefix('/api/ai/datasets/').split('/')
                 if len(parts) == 1:
@@ -468,6 +499,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError('json_object_required')
+            if route == '/api/ai/cue':
+                self.bridge.cue.set_enabled(body.get('enabled'))
+                return self.send_json(200, self.bridge.snapshot())
             if route == '/api/ai/datasets/validate':
                 return self.send_json(200, self.bridge.datasets.validate(body))
             if route == '/api/ai/datasets/analyze':
@@ -517,6 +551,7 @@ def main():
     server = ThreadingHTTPServer((args.host, args.port), BridgeHandler)
     worker = threading.Thread(target=bridge.poll_device, daemon=True)
     worker.start()
+    bridge.cue.start()
     print(f'StepOn AI API: http://{args.host}:{args.port}/api/ai/state', flush=True)
     try:
         server.serve_forever()
@@ -524,6 +559,7 @@ def main():
         pass
     finally:
         bridge.stop.set()
+        bridge.cue.close()
         bridge.datasets.close()
         server.server_close()
         worker.join(timeout=2)

@@ -8,7 +8,7 @@ import { renderReportsView } from "./views/reports-view.js";
 import { renderDevicesView } from "./views/devices-view.js";
 import { renderMediaPipeView } from "./views/mediapipe-view.js";
 import { renderOnboarding } from "./views/onboarding-view.js";
-import { cueMessages, speakCue } from "./services/cue-controller.js";
+import { cueMessages, speakCue, runOutputTest, outputTestError } from "./services/cue-controller.js";
 import { observationGoals } from "./data/dashboard-data.js";
 import { escapeHtml } from "./utils/text.js";
 import { applyDirectTextOverrides, mountEditor } from "./editor/editor-view.js";
@@ -17,15 +17,19 @@ import { loadSensorLayout, normalizeSensorLayout } from "./data/sensor-layout.js
 import { loadFootLayout, normalizeFootLayout } from "./data/foot-layout.js";
 import { renderMobileApp, renderMobileOnboarding } from "./mobile/mobile-app.js";
 import { fetchEsp32State, markEsp32Disconnected, normalizeEsp32State } from "./services/esp32-api.js";
-import { setAutoCue, setLaser, vibrate, usesBilateralSta, hubRequest } from "./services/esp32-api.js";
-import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi } from "./services/ai-api.js";
+import { setLaser, vibrate, usesBilateralSta, hubRequest } from "./services/esp32-api.js";
+import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi, setFogCue } from "./services/ai-api.js";
 import { mountRomWorkspace } from "./mediapipe/rom-controller.js";
 import { renderTrendsView } from "./views/trends-view.js";
+import { renderRecordsView } from './views/records-view.js';
 import { mountTrendWorkspace } from "./trends/trend-controller.js";
 import { emptyPressure } from "./data/sensor-config.js";
 import { captureViewContinuity, restoreViewContinuity } from "./utils/view-continuity.js";
 import { captureInsoleControls, restoreInsoleControls, isEditingInsole } from "./utils/insole-ui.js";
 import { updateInsoleReadings } from "./components/insole-connection.js";
+import { createInteractionGuard } from './utils/interaction-guard.js';
+import { updateAppShell } from './utils/app-shell.js';
+import { createObservationMonitor } from './data/observation-monitor.js';
 
 const app = document.querySelector("#app");
 const profileStorageKey = "stepon-cap-web-profile";
@@ -38,7 +42,7 @@ const esp32Enabled = !isEditorMode && !["0", "false"].includes(query.get("esp32"
   try { return window.localStorage.getItem("stepon-esp32-enabled") === "true"; } catch { return false; }
 })());
 const aiEnabled = !isEditorMode && esp32Enabled && !['0', 'false'].includes(query.get('ai'));
-const viewRenderers = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView };
+const viewRenderers = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView, records: renderRecordsView };
 const validViews = new Set(Object.keys(viewRenderers));
 
 function loadProfile() {
@@ -79,41 +83,48 @@ let sharedSensorLayout = loadSensorLayout();
 let sharedFootLayout = loadFootLayout();
 let romWorkspace = null;
 let trendWorkspace = null;
+let romContext = null;
+let trendContext = null;
 let esp32RequestInFlight = false;
 let aiRequestInFlight = false;
+let outputTestInFlight = false;
 let renderedView = null;
 let toastMessage = '';
 let toastTimer;
 const toastMarkup = () => `<div class="toast-region" aria-live="polite">${toastMessage ? `<div class="toast">${escapeHtml(toastMessage)}</div>` : ''}</div>`;
+const interactionGuard = createInteractionGuard(app, () => renderView());
+const observationMonitor = createObservationMonitor();
+let observationUi = { mode: 'fog', metric: 'temperature', minutes: 5 };
 
 function renderView(force = false) {
   if (isEditorMode) {
     return;
   }
   // Native dropdowns and both address forms must survive background polling.
+  if (!force && renderedView === activeView && interactionGuard.defer()) return;
   if (!force && renderedView === activeView && !showOnboarding && isEditingInsole(app)) {
     updateInsoleReadings(app, state);
     return;
   }
   // Never replace a running video element when sensor/editor polling refreshes the app.
-  if (romWorkspace && activeView === "mediapipe" && !showOnboarding) return;
-  if (trendWorkspace && activeView === "trends" && !showOnboarding) return;
-  if (romWorkspace) { romWorkspace.destroy(); romWorkspace = null; }
-  if (trendWorkspace) { trendWorkspace.destroy(); trendWorkspace = null; }
+  if (romWorkspace && renderedView === activeView && ['mediapipe', 'records'].includes(activeView) && !showOnboarding) return;
+  if (trendWorkspace && renderedView === activeView && ['trends', 'records'].includes(activeView) && !showOnboarding) return;
+  if (romWorkspace) { romContext = romWorkspace.getContext(); romWorkspace.destroy(); romWorkspace = null; }
+  if (trendWorkspace) { trendContext = trendWorkspace.getContext(); trendWorkspace.destroy(); trendWorkspace = null; }
   if (showOnboarding) {
     app.innerHTML = `${isMobileUi ? renderMobileOnboarding(state) : renderOnboarding(state)}${toastMarkup()}`;
     return;
   }
-  const viewState = { ...state, aiEnabled, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
+  const viewState = { ...state, aiEnabled, observation: observationMonitor.snapshot(), observationUi, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
   const continuity = renderedView === activeView ? captureViewContinuity(app) : null;
   const insoleControls = renderedView === activeView ? captureInsoleControls(app) : null;
-  app.innerHTML = `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${toastMarkup()}`;
+  updateAppShell(app, `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${toastMarkup()}`, isMobileUi, renderedView === activeView);
   applySafeTextOverrides();
   restoreViewContinuity(app, continuity);
   restoreInsoleControls(app, insoleControls);
   renderedView = activeView;
-  if (activeView === "mediapipe") romWorkspace = mountRomWorkspace(app.querySelector("[data-rom-root]"));
-  if (activeView === "trends") trendWorkspace = mountTrendWorkspace(app.querySelector("[data-trends-root]"), () => state);
+  if (['mediapipe', 'records'].includes(activeView)) romWorkspace = mountRomWorkspace(app.querySelector("[data-rom-root]"), romContext);
+  if (['trends', 'records'].includes(activeView)) trendWorkspace = mountTrendWorkspace(app.querySelector("[data-trends-root]"), () => state, trendContext);
 }
 
 function applySafeTextOverrides() {
@@ -208,7 +219,7 @@ function updateRehabLog(log, result) {
 function syncEsp32Output(key, enabled) {
   if (!esp32Enabled) return;
   const side = state.rehab?.config?.activeFoot ?? 'left';
-  const request = key === "laser" ? setLaser(enabled, side) : key === "vibration" && enabled ? vibrate(47, side) : key === "auto" ? setAutoCue(enabled, side) : null;
+  const request = key === "laser" ? setLaser(enabled, side) : key === "vibration" && enabled ? vibrate(47, side) : key === "auto" ? setFogCue(enabled) : null;
   if (request) void request.catch(() => showToast("선택한 발의 연결과 출력 설정을 확인하세요."));
 }
 
@@ -219,13 +230,20 @@ function applyRehabAnalysis(nextState) {
     ? { ...nextState.metrics, steps: result.rehab.metrics.stepCount }
     : nextState.metrics;
   const stateWithRehab = { ...nextState, metrics: liveMetrics, rehab: result.rehab, rehabLog: updateRehabLog(nextState.rehabLog, result) };
-  if (result.triggeredAlert && esp32Enabled && stateWithRehab.outputs?.vibration && (!usesBilateralSta() || stateWithRehab.outputs?.auto) && result.feedback?.vibrationCount) {
+  if (result.triggeredAlert && esp32Enabled && !aiEnabled && !usesBilateralSta() && stateWithRehab.outputs?.vibration && result.feedback?.vibrationCount) {
     void vibrate(47, result.feedback?.side ?? stateWithRehab.rehab?.config?.activeFoot ?? 'left').catch(() => showToast("진동 출력 연결을 확인하세요."));
   }
   return stateWithRehab;
 }
 
 async function handleAction(action, actionTarget) {
+  if (action === 'fog-cue-stop' || action === 'fog-cue-enable') {
+    try {
+      state = { ...state, ai: normalizeAiState(await setFogCue(action === 'fog-cue-enable'), state.ai) };
+      showToast(action === 'fog-cue-stop' ? '자동 출력을 중지했어요. 연결이 끊겨도 마지막 명령 후 최대 1.5초 안에 꺼져요.' : 'FoG 감지 중에는 진동과 레이저를 유지하고, 감지가 해제되면 꺼요.');
+    } catch (error) { showToast(error.message); }
+    renderView(); return;
+  }
   if (action === 'connect-sta') { window.location.href = '/?view=devices&esp32=1&transport=sta&ai=1&mobile=0'; return; }
   if (action === 'ai-calibrate' || action === 'ai-calibration-cancel') {
     const side = actionTarget?.dataset.aiSide;
@@ -287,12 +305,13 @@ async function handleAction(action, actionTarget) {
     if (key === "voice") {
       showToast(speakCue(message) ? "음성 안내를 재생했어요." : "이 브라우저는 음성 안내를 지원하지 않아요.");
     } else {
-      if (esp32Enabled) {
-        const side = state.rehab?.config?.activeFoot ?? 'left';
-        const request = key === "laser" ? setLaser(true, side) : vibrate(47, side);
-        void request.then(() => { if (key === "laser") window.setTimeout(() => void setLaser(false, side).catch(() => {}), 650); }).catch(() => showToast("선택한 발의 연결과 출력 활성화 설정을 확인하세요."));
-      }
-      showToast(`${key === "laser" ? "레이저" : "진동"} 출력 테스트를 실행했어요.`);
+      if (outputTestInFlight) { showToast('현재 출력 테스트가 끝난 뒤 다시 눌러 주세요.'); return; }
+      const side = state.rehab?.config?.activeFoot ?? 'left';
+      outputTestInFlight = true;
+      try {
+        await runOutputTest({ kind: key, side, enabled: esp32Enabled, laser: setLaser, vibration: vibrate, notify: showToast });
+      } catch (error) { showToast(outputTestError(error, side)); }
+      finally { outputTestInFlight = false; }
     }
   }
   if (action === "test-all") {
@@ -305,6 +324,13 @@ async function handleAction(action, actionTarget) {
 
 function bindAppEvents() {
 app.addEventListener("click", (event) => {
+  const observationTarget = event.target.closest('[data-observation-control]');
+  if (observationTarget) {
+    const key = observationTarget.dataset.observationControl, value = observationTarget.dataset.value;
+    const allowed = { mode: ['fog', 'health'], metric: ['temperature', 'humidity', 'pressure'], minutes: ['5', '15', '30'] };
+    if (allowed[key]?.includes(value)) { observationUi = { ...observationUi, [key]: value }; renderView(); }
+    return;
+  }
   const heatmapTarget = event.target.closest("[data-heatmap-mode]");
   if (heatmapTarget) {
     state = { ...state, heatmapMode: heatmapTarget.dataset.heatmapMode };
@@ -314,6 +340,7 @@ app.addEventListener("click", (event) => {
   const viewTarget = event.target.closest("[data-view]");
   if (viewTarget) {
     if (!validViews.has(viewTarget.dataset.view)) return;
+    const changingView = viewTarget.dataset.view !== activeView;
     if (viewTarget.dataset.view !== activeView && romWorkspace && !romWorkspace.canLeave()) return;
     if (viewTarget.dataset.view !== activeView && trendWorkspace && !trendWorkspace.canLeave()) return;
     activeView = viewTarget.dataset.view;
@@ -325,6 +352,14 @@ app.addEventListener("click", (event) => {
       window.history.replaceState({}, "", nextUrl);
     }
     renderView();
+    const section = viewTarget.dataset.recordSection;
+    if (activeView === 'records' && ['walking', 'joint'].includes(section)) app.querySelector(`#${section}-records`)?.scrollIntoView({ block: 'start' });
+    else if (changingView) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      const heading = app.querySelector('main h1');
+      heading?.setAttribute('tabindex', '-1');
+      heading?.focus({ preventScroll: true });
+    }
     return;
   }
   const actionTarget = event.target.closest("[data-action]");
@@ -454,6 +489,7 @@ async function refreshAiState(force = false) {
     const payload = await fetchAiState();
     const nextAi = normalizeAiState(payload, state.ai);
     const decisionChanged = nextAi.ready && nextAi.state && nextAi.state !== state.ai?.state;
+    // Automatic physical outputs are owned by the PC live AI cue worker.
     const nextEvents = decisionChanged
       ? [{
         time: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
@@ -464,9 +500,11 @@ async function refreshAiState(force = false) {
       }, ...(state.events ?? [])].slice(0, 3)
       : state.events;
     state = { ...state, ai: nextAi, events: nextEvents };
+    if (!document.hidden) observationMonitor.observeAi({ ...state, aiEnabled });
     if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
   } catch (error) {
     const nextAi = markAiUnavailable(state.ai, error);
+    observationMonitor.interrupt();
     if (JSON.stringify(nextAi) !== JSON.stringify(state.ai)) {
       state = { ...state, ai: nextAi };
       if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
@@ -484,6 +522,15 @@ if (isEditorMode) {
   window.setInterval(refreshEsp32State, usesBilateralSta() ? 250 : 750);
   void refreshAiState();
   window.setInterval(refreshAiState, 750);
+  // Short, in-memory observation only. Background time, pauses and stale data
+  // must never be counted as symptom-free time or a continuing FoG episode.
+  document.addEventListener('visibilitychange', () => observationMonitor.interrupt());
+  window.setInterval(() => {
+    if (document.hidden || showOnboarding) { observationMonitor.interrupt(); return; }
+    observationMonitor.observeAi({ ...state, aiEnabled });
+    observationMonitor.observeSensors(state);
+    if (activeView === 'live') renderView();
+  }, 1000);
   window.setInterval(() => {
     if (!esp32Enabled && !showOnboarding && !state.paused) {
       state = applyRehabAnalysis(evolveState(state));

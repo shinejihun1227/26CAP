@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { initialState } from '../src/data/dashboard-data.js';
-import { PRESSURE_CHANNELS, PRESSURE_LAYOUT_ID, PRESSURE_POINTS, THERMAL_CHANNELS, REHAB_ALGORITHM_ID } from '../src/data/sensor-config.js';
+import { PRESSURE_CHANNELS, PRESSURE_LAYOUT_ID, PRESSURE_LAYOUT_2_SHARED_ID, PRESSURE_POINTS, THERMAL_CHANNELS, REHAB_ALGORITHM_ID } from '../src/data/sensor-config.js';
 import { normalizeSensorLayout } from '../src/data/sensor-layout.js';
 import { normalizeEsp32State } from '../src/services/esp32-api.js';
 import { calculateFootMetrics, analyzeFog, analyzeRehabFrame, captureRehabCalibration } from '../src/data/gait-algorithms.js';
@@ -10,6 +10,7 @@ import { renderBilateralHeatmap } from '../src/components/bilateral-heatmap.js';
 import { renderPressureMap } from '../src/components/pressure-map.js';
 import { buildSensorSample } from '../src/trends/trend-math.js';
 import { sanitizeSensorSample } from '../server/trend-store.mjs';
+import { sharedSensorDisplayValue, resetSharedSensorDisplayForTests } from '../src/components/shared-sensor-display.js';
 
 function payload(extra = {}) {
   return { device: 'StepOn-C3', frame: 1, pressure: [10, 20, 30, 40], pressure_count: 4,
@@ -30,7 +31,7 @@ test('ESP32 four channels retain order, temperature slots, and missing opposite 
 });
 
 test('old eight-channel arrays and mismatched metadata do not reuse stale pressure', () => {
-  for (const extra of [{ pressure: Array(8).fill(20) }, { pressure_count: 8 }, { pressure_layout: 'old-layout' }, { pressure_channels: [0, 1, 2, 3] }, { pressure: [1, 2, null, 4] }, { pressure: [1, 2, NaN, 4] }]) {
+  for (const extra of [{ pressure: Array(8).fill(20) }, { pressure_count: 8 }, { pressure_layout: 'old-layout' }, { pressure_channels: [0, 1, 2, 4] }, { pressure: [1, 2, null, 4] }, { pressure: [1, 2, NaN, 4] }]) {
     const s = stateFor(extra);
     assert.deepEqual(s.pressure, [null, null, null, null]);
     assert.equal(s.hardware.sensors.pressure.ready, false); assert.ok(s.hardware.layoutWarning);
@@ -105,9 +106,42 @@ test('temperature and humidity views retain all four mux slots including missing
   for (const mode of ['temperature', 'humidity']) {
     const html = renderBilateralHeatmap({ ...s, heatmapMode: mode });
     assert.equal((html.match(/data-sensor-kind="thermal"/g) ?? []).length, 8);
-    for (const channel of THERMAL_CHANNELS) assert.match(html, new RegExp(`MUX CH${channel}`));
+    for (const channel of THERMAL_CHANNELS) assert.match(html, new RegExp(`TCA CH${channel}`));
     assert.equal(s.thermal.left[1].temp, null); assert.equal(s.hardware.sensors.thermal.count, 3);
   }
+});
+
+test('two-sensor heatmap derives only display values with small differences and response lag', () => {
+  resetSharedSensorDisplayForTests();
+  const pressure0 = sharedSensorDisplayValue(50, 'pressure', 'left', 0, 1000);
+  const pressure1 = sharedSensorDisplayValue(50, 'pressure', 'left', 1, 1000);
+  assert.notEqual(pressure0, pressure1);
+  const risingFast = sharedSensorDisplayValue(80, 'pressure', 'left', 0, 1200);
+  const risingSlow = sharedSensorDisplayValue(80, 'pressure', 'left', 1, 1200);
+  assert.ok(risingFast > risingSlow, 'the virtual spots use slightly different response times');
+  for (const mode of ['temperature', 'humidity']) {
+    resetSharedSensorDisplayForTests();
+    const first = sharedSensorDisplayValue(31, mode, 'left', 0, 1000);
+    const second = sharedSensorDisplayValue(31, mode, 'left', 1, 1000);
+    assert.notEqual(first, second);
+    assert.ok(Math.abs(first - second) <= 0.1);
+    const latestFirst = sharedSensorDisplayValue(33, mode, 'left', 0, 1200);
+    const latestSecond = sharedSensorDisplayValue(33, mode, 'left', 1, 1200);
+    assert.ok(Math.abs(latestFirst - latestSecond) <= 0.1);
+  }
+
+  const s = stateFor({ sensor_profile: 'two-shared', pressure_layout: PRESSURE_LAYOUT_2_SHARED_ID,
+    pressure_channels: [0, 0, 1, 1], pressure_sensor_map: [0, 0, 1, 1], pressure_physical_count: 2,
+    thermal_sensor_map: [0, 0, 1, 1], thermal_physical_count: 2, thermal_transport: 'dual-i2c',
+    shtc3_channels: [3, 3, 4, 4], temperature: [30, 30, 32, 32], humidity: [50, 50, 60, 60] });
+  resetSharedSensorDisplayForTests();
+  const html = renderBilateralHeatmap(s);
+  assert.match(html, /화면용 표시/);
+  assert.match(html, /실제 4곳 측정값이나 CoP가 아닙니다/);
+  assert.match(html, /원본 기반 파생 표시/);
+  const thermalHtml = renderBilateralHeatmap({ ...s, heatmapMode: 'temperature' });
+  assert.match(thermalHtml, /독립 측정값이 아닙니다/);
+  assert.match(thermalHtml, /0\.1°C 또는 0\.1%p 이내/);
 });
 
 test('trend conditions distinguish old layout and refuse mixed identities', () => {
@@ -120,7 +154,7 @@ test('trend conditions distinguish old layout and refuse mixed identities', () =
   assert.throws(() => sanitizeSensorSample(old, now));
   delete old.condition.pressureLayout; delete old.condition.pressureChannels;
   assert.notEqual(sanitizeSensorSample(old, now).conditionKey, current.conditionKey);
-  const bad = structuredClone(sample); bad.condition.pressureChannels = [0, 1, 2, 3]; assert.throws(() => sanitizeSensorSample(bad, now));
+  const bad = structuredClone(sample); bad.condition.pressureChannels = [0, 1, 2, 4]; assert.throws(() => sanitizeSensorSample(bad, now));
   s.hardware.raw.pressure_count = 8;
   assert.equal(buildSensorSample(s, 'P01', 'flat', now).values.pressure, undefined);
 });

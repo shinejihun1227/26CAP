@@ -17,8 +17,8 @@ COLUMNS = ['timestamp_ms', *AXES, *IDENTITY, 'label']
 USB_AXES = ['ax_g', 'ay_g', 'az_g', 'gx_dps', 'gy_dps', 'gz_dps']
 MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_ROWS = 60001
-MAX_GAP_MS = 100.0
-MIN_HZ = 32.0
+MAX_GAP_MS = 2000.0
+MIN_HZ = 8.0
 
 
 def metadata(body):
@@ -131,12 +131,14 @@ def parse_csv(content, context=None, *, legacy=False, fs=None):
     duration = (rows[-1, 0] - rows[0, 0]) / 1000
     hz = (len(rows) - 1) / duration
     if hz < MIN_HZ:
-        raise ValueError(f'실제 수집률 {hz:.1f} Hz: 최소 32 Hz, 권장 64~100 Hz로 다시 수집하세요.')
+        raise ValueError(f'실제 수집률 {hz:.1f} Hz: 최소 {MIN_HZ:g} Hz입니다. 센서 연결과 기록 상태를 확인하세요.')
+    if gaps.max() > MAX_GAP_MS:
+        raise ValueError(f'연속 샘플 간격이 허용값 {MAX_GAP_MS:g}ms를 초과했습니다. 누락 구간을 확인하고 다시 기록하세요.')
     if duration > 600.1:
         raise ValueError('파일당 최대 10분입니다. 측정 구간을 나누어 주세요.')
     quality = {'format': 'usb_wroom_v1' if usb else 'stepon_imu_csv_v1', 'rows': len(rows),
                'duration_s': round(duration, 3), 'received_hz': round(hz, 3),
-               'max_gap_ms': round(float(gaps.max()), 3), 'gaps_over_100ms': int((gaps > MAX_GAP_MS).sum()),
+               'max_gap_ms': round(float(gaps.max()), 3), 'gaps_over_max_allowed': int((gaps > MAX_GAP_MS).sum()),
                'missing_sequences': missing_sequences, 'counter_deltas': {k: counter_last[k] - v for k, v in counter_first.items()},
                'sha256': hashlib.sha256(content.encode('utf-8')).hexdigest(),
                'units': {'acceleration': 'g_including_gravity', 'gyroscope': 'degrees_per_second', 'time': 'device_milliseconds'}}
@@ -151,8 +153,8 @@ def calibration_from_rows(rows, side, device_id):
     times = (rows[:, 0] - rows[0, 0]) / 1000
     if times[-1] < 24.9:
         raise ValueError('보정 CSV: 첫 5초 정지 + 이어서 20초 일반 보행을 기록하세요 (총 25초).')
-    if (len(rows) - 1) / times[-1] < MIN_HZ or np.diff(times).max() > 0.100000001:
-        raise ValueError('보정 CSV의 수집률 또는 100ms 초과 누락을 확인하세요.')
+    if (len(rows) - 1) / times[-1] < MIN_HZ or np.diff(times).max() > MAX_GAP_MS / 1000:
+        raise ValueError(f'보정 CSV의 수집률({MIN_HZ:g}Hz 이상) 또는 {MAX_GAP_MS:g}ms 초과 누락을 확인하세요.')
     # Exactly one declared protocol; extra rows do not change normalization.
     uniform = np.arange(0, min(times[-1], 25), 1 / hz)
     signals = np.column_stack([np.interp(uniform, times, rows[:, i]) for i in range(1, 7)])
@@ -187,6 +189,7 @@ def validate_pair(body):
 
 
 def replay(recording, calibration_path, side, model, artifact_dir, progress=None):
+    from fog_validation.ml.config import TARGET_FS_HZ, WINDOW_SAMPLES
     if __package__:
         from .server import FootRuntime
     else:
@@ -210,9 +213,10 @@ def replay(recording, calibration_path, side, model, artifact_dir, progress=None
             raise ValueError(f'CSV {index + 2}행: {runtime.error}')
         if runtime.total_windows > count:
             diag = dict(runtime.detector.last_diagnostics)
-            end = runtime.resampler.next_time * 1000 - 1000 / 64
+            sample_period_ms = 1000 / TARGET_FS_HZ
+            end = runtime.resampler.next_time * 1000 - sample_period_ms
             windows.append({'timestamp_ms': float(start + end), 'elapsed_s': round(end / 1000, 6),
-                            'window_start_ms': float(start + end - 255 * 1000 / 64),
+                            'window_start_ms': float(start + end - (WINDOW_SAMPLES - 1) * sample_period_ms),
                             'state': runtime.state, 'raw_model_score': diag.get('raw_model_score'),
                             'rf_score': diag.get('rf_score'), 'cnn_score': diag.get('cnn_score'),
                             'decision_score': diag.get('decision_score'), 'score_percent': round(diag['decision_score'] * 100, 1),

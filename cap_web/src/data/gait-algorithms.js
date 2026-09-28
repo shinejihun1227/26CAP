@@ -1,4 +1,4 @@
-import { PRESSURE_COUNT, PRESSURE_LAYOUT_ID, PRESSURE_ZONES, PRESSURE_POSITIONS as SENSOR_POSITIONS, validPressure } from './sensor-config.js';
+import { PRESSURE_COUNT, PRESSURE_LAYOUT_ID, PRESSURE_LAYOUT_2_SHARED_ID, PRESSURE_ZONES, PRESSURE_POSITIONS as SENSOR_POSITIONS, validPressure, sensorProfileFor } from './sensor-config.js';
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 
 export const thermalSites = [
@@ -81,7 +81,7 @@ function calculateCop(values) {
   return { x: Number((weighted.x / total).toFixed(3)), y: Number((weighted.y / total).toFixed(3)) };
 }
 
-export function calculateFootMetrics(pressure, imu, config = rehabDefaults) {
+export function calculateFootMetrics(pressure, imu, config = rehabDefaults, sensorProfile = 'four-independent') {
   if (!validArray(pressure)) {
     return {
       available: false,
@@ -119,15 +119,15 @@ export function calculateFootMetrics(pressure, imu, config = rehabDefaults) {
   return {
     available: true,
     total: Number(total.toFixed(1)),
-    front: Number(front.toFixed(1)),
-    midfoot: Number(midfoot.toFixed(1)),
-    heel: Number(heel.toFixed(1)),
-    medial: Number(medial.toFixed(1)),
-    lateral: Number(lateral.toFixed(1)),
-    heelLandingScore: total > 0 ? Math.round(heel / total * 100) : 0,
-    propulsionScore: total > 0 ? Math.round(front / total * 100) : 0,
-    lateralLoadPct: total > 0 ? Number((lateral / total * 100).toFixed(1)) : 0,
-    cop: calculateCop(values),
+    front: sensorProfile === 'two-shared' ? null : Number(front.toFixed(1)),
+    midfoot: sensorProfile === 'two-shared' ? null : Number(midfoot.toFixed(1)),
+    heel: sensorProfile === 'two-shared' ? null : Number(heel.toFixed(1)),
+    medial: sensorProfile === 'two-shared' ? null : Number(medial.toFixed(1)),
+    lateral: sensorProfile === 'two-shared' ? null : Number(lateral.toFixed(1)),
+    heelLandingScore: sensorProfile === 'two-shared' ? null : (total > 0 ? Math.round(heel / total * 100) : 0),
+    propulsionScore: sensorProfile === 'two-shared' ? null : (total > 0 ? Math.round(front / total * 100) : 0),
+    lateralLoadPct: sensorProfile === 'two-shared' ? null : (total > 0 ? Number((lateral / total * 100).toFixed(1)) : 0),
+    cop: sensorProfile === 'two-shared' ? null : calculateCop(values),
     loaded: total >= config.contactThreshold,
     moving: movementScore >= 15,
     movementScore,
@@ -192,9 +192,17 @@ export function analyzeThermalDifference(thermal) {
     const hasHumidityPair = hasPair && finite(left.humidity) !== null && finite(right.humidity) !== null;
     const temperatureDelta = hasPair ? Number(Math.abs(left.temp - right.temp).toFixed(1)) : null;
     const humidityDelta = hasHumidityPair ? Math.abs(left.humidity - right.humidity) : null;
-    return { ...site, leftTemp: left.temp, rightTemp: right.temp, leftHumidity: left.humidity, rightHumidity: right.humidity, temperatureDelta, humidityDelta, available: hasPair };
+    return { ...site, leftTemp: left.temp, rightTemp: right.temp, leftHumidity: left.humidity, rightHumidity: right.humidity, temperatureDelta, humidityDelta, available: hasPair,
+      sensorIndexLeft: left.sensorIndex ?? null, sensorIndexRight: right.sensorIndex ?? null, shared: Boolean(left.shared || right.shared),
+      sharedSensorNumber: (left.sensorIndex ?? right.sensorIndex ?? 0) + 1 };
   });
-  const comparableReadings = readings.filter((item) => item.available);
+  const usedSensorPairs = new Set();
+  const comparableReadings = readings.filter((item) => {
+    if (!item.available) return false;
+    const key = `${item.sensorIndexLeft ?? item.id}:${item.sensorIndexRight ?? item.id}`;
+    if (usedSensorPairs.has(key)) return false;
+    usedSensorPairs.add(key); return true;
+  });
   const meanTemperatureDelta = comparableReadings.length ? Number((mean(comparableReadings.map((item) => item.temperatureDelta))).toFixed(1)) : null;
   const maxTemperatureDelta = comparableReadings.length ? Math.max(...comparableReadings.map((item) => item.temperatureDelta)) : null;
   const humidityReadings = comparableReadings.filter((item) => item.humidityDelta !== null);
@@ -217,7 +225,7 @@ export function analyzeThermalDifference(thermal) {
   };
 }
 
-export function analyzeFog({ imu, pressure, cadence }) {
+export function analyzeFog({ imu, pressure, cadence, twoSensorProfile = false }) {
   const freezeBandEnergy = finite(imu?.freezeBandEnergy) ?? 0.34;
   const locomotorBandEnergy = Math.max(finite(imu?.locomotorBandEnergy) ?? 1.72, 0.01);
   const freezeIndex = freezeBandEnergy / locomotorBandEnergy;
@@ -225,8 +233,8 @@ export function analyzeFog({ imu, pressure, cadence }) {
   const cadenceDropScore = clamp((100 - (finite(cadence) ?? 96)) / 35);
   const safePressure = numericPressure(pressure);
   const totalPressure = safePressure.reduce((sum, value) => sum + value, 0);
-  const frontHeelPressureDelta = Math.abs(safePressure[0] - safePressure[3]);
-  const pressureStallScore = clamp(frontHeelPressureDelta / Math.max(totalPressure * 0.32, 1));
+  const frontHeelPressureDelta = twoSensorProfile ? 0 : Math.abs(safePressure[0] - safePressure[3]);
+  const pressureStallScore = twoSensorProfile ? 0 : clamp(frontHeelPressureDelta / Math.max(totalPressure * 0.32, 1));
   const gyroBurstScore = clamp(vectorMagnitude(imu?.gyro) / 16);
   const score = Number((freezeBandScore * 0.5 + cadenceDropScore * 0.2 + pressureStallScore * 0.2 + gyroBurstScore * 0.1).toFixed(2));
   const state = score >= 0.62 ? "freeze" : score >= 0.36 ? "caution" : "walking";
@@ -266,7 +274,7 @@ function recentCount(observations, predicate, windowSize, required) {
 }
 
 function baselineFor(calibration, side) {
-  return calibration?.pressureLayout === PRESSURE_LAYOUT_ID ? calibration?.baseline?.[side] ?? null : null;
+  return calibration?.baseline?.[side] ?? null;
 }
 
 function updateTracker(tracker, metrics, now) {
@@ -298,12 +306,13 @@ function updateTracker(tracker, metrics, now) {
 }
 
 export function captureRehabCalibration(state, now = Date.now()) {
-  const left = calculateFootMetrics(sidePressure(state, "left"), sideImu(state, "left"));
-  const right = calculateFootMetrics(sidePressure(state, "right"), sideImu(state, "right"));
+  const profile = state.hardware?.sensorProfile ?? 'four-independent';
+  const left = calculateFootMetrics(sidePressure(state, "left"), sideImu(state, "left"), rehabDefaults, profile);
+  const right = calculateFootMetrics(sidePressure(state, "right"), sideImu(state, "right"), rehabDefaults, profile);
   const baseline = {};
   if (left.available) baseline.left = { total: left.total, heelLandingScore: left.heelLandingScore, propulsionScore: left.propulsionScore, footLiftScore: left.footLiftScore, lateralLoadPct: left.lateralLoadPct, cop: left.cop };
   if (right.available) baseline.right = { total: right.total, heelLandingScore: right.heelLandingScore, propulsionScore: right.propulsionScore, footLiftScore: right.footLiftScore, lateralLoadPct: right.lateralLoadPct, cop: right.cop };
-  return { pressureLayout: PRESSURE_LAYOUT_ID, status: Object.keys(baseline).length ? "ready" : "needed", capturedAt: now, baseline: Object.keys(baseline).length ? baseline : null };
+  return { pressureLayout: profile === 'two-shared' ? PRESSURE_LAYOUT_2_SHARED_ID : PRESSURE_LAYOUT_ID, status: Object.keys(baseline).length ? "ready" : "needed", capturedAt: now, baseline: Object.keys(baseline).length ? baseline : null };
 }
 
 function makeHistory(previous = {}) {
@@ -424,14 +433,18 @@ function calculateFatigueScore(observations) {
 }
 
 export function analyzeRehabFrame({ state, history: previousHistory, now = Date.now() }) {
-  if (state.rehab?.calibration?.baseline && state.rehab.calibration.pressureLayout !== PRESSURE_LAYOUT_ID) {
-    state = { ...state, rehab: { ...state.rehab, calibration: { pressureLayout: PRESSURE_LAYOUT_ID, status: 'needed', baseline: null, capturedAt: null }, feedback: null } };
+  const sensorProfile = sensorProfileFor(state.hardware?.raw ?? {}) ?? state.hardware?.sensorProfile ?? 'four-independent';
+  const expectedPressureLayout = sensorProfile === 'two-shared' ? PRESSURE_LAYOUT_2_SHARED_ID : PRESSURE_LAYOUT_ID;
+  if (previousHistory?.sensorProfile && previousHistory.sensorProfile !== sensorProfile) previousHistory = {};
+  if (state.rehab?.calibration?.baseline && state.rehab.calibration.pressureLayout !== expectedPressureLayout) {
+    state = { ...state, rehab: { ...state.rehab, calibration: { pressureLayout: expectedPressureLayout, status: 'needed', baseline: null, capturedAt: null }, feedback: null } };
     previousHistory = {};
   }
   const config = { ...rehabDefaults, ...(state.rehab?.config ?? {}) };
   const history = makeHistory(previousHistory);
-  const left = calculateFootMetrics(sidePressure(state, "left"), sideImu(state, "left"), config);
-  const right = calculateFootMetrics(sidePressure(state, "right"), sideImu(state, "right"), config);
+  history.sensorProfile = sensorProfile;
+  const left = calculateFootMetrics(sidePressure(state, "left"), sideImu(state, "left"), config, sensorProfile);
+  const right = calculateFootMetrics(sidePressure(state, "right"), sideImu(state, "right"), config, sensorProfile);
   const leftUpdate = updateTracker(history.trackers.left, left, now);
   const rightUpdate = updateTracker(history.trackers.right, right, now);
   history.trackers.left = leftUpdate.tracker;
@@ -473,7 +486,7 @@ export function analyzeRehabFrame({ state, history: previousHistory, now = Date.
   }
 
   const thermal = analyzeThermalDifference(state.thermal);
-  const fog = analyzeFog({ imu: state.imu, pressure: state.pressure, cadence: state.metrics.cadence });
+  const fog = analyzeFog({ imu: state.imu, pressure: state.pressure, cadence: state.metrics.cadence, twoSensorProfile: sensorProfile === 'two-shared' });
   const fatigue = calculateFatigueScore(history.observations);
   metrics.fatigueScore = fatigue.score;
   metrics.fatigue = { criteria: fatigue.criteria, active: fatigue.score >= 2 };

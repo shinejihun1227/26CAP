@@ -80,7 +80,8 @@ class CsvTests(unittest.TestCase):
             with self.subTest(content=content[:50]), self.assertRaises(ValueError): parse_csv(content, CONTEXT)
 
     def test_rejects_insufficient_rate_short_or_moving_still_phase(self):
-        with self.assertRaises(ValueError): parse_csv(fixture(hz=10), CONTEXT)
+        with self.assertRaises(ValueError): parse_csv(fixture(hz=4), CONTEXT)
+        self.assertEqual(parse_csv(fixture(hz=10), CONTEXT).quality['received_hz'], 10)
         for content in (fixture(10, True), fixture(25, False)):
             body = pair(); body['calibration_csv'] = content
             with self.assertRaises(ValueError): validate_pair(body)
@@ -92,6 +93,22 @@ class CsvTests(unittest.TestCase):
         path = Path(__file__).resolve().parents[3] / 'cap_web/data/imu-template.csv'
         with path.open(encoding='utf-8-sig') as file:
             self.assertEqual(list(csv.reader(file)), [COLUMNS])
+
+    def test_measurement_allows_gaps_up_to_two_seconds_but_rejects_longer(self):
+        values = [sample(i, hz=10) for i in range(121)]
+        values[61:] = [[row[0] + 1500, *row[1:]] for row in values[61:]]
+        content = io.StringIO(newline='')
+        writer = csv.writer(content); writer.writerow(COLUMNS)
+        for row in values:
+            writer.writerow([*row, 'device','boot','left',CONTEXT['participant_id'],CONTEXT['session_id'],'shoe','walk'])
+        self.assertLessEqual(parse_csv(content.getvalue(), CONTEXT).quality['max_gap_ms'], 2000)
+        values[61:] = [[row[0] + 1000, *row[1:]] for row in values[61:]]
+        content = io.StringIO(newline='')
+        writer = csv.writer(content); writer.writerow(COLUMNS)
+        for row in values:
+            writer.writerow([*row, 'device','boot','left',CONTEXT['participant_id'],CONTEXT['session_id'],'shoe','walk'])
+        with self.assertRaisesRegex(ValueError, '2000ms'):
+            parse_csv(content.getvalue(), CONTEXT)
 
 
 class DatasetTests(unittest.TestCase):

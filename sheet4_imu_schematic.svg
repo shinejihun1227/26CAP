@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1160" viewBox="0 0 1800 1160">
+  <defs>
+    <style>
+      .title{font:700 30px Arial,sans-serif;fill:#152238}
+      .subtitle{font:16px Arial,sans-serif;fill:#526175}
+      .h{font:700 18px Arial,sans-serif;fill:#152238}
+      .t{font:15px Arial,sans-serif;fill:#152238}
+      .small{font:13px Arial,sans-serif;fill:#526175}
+      .tiny{font:12px Arial,sans-serif;fill:#526175}
+      .net{font:700 14px Arial,sans-serif;fill:#0b6075}
+      .pin{font:700 13px Arial,sans-serif;fill:#28384d}
+      .box{stroke:#31445b;stroke-width:2;rx:12}
+      .wire{stroke:#263b55;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .thin{stroke:#526175;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .dot{fill:#263b55}
+      .note{fill:#fff7df;stroke:#d9a62e;stroke-width:1.5;rx:10}
+      .warn{fill:#fff0f0;stroke:#c94a4a;stroke-width:1.5;rx:10}
+      .imu{fill:#eaf2ff}
+      .power{fill:#eaf8ef}
+      .i2c{fill:#f2edff}
+      .port{fill:#eef8fb;stroke:#2a8da6;stroke-width:1.5;rx:10}
+      .optional{fill:#f5f6f8;stroke:#8995a5;stroke-width:1.5;stroke-dasharray:7 5;rx:10}
+    </style>
+  </defs>
+
+  <rect width="1800" height="1160" fill="#ffffff"/>
+  <text x="60" y="58" class="title">SHEET 4 — IMU / I2C / INTERRUPT</text>
+  <text x="60" y="88" class="subtitle">BMI270 6-axis IMU, 3.3 V I2C interface, address strap and local decoupling</text>
+
+  <!-- connection from MCU -->
+  <rect x="60" y="145" width="310" height="315" class="box port"/>
+  <text x="88" y="185" class="h">J1 FROM SHEET 2 MCU</text>
+  <text x="88" y="220" class="t">Inter-sheet signal connector</text>
+  <text x="88" y="266" class="pin">3V3</text>
+  <text x="88" y="300" class="pin">GND</text>
+  <text x="88" y="334" class="pin">I2C_SDA</text>
+  <text x="88" y="368" class="pin">I2C_SCL</text>
+  <text x="88" y="402" class="pin">IMU_INT1</text>
+  <path d="M175 260 H370" class="wire"/>
+  <path d="M175 294 H370" class="wire"/>
+  <path d="M175 328 H370" class="wire"/>
+  <path d="M175 362 H370" class="wire"/>
+  <path d="M175 396 H370" class="wire"/>
+  <text x="220" y="252" class="net">3V3</text>
+  <text x="220" y="286" class="net">GND</text>
+  <text x="220" y="320" class="net">SDA / GPIO4</text>
+  <text x="220" y="354" class="net">SCL / GPIO5</text>
+  <text x="220" y="388" class="net">INT1 / GPIO0</text>
+  <text x="88" y="438" class="tiny">Keep this connector short if IMU is on a flex board.</text>
+
+  <!-- I2C pullups -->
+  <rect x="430" y="145" width="330" height="315" class="box i2c"/>
+  <text x="458" y="185" class="h">I2C bus pull-ups</text>
+  <text x="458" y="218" class="t">R1, R2 = 4.7kΩ, 1%</text>
+  <text x="458" y="246" class="small">One pair only on the entire I2C bus.</text>
+  <text x="458" y="289" class="pin">SDA</text>
+  <text x="458" y="373" class="pin">SCL</text>
+  <path d="M520 289 H690" class="wire"/>
+  <path d="M520 373 H690" class="wire"/>
+  <rect x="570" y="255" width="92" height="38" class="box power"/>
+  <text x="590" y="280" class="t">R1 4k7</text>
+  <rect x="570" y="339" width="92" height="38" class="box power"/>
+  <text x="590" y="364" class="t">R2 4k7</text>
+  <path d="M616 255 V225" class="wire"/>
+  <path d="M616 339 V225" class="wire"/>
+  <path d="M616 225 H690" class="wire"/>
+  <text x="642" y="216" class="net">3V3</text>
+  <path d="M430 289 H520" class="wire"/>
+  <path d="M430 373 H520" class="wire"/>
+  <text x="438" y="280" class="net">I2C_SDA</text>
+  <text x="438" y="364" class="net">I2C_SCL</text>
+  <text x="458" y="420" class="tiny">If the IMU breakout already has pull-ups, do not duplicate them.</text>
+
+  <!-- IMU -->
+  <rect x="820" y="145" width="420" height="500" class="box imu"/>
+  <text x="855" y="185" class="h">U1 BMI270</text>
+  <text x="855" y="214" class="t">Bosch Sensortec / 14-VFLGA</text>
+  <text x="855" y="242" class="small">6-axis accelerometer + gyroscope</text>
+  <rect x="875" y="275" width="215" height="300" fill="#ffffff" stroke="#58718e" stroke-width="2" rx="8"/>
+  <text x="925" y="310" class="h">BMI270</text>
+  <text x="895" y="350" class="pin">VDD</text>
+  <text x="895" y="384" class="pin">VDDIO</text>
+  <text x="895" y="418" class="pin">GND</text>
+  <text x="895" y="452" class="pin">SCL / SCX</text>
+  <text x="895" y="486" class="pin">SDA / SDX</text>
+  <text x="895" y="520" class="pin">INT1</text>
+  <text x="895" y="554" class="pin">SDO / SA0</text>
+  <text x="1090" y="350" class="net">3V3</text>
+  <text x="1090" y="384" class="net">3V3</text>
+  <text x="1090" y="418" class="net">GND</text>
+  <text x="1090" y="452" class="net">I2C_SCL</text>
+  <text x="1090" y="486" class="net">I2C_SDA</text>
+  <text x="1090" y="520" class="net">IMU_INT1</text>
+  <text x="1090" y="554" class="net">SA0 = 0</text>
+  <path d="M1090 350 H1240" class="wire"/>
+  <path d="M1090 384 H1240" class="wire"/>
+  <path d="M1090 418 H1240" class="wire"/>
+  <path d="M1090 452 H1240" class="wire"/>
+  <path d="M1090 486 H1240" class="wire"/>
+  <path d="M1090 520 H1240" class="wire"/>
+  <path d="M1090 554 H1240" class="wire"/>
+  <text x="855" y="612" class="tiny">CSB must be high during power-up for I2C mode.</text>
+
+  <!-- SA0 / CSB -->
+  <rect x="1300" y="145" width="350" height="315" class="box i2c"/>
+  <text x="1330" y="185" class="h">Interface / address setup</text>
+  <text x="1330" y="220" class="t">I2C mode</text>
+  <text x="1330" y="264" class="pin">CSB</text>
+  <path d="M1400 258 H1585" class="wire"/>
+  <text x="1460" y="250" class="net">3V3</text>
+  <text x="1330" y="314" class="pin">SDO / SA0</text>
+  <path d="M1430 308 H1510" class="wire"/>
+  <rect x="1510" y="288" width="90" height="38" class="box power"/>
+  <text x="1532" y="313" class="t">R3 0R</text>
+  <path d="M1600 307 V360 H1430" class="wire"/>
+  <text x="1460" y="380" class="net">GND</text>
+  <rect x="1330" y="390" width="280" height="45" class="note"/>
+  <text x="1350" y="418" class="small">SA0 = GND → I2C address 0x68</text>
+  <text x="1330" y="485" class="tiny">Optional: replace R3 with 0R to 3V3 for 0x69.</text>
+
+  <!-- Decoupling -->
+  <rect x="1300" y="515" width="350" height="300" class="box power"/>
+  <text x="1330" y="555" class="h">Local decoupling</text>
+  <text x="1330" y="585" class="t">C1 = 100nF, C2 = 1uF</text>
+  <text x="1330" y="613" class="small">Place directly beside VDD/VDDIO.</text>
+  <rect x="1360" y="650" width="70" height="45" class="box"/>
+  <text x="1384" y="678" class="t">C1</text>
+  <rect x="1480" y="650" width="70" height="45" class="box"/>
+  <text x="1504" y="678" class="t">C2</text>
+  <path d="M1395 650 V625 H1515 V650" class="wire"/>
+  <text x="1420" y="617" class="net">3V3</text>
+  <path d="M1395 695 V735 H1515 V695" class="wire"/>
+  <text x="1430" y="760" class="net">GND</text>
+  <text x="1330" y="798" class="tiny">Use short, wide ground return to the main GND plane.</text>
+
+  <!-- optional external connector -->
+  <rect x="60" y="540" width="700" height="275" class="optional"/>
+  <text x="90" y="580" class="h">Optional J2 IMU flex connector</text>
+  <text x="90" y="612" class="small">Use only when BMI270 is placed away from the main PCB.</text>
+  <text x="90" y="658" class="pin">1 3V3</text>
+  <text x="90" y="688" class="pin">2 GND</text>
+  <text x="250" y="658" class="pin">3 SDA</text>
+  <text x="250" y="688" class="pin">4 SCL</text>
+  <text x="410" y="658" class="pin">5 INT1</text>
+  <text x="410" y="688" class="pin">6 GND</text>
+  <path d="M560 650 H720" class="wire"/>
+  <path d="M560 680 H720" class="wire"/>
+  <path d="M560 710 H720" class="wire"/>
+  <text x="580" y="642" class="net">IMU_FLEX</text>
+  <text x="90" y="765" class="tiny">For an insole, keep the IMU rigidly fixed and strain-relieve the flex cable.</text>
+
+  <!-- mechanical orientation -->
+  <rect x="820" y="870" width="830" height="190" class="box note"/>
+  <text x="850" y="910" class="h">Mechanical / firmware notes</text>
+  <text x="850" y="945" class="t">• Fix the IMU orientation on the foot and record X/Y/Z directions in firmware.</text>
+  <text x="850" y="975" class="t">• Put the IMU near the instep/ankle-side rigid area, not directly under a pressure sensor.</text>
+  <text x="850" y="1005" class="t">• Calibrate bias while standing still; use INT1 only if the firmware needs motion events.</text>
+  <text x="850" y="1035" class="small">The IMU detects movement patterns; it does not diagnose Parkinson’s disease.</text>
+
+  <!-- warning -->
+  <rect x="60" y="870" width="700" height="190" class="box warn"/>
+  <text x="90" y="910" class="h">Important</text>
+  <text x="90" y="945" class="t">The diagram assumes a bare BMI270 IC at 3.3V.</text>
+  <text x="90" y="975" class="t">If you use an MPU6050/BMI270 breakout, follow that board’s pinout.</text>
+  <text x="90" y="1005" class="small">Do not add another 3.3V regulator or duplicate I2C pull-ups on the breakout.</text>
+  <text x="90" y="1035" class="small">Confirm the exact EasyEDA footprint before PCB ordering.</text>
+
+  <text x="60" y="1120" class="tiny">Reference: Bosch Sensortec BMI270 official datasheet. Final pin numbers and capacitor values must follow the exact selected IMU revision.</text>
+</svg>

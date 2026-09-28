@@ -5,7 +5,7 @@ import { createInsoleHub, createInsoleHandler } from '../server/insole-hub.mjs';
 import { createAiHandler } from '../server/ai-proxy.mjs';
 import { normalizeAiState, markAiUnavailable } from '../src/services/ai-api.js';
 import { aiPresentation, renderAiStatusCard } from '../src/components/ai-status-card.js';
-import { renderAlgorithmSummary } from '../src/components/algorithm-summary.js';
+import { renderAlgorithmSummary, renderSystemPipeline } from '../src/components/algorithm-summary.js';
 import { initialState } from '../src/data/dashboard-data.js';
 
 globalThis.window = { location: { search:'', origin:'http://127.0.0.1:8000' }, localStorage:{getItem:()=>null} };
@@ -16,6 +16,14 @@ test('web displays the effective model score and preserves raw score as evidence
   const ai=normalizeAiState(valid);
   assert.equal(ai.score,0.4); assert.equal(ai.rawScore,0.8); assert.equal(ai.ready,true);
   assert.equal(aiPresentation({ai, aiEnabled:true, dataSource:'esp32', connected:true}).score,0.4);
+});
+test('20 Hz model input is separate from the ESP32 read target in the web pipeline',()=>{
+  const ai=normalizeAiState(valid);
+  assert.equal(ai.sampleRateHz,20);
+  const html=renderSystemPipeline({...structuredClone(initialState),dataSource:'esp32',ai});
+  assert.match(html,/ESP32 읽기 목표 64Hz/);
+  assert.match(html,/모델 입력 20Hz/);
+  assert.match(html,/PC 실제 수신 속도는 Wi-Fi에 따라 달라도 됩니다/);
 });
 test('warming up, missing calibration, offline and transport errors cannot retain scores',()=>{
   const old=normalizeAiState(valid);

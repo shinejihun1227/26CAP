@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1220" viewBox="0 0 1900 1220">
+  <defs>
+    <style>
+      .title{font:700 30px Arial,sans-serif;fill:#152238}
+      .subtitle{font:16px Arial,sans-serif;fill:#526175}
+      .h{font:700 18px Arial,sans-serif;fill:#152238}
+      .t{font:15px Arial,sans-serif;fill:#152238}
+      .small{font:13px Arial,sans-serif;fill:#526175}
+      .tiny{font:12px Arial,sans-serif;fill:#526175}
+      .net{font:700 14px Arial,sans-serif;fill:#0b6075}
+      .pin{font:700 13px Arial,sans-serif;fill:#28384d}
+      .box{stroke:#31445b;stroke-width:2;rx:12}
+      .wire{stroke:#263b55;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .thin{stroke:#526175;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .dot{fill:#263b55}
+      .warn{fill:#fff0f0;stroke:#c94a4a;stroke-width:1.5;rx:10}
+      .laser{fill:#fff4e8}
+      .motor{fill:#f2edff}
+      .fet{fill:#eaf2ff}
+      .power{fill:#eaf8ef}
+      .port{fill:#eef8fb;stroke:#2a8da6;stroke-width:1.5;rx:10}
+      .optional{fill:#f5f6f8;stroke:#8995a5;stroke-width:1.5;stroke-dasharray:7 5;rx:10}
+    </style>
+  </defs>
+
+  <rect width="1900" height="1220" fill="#ffffff"/>
+  <text x="60" y="58" class="title">SHEET 5 — LASER / VIBRATION MOTOR OUTPUT</text>
+  <text x="60" y="88" class="subtitle">Low-side logic-level N-MOSFET switching • separate load connectors • motor flyback protection</text>
+
+  <!-- ports -->
+  <rect x="60" y="145" width="350" height="310" class="box port"/>
+  <text x="90" y="185" class="h">Power and control inputs</text>
+  <text x="90" y="225" class="t">FROM SHEET 1 POWER</text>
+  <text x="90" y="265" class="pin">5V_LASER</text>
+  <text x="90" y="300" class="pin">3V3_MOTOR</text>
+  <text x="90" y="335" class="pin">GND</text>
+  <path d="M210 258 H410" class="wire"/>
+  <path d="M210 293 H410" class="wire"/>
+  <path d="M210 328 H410" class="wire"/>
+  <text x="260" y="250" class="net">5V_LASER</text>
+  <text x="260" y="285" class="net">3V3_MOTOR</text>
+  <text x="260" y="320" class="net">GND</text>
+  <text x="90" y="375" class="t">FROM SHEET 2 MCU</text>
+  <text x="90" y="415" class="pin">GPIO21 LASER_EN</text>
+  <text x="90" y="445" class="pin">GPIO3 VIB_EN</text>
+  <path d="M240 408 H410" class="wire"/>
+  <path d="M240 438 H410" class="wire"/>
+  <text x="275" y="400" class="net">LASER_EN</text>
+  <text x="275" y="430" class="net">VIB_EN</text>
+
+  <!-- laser channel -->
+  <rect x="480" y="145" width="555" height="440" class="box laser"/>
+  <text x="515" y="185" class="h">Channel A — 5 V laser module</text>
+  <text x="515" y="218" class="t">D1 650 nm laser module / 5 V, 5 mW class</text>
+  <text x="515" y="246" class="small">Use only a module with an internal current-limiting circuit.</text>
+  <rect x="545" y="295" width="190" height="95" class="box"/>
+  <text x="580" y="330" class="h">J1 LASER</text>
+  <text x="575" y="360" class="pin">1: +5V</text>
+  <text x="575" y="382" class="pin">2: LASER−</text>
+  <path d="M735 330 H930" class="wire"/>
+  <text x="790" y="322" class="net">5V_LASER</text>
+  <path d="M735 380 H800 V455" class="wire"/>
+  <text x="750" y="372" class="net">LASER−</text>
+  <rect x="805" y="420" width="150" height="110" class="box fet"/>
+  <text x="842" y="455" class="h">Q1</text>
+  <text x="835" y="482" class="t">AO3400A</text>
+  <text x="823" y="510" class="small">N-MOSFET</text>
+  <path d="M880 420 V385" class="wire"/>
+  <text x="892" y="405" class="net">G</text>
+  <path d="M880 530 V565" class="wire"/>
+  <text x="890" y="558" class="net">GND</text>
+  <path d="M955 475 H1000 V380 H1035" class="wire"/>
+  <text x="965" y="467" class="net">D</text>
+  <rect x="725" y="340" width="75" height="38" class="box power"/>
+  <text x="741" y="365" class="t">R1 100R</text>
+  <path d="M650 438 H725 V359" class="wire"/>
+  <text x="525" y="432" class="net">LASER_EN</text>
+  <rect x="650" y="470" width="75" height="38" class="box power"/>
+  <text x="665" y="495" class="t">R2 100k</text>
+  <path d="M688 470 V438" class="wire"/>
+  <path d="M688 508 V548 H880" class="wire"/>
+  <text x="695" y="545" class="net">GND</text>
+  <text x="515" y="555" class="tiny">Q1 source to GND; Q1 drain to laser negative.</text>
+
+  <!-- motor channel -->
+  <rect x="1100" y="145" width="555" height="440" class="box motor"/>
+  <text x="1135" y="185" class="h">Channel B — coin vibration motor</text>
+  <text x="1135" y="218" class="t">M1 3 V nominal coin vibration motor</text>
+  <text x="1135" y="246" class="small">Use 3V3_MOTOR only when the motor is rated for 3.3 V.</text>
+  <rect x="1165" y="295" width="190" height="95" class="box"/>
+  <text x="1200" y="330" class="h">J2 MOTOR</text>
+  <text x="1195" y="360" class="pin">1: MOTOR+</text>
+  <text x="1195" y="382" class="pin">2: MOTOR−</text>
+  <path d="M1355 330 H1545" class="wire"/>
+  <text x="1400" y="322" class="net">3V3_MOTOR</text>
+  <path d="M1355 380 H1420 V455" class="wire"/>
+  <text x="1370" y="372" class="net">MOTOR−</text>
+  <rect x="1425" y="420" width="150" height="110" class="box fet"/>
+  <text x="1462" y="455" class="h">Q2</text>
+  <text x="1455" y="482" class="t">AO3400A</text>
+  <text x="1443" y="510" class="small">N-MOSFET</text>
+  <path d="M1500 420 V385" class="wire"/>
+  <text x="1512" y="405" class="net">G</text>
+  <path d="M1500 530 V565" class="wire"/>
+  <text x="1510" y="558" class="net">GND</text>
+  <path d="M1575 475 H1620 V380 H1655" class="wire"/>
+  <text x="1585" y="467" class="net">D</text>
+  <rect x="1345" y="340" width="75" height="38" class="box power"/>
+  <text x="1361" y="365" class="t">R3 100R</text>
+  <path d="M1270 438 H1345 V359" class="wire"/>
+  <text x="1135" y="432" class="net">VIB_EN</text>
+  <rect x="1270" y="470" width="75" height="38" class="box power"/>
+  <text x="1285" y="495" class="t">R4 100k</text>
+  <path d="M1308 470 V438" class="wire"/>
+  <path d="M1308 508 V548 H1500" class="wire"/>
+  <text x="1315" y="545" class="net">GND</text>
+  <text x="1135" y="555" class="tiny">Q2 source to GND; Q2 drain to motor negative.</text>
+
+  <!-- flyback diode and capacitors -->
+  <rect x="60" y="650" width="760" height="330" class="box power"/>
+  <text x="90" y="690" class="h">Motor protection and local bulk capacitance</text>
+  <text x="90" y="725" class="t">D3 1N5819 or SS14 — flyback diode</text>
+  <text x="90" y="754" class="small">Cathode to MOTOR+, anode to MOTOR− / Q2 drain.</text>
+  <path d="M250 825 H350" class="wire"/>
+  <path d="M350 825 V770 H560" class="wire"/>
+  <path d="M560 770 V825 H650" class="wire"/>
+  <text x="275" y="816" class="net">3V3_MOTOR</text>
+  <rect x="430" y="752" width="90" height="45" class="box"/>
+  <text x="448" y="780" class="t">D3</text>
+  <text x="535" y="755" class="tiny">cathode</text>
+  <text x="535" y="842" class="tiny">anode</text>
+  <path d="M650 825 H720 V880 H350 V825" class="wire"/>
+  <text x="365" y="900" class="net">MOTOR−</text>
+  <rect x="155" y="890" width="90" height="45" class="box"/>
+  <text x="178" y="918" class="t">C1 100n</text>
+  <rect x="280" y="890" width="90" height="45" class="box"/>
+  <text x="304" y="918" class="t">C2 47u</text>
+  <path d="M200 890 V850 H325 V890" class="wire"/>
+  <text x="220" y="843" class="net">3V3_MOTOR</text>
+  <path d="M200 935 V955 H325 V935" class="wire"/>
+  <text x="240" y="975" class="net">GND</text>
+  <text x="450" y="930" class="small">Place C1/C2 close to J2 and Q2 power path.</text>
+
+  <!-- optional motor rail -->
+  <rect x="870" y="650" width="785" height="330" class="optional"/>
+  <text x="900" y="690" class="h">Motor supply selection</text>
+  <text x="900" y="725" class="t">Default: 3V3_MOTOR = Sheet 1 3V3 rail</text>
+  <text x="900" y="758" class="t">If the motor is rated 3.7–4.2 V, use SYS_SW instead.</text>
+  <text x="900" y="790" class="small">Do not connect a 3 V-only motor directly to an unregulated Li-Po.</text>
+  <text x="900" y="835" class="t">Optional J3 solder jumper</text>
+  <rect x="1120" y="805" width="150" height="60" class="box"/>
+  <text x="1150" y="842" class="t">3V3 / SYS_SW</text>
+  <path d="M1270 835 H1510" class="wire"/>
+  <text x="1370" y="827" class="net">MOTOR_V+</text>
+  <text x="900" y="910" class="small">Choose only one rail; verify motor startup current and add more bulk capacitance if ESP32 resets.</text>
+
+  <!-- safety -->
+  <rect x="1680" y="145" width="170" height="835" class="box warn"/>
+  <text x="1705" y="190" class="h">Safety</text>
+  <text x="1705" y="240" class="small">Laser output can injure eyes.</text>
+  <text x="1705" y="285" class="small">Use a downward-facing</text>
+  <text x="1705" y="310" class="small">mount and prevent direct</text>
+  <text x="1705" y="335" class="small">eye exposure.</text>
+  <text x="1705" y="410" class="small">Do not drive the motor</text>
+  <text x="1705" y="435" class="small">from an ESP32 GPIO.</text>
+  <text x="1705" y="510" class="small">Verify MOSFET pinout</text>
+  <text x="1705" y="535" class="small">for the exact footprint.</text>
+  <text x="1705" y="610" class="small">Keep motor return</text>
+  <text x="1705" y="635" class="small">current away from</text>
+  <text x="1705" y="660" class="small">IMU ground.</text>
+
+  <text x="60" y="1050" class="tiny">Recommended starting parts: AO3400A logic N-MOSFET ×2, 100R gate resistors ×2, 100k gate pulldowns ×2, 1N5819/SS14 diode, 100nF + 47uF motor capacitors.</text>
+  <text x="60" y="1090" class="tiny">Confirm the laser module already includes current limiting. If it is a bare laser diode, this circuit is not sufficient.</text>
+  <text x="60" y="1130" class="tiny">GPIO assignments match Sheet 2: GPIO21 = laser, GPIO3 = vibration.</text>
+</svg>

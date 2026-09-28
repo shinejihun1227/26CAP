@@ -1,0 +1,194 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1220" viewBox="0 0 1800 1220">
+  <defs>
+    <style>
+      .title{font:700 30px Arial,sans-serif;fill:#152238}
+      .subtitle{font:16px Arial,sans-serif;fill:#526175}
+      .h{font:700 18px Arial,sans-serif;fill:#152238}
+      .t{font:15px Arial,sans-serif;fill:#152238}
+      .small{font:13px Arial,sans-serif;fill:#526175}
+      .tiny{font:12px Arial,sans-serif;fill:#526175}
+      .net{font:700 14px Arial,sans-serif;fill:#0b6075}
+      .pin{font:700 13px Arial,sans-serif;fill:#28384d}
+      .box{stroke:#31445b;stroke-width:2;rx:12}
+      .wire{stroke:#263b55;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .thin{stroke:#526175;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .dot{fill:#263b55}
+      .note{fill:#fff7df;stroke:#d9a62e;stroke-width:1.5;rx:10}
+      .warn{fill:#fff0f0;stroke:#c94a4a;stroke-width:1.5;rx:10}
+      .mcu{fill:#eaf2ff}
+      .usb{fill:#fff4e8}
+      .ctrl{fill:#f2edff}
+      .dec{fill:#eaf8ef}
+      .optional{fill:#f5f6f8;stroke:#8995a5;stroke-width:1.5;stroke-dasharray:7 5;rx:10}
+      .port{fill:#eef8fb;stroke:#2a8da6;stroke-width:1.5;rx:10}
+    </style>
+  </defs>
+
+  <rect width="1800" height="1220" fill="#ffffff"/>
+  <text x="60" y="58" class="title">SHEET 2 — ESP32-C3 MCU / USB / BOOT / RESET / BLE</text>
+  <text x="60" y="88" class="subtitle">ESP32-C3-MINI-1 module 직접 실장 기준 • Sheet 1의 3V3, SYS_SW, GND를 입력으로 사용</text>
+
+  <!-- USB input/debug -->
+  <rect x="60" y="140" width="275" height="250" class="box usb"/>
+  <text x="85" y="175" class="h">J2 USB-C DEBUG</text>
+  <text x="85" y="202" class="t">TYPE-C-31-M-12 / C165948</text>
+  <text x="85" y="229" class="small">USB native programming + power input</text>
+  <text x="85" y="272" class="pin">VBUS</text>
+  <text x="85" y="298" class="pin">D+</text>
+  <text x="85" y="324" class="pin">D−</text>
+  <text x="85" y="350" class="pin">GND</text>
+  <path d="M165 267 H335" class="wire"/>
+  <path d="M165 293 H335" class="wire"/>
+  <path d="M165 319 H335" class="wire"/>
+  <path d="M165 345 H335" class="wire"/>
+  <text x="205" y="260" class="net">USB_VBUS</text>
+  <text x="205" y="286" class="net">USB_D+</text>
+  <text x="205" y="312" class="net">USB_D−</text>
+  <text x="205" y="338" class="net">GND</text>
+  <text x="85" y="375" class="tiny">If Sheet 1 USB-C is shared, use one connector only.</text>
+
+  <!-- ESD and USB series -->
+  <rect x="385" y="140" width="285" height="250" class="box usb"/>
+  <text x="410" y="175" class="h">USB protection</text>
+  <text x="410" y="203" class="t">D1 USBLC6-2SC6</text>
+  <text x="410" y="229" class="small">low-capacitance ESD for D+/D−</text>
+  <text x="410" y="271" class="pin">USB_D+</text>
+  <text x="410" y="322" class="pin">USB_D−</text>
+  <path d="M335 293 H470" class="wire"/>
+  <path d="M335 319 H470" class="wire"/>
+  <rect x="478" y="253" width="78" height="36" class="box dec"/>
+  <text x="497" y="276" class="t">R1 22R</text>
+  <rect x="478" y="304" width="78" height="36" class="box dec"/>
+  <text x="497" y="327" class="t">R2 22R</text>
+  <path d="M556 271 H665" class="wire"/>
+  <path d="M556 322 H665" class="wire"/>
+  <text x="575" y="264" class="net">USB_DP_MCU</text>
+  <text x="575" y="315" class="net">USB_DM_MCU</text>
+  <path d="M470 271 V236 M470 322 V356" class="thin"/>
+  <path d="M470 236 H585 M470 356 H585" class="thin"/>
+  <text x="478" y="228" class="tiny">D1 to GND</text>
+  <text x="478" y="375" class="tiny">D1 to GND</text>
+
+  <!-- MCU module -->
+  <rect x="735" y="145" width="435" height="500" class="box mcu"/>
+  <text x="780" y="185" class="h">U1 ESP32-C3-MINI-1-N4</text>
+  <text x="780" y="212" class="t">4 MB flash / integrated BLE + PCB antenna</text>
+  <text x="780" y="240" class="small">Native USB: GPIO18 = D−, GPIO19 = D+</text>
+  <rect x="780" y="268" width="185" height="300" fill="#ffffff" stroke="#58718e" stroke-width="2" rx="8"/>
+  <text x="817" y="300" class="h">ESP32-C3</text>
+  <text x="803" y="338" class="pin">3V3</text>
+  <text x="803" y="372" class="pin">GND</text>
+  <text x="803" y="406" class="pin">EN / CHIP_EN</text>
+  <text x="803" y="440" class="pin">GPIO9 / BOOT</text>
+  <text x="803" y="474" class="pin">GPIO18 / USB_D−</text>
+  <text x="803" y="508" class="pin">GPIO19 / USB_D+</text>
+  <text x="803" y="542" class="pin">GPIO4, GPIO5, GPIO6...</text>
+  <path d="M965 338 H1170" class="wire"/>
+  <path d="M965 372 H1170" class="wire"/>
+  <path d="M965 406 H1170" class="wire"/>
+  <path d="M965 440 H1170" class="wire"/>
+  <path d="M965 474 H1170" class="wire"/>
+  <path d="M965 508 H1170" class="wire"/>
+  <path d="M965 542 H1170" class="wire"/>
+  <text x="1015" y="330" class="net">3V3</text>
+  <text x="1015" y="364" class="net">GND</text>
+  <text x="1015" y="398" class="net">MCU_EN</text>
+  <text x="1015" y="432" class="net">BOOT_GPIO9</text>
+  <text x="1015" y="466" class="net">USB_DM_MCU</text>
+  <text x="1015" y="500" class="net">USB_DP_MCU</text>
+  <text x="1015" y="534" class="net">GPIO_PORTS</text>
+  <text x="780" y="610" class="tiny">No separate BLE IC or crystal is needed for this module.</text>
+
+  <!-- Power and decoupling -->
+  <rect x="1210" y="140" width="280" height="245" class="box dec"/>
+  <text x="1235" y="175" class="h">MCU power / decoupling</text>
+  <text x="1235" y="210" class="t">C1 10uF + C2 100nF</text>
+  <text x="1235" y="236" class="small">Place within a few mm of 3V3 pin</text>
+  <path d="M1170 338 H1260" class="wire"/>
+  <text x="1190" y="330" class="net">3V3</text>
+  <path d="M1290 267 V330" class="wire"/>
+  <path d="M1370 267 V330" class="wire"/>
+  <rect x="1260" y="230" width="60" height="48" class="box"/>
+  <text x="1272" y="258" class="t">C1</text>
+  <rect x="1340" y="230" width="60" height="48" class="box"/>
+  <text x="1352" y="258" class="t">C2</text>
+  <path d="M1290 330 V355 H1370 V330" class="wire"/>
+  <path d="M1260 355 H1400" class="thin"/>
+  <text x="1260" y="378" class="net">GND</text>
+
+  <!-- EN and boot -->
+  <rect x="1210" y="420" width="280" height="255" class="box ctrl"/>
+  <text x="1235" y="455" class="h">BOOT / RESET</text>
+  <text x="1235" y="483" class="t">R3, R4 = 10k pull-up</text>
+  <text x="1235" y="510" class="t">SW1 RESET / SW2 BOOT</text>
+  <text x="1235" y="538" class="small">Buttons pull EN or GPIO9 to GND</text>
+  <path d="M1170 406 H1240" class="wire"/>
+  <text x="1180" y="397" class="net">MCU_EN</text>
+  <path d="M1240 406 V570" class="wire"/>
+  <rect x="1280" y="550" width="90" height="38" class="box dec"/>
+  <text x="1300" y="575" class="t">R3 10k</text>
+  <path d="M1325 550 V505 H1240" class="wire"/>
+  <rect x="1245" y="605" width="85" height="40" class="box"/>
+  <text x="1260" y="630" class="t">SW1 RESET</text>
+  <path d="M1330 625 H1400 V650" class="wire"/>
+  <path d="M1400 650 H1240" class="wire"/>
+  <text x="1240" y="668" class="net">GND</text>
+  <path d="M1170 440 H1200 V705 H1510" class="wire"/>
+  <text x="1180" y="432" class="net">BOOT_GPIO9</text>
+  <rect x="1375" y="550" width="85" height="38" class="box dec"/>
+  <text x="1390" y="575" class="t">R4 10k</text>
+  <path d="M1417 550 V505 H1200" class="wire"/>
+  <rect x="1375" y="605" width="85" height="40" class="box"/>
+  <text x="1392" y="630" class="t">SW2 BOOT</text>
+  <path d="M1460 625 H1510 V705" class="wire"/>
+  <text x="1460" y="720" class="net">GND</text>
+  <text x="1235" y="755" class="tiny">Boot mode: hold BOOT, tap RESET, release BOOT.</text>
+
+  <!-- Ports to other sheets -->
+  <rect x="60" y="760" width="520" height="350" class="box port"/>
+  <text x="90" y="800" class="h">To other sheets</text>
+  <text x="90" y="840" class="t">SHEET 1 POWER</text>
+  <path d="M250 832 H540" class="wire"/>
+  <text x="305" y="824" class="net">3V3</text>
+  <path d="M250 868 H540" class="wire"/>
+  <text x="305" y="860" class="net">SYS_SW</text>
+  <path d="M250 904 H540" class="wire"/>
+  <text x="305" y="896" class="net">GND</text>
+  <text x="90" y="960" class="t">SHEET 3 PRESSURE</text>
+  <text x="90" y="989" class="small">GPIO6/7/10/20 = 공통 MUX S0-S3, GPIO0/1 = LEFT/RIGHT ADC SIG</text>
+  <path d="M390 952 H540" class="wire"/>
+  <text x="425" y="944" class="net">PRESSURE_PORT</text>
+  <text x="90" y="1030" class="t">SHEET 4 IMU</text>
+  <text x="90" y="1059" class="small">GPIO4/5 = I²C bus → TCA9548A CH0 BMI270 / CH1 SHTC3</text>
+  <path d="M260 1022 H540" class="wire"/>
+  <text x="320" y="1014" class="net">I2C_PORT</text>
+  <text x="90" y="1100" class="t">SHEET 5 OUTPUT</text>
+  <text x="90" y="1129" class="small">GPIO3 = vibration, GPIO21 = laser control</text>
+  <path d="M300 1092 H540" class="wire"/>
+  <text x="352" y="1084" class="net">OUTPUT_PORT</text>
+
+  <!-- BLE antenna -->
+  <rect x="735" y="760" width="700" height="350" class="optional"/>
+  <text x="770" y="805" class="h">BLE / RF layout — schematic 밖에서 반드시 지킬 것</text>
+  <text x="770" y="850" class="t">1. ESP32-C3-MINI-1의 PCB antenna 방향에 copper keep-out</text>
+  <text x="770" y="885" class="t">2. 배터리, 금속 부품, 모터, 레이저 케이블을 안테나 앞에 배치하지 않기</text>
+  <text x="770" y="920" class="t">3. 안테나 아래 PCB copper pour와 GND plane을 데이터시트 권장대로 비우기</text>
+  <text x="770" y="955" class="t">4. 별도 BLE IC, 크리스털, RF matching network를 추가하지 않기</text>
+  <text x="770" y="1005" class="small">The module already contains the ESP32-C3, flash, crystal and PCB antenna.</text>
+  <text x="770" y="1045" class="small">Use a module symbol/footprint that exactly matches the selected N4 or H4 part.</text>
+
+  <!-- warnings -->
+  <rect x="1490" y="760" width="250" height="350" class="warn"/>
+  <text x="1515" y="805" class="h">Important</text>
+  <text x="1515" y="850" class="t">Do not place both:</text>
+  <text x="1515" y="880" class="t">• SuperMini board</text>
+  <text x="1515" y="910" class="t">• bare MINI-1 module</text>
+  <text x="1515" y="960" class="small">Choose one architecture.</text>
+  <text x="1515" y="1005" class="small">This sheet is for the</text>
+  <text x="1515" y="1030" class="small">bare module architecture.</text>
+  <text x="1515" y="1075" class="small">GPIO mapping is a</text>
+  <text x="1515" y="1100" class="small">starting assignment.</text>
+
+  <!-- legend -->
+  <text x="60" y="1175" class="tiny">Note: verify the exact ESP32-C3-MINI-1 variant footprint and pin numbering in the selected EasyEDA/LCSC library before PCB placement.</text>
+</svg>

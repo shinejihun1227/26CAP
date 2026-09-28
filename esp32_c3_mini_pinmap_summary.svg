@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1240" viewBox="0 0 1800 1240">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#243954" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .ink{fill:#243954}.muted{fill:#6e8190}.tiny{font:500 15px Arial,"Malgun Gothic",sans-serif}.small{font:600 18px Arial,"Malgun Gothic",sans-serif}.body{font:500 20px Arial,"Malgun Gothic",sans-serif}.head{font:700 27px Arial,"Malgun Gothic",sans-serif}.title{font:700 39px Arial,"Malgun Gothic",sans-serif}.mono{font:700 17px Consolas,"Courier New",monospace}.box{stroke:#dce7ec;stroke-width:2}.bus{fill:none;stroke:#5f9d9c;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.select{fill:none;stroke:#d78377;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.adc{fill:none;stroke:#7b86cd;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}.power{fill:none;stroke:#e0a84f;stroke-width:4;stroke-dasharray:10 8;stroke-linecap:round}.pill{font:700 16px Arial,"Malgun Gothic",sans-serif}.note{font:500 16px Arial,"Malgun Gothic",sans-serif;line-height:1.5}.pin{font:700 19px Consolas,"Courier New",monospace}.pinlabel{font:500 18px Arial,"Malgun Gothic",sans-serif}
+    </style>
+  </defs>
+
+  <rect width="1800" height="1240" fill="#f6fbfb"/>
+  <rect x="48" y="42" width="1704" height="110" rx="24" fill="#243954"/>
+  <text x="90" y="91" class="title" fill="#ffffff">ESP32-C3 MINI · I²C MUX + 2× ANALOG MUX 핀맵 요약</text>
+  <text x="90" y="126" class="small" fill="#bfe8e4">FSR406 최대 16개 · BMI270 · SHTC3 · TCA9548A · 현재 firmware 기본 설정과 일치</text>
+  <rect x="1455" y="72" width="235" height="50" rx="25" fill="#62c2a4"/>
+  <text x="1572" y="104" text-anchor="middle" class="head" fill="#ffffff" font-size="22">핀 가능 · 조건부 YES</text>
+
+  <!-- central MCU -->
+  <rect x="675" y="215" width="450" height="625" rx="28" fill="#ffffff" class="box" filter="url(#shadow)"/>
+  <rect x="675" y="215" width="450" height="82" rx="28" fill="#eaf7f6"/>
+  <rect x="675" y="269" width="450" height="28" fill="#eaf7f6"/>
+  <text x="900" y="254" text-anchor="middle" class="head ink">ESP32-C3-MINI-1</text>
+  <text x="900" y="282" text-anchor="middle" class="tiny muted">3.3 V logic · GPIO matrix 사용</text>
+
+  <line x1="700" y1="330" x2="1100" y2="330" stroke="#e7eef1" stroke-width="2"/>
+  <text x="712" y="363" class="pin ink">GPIO4</text><text x="820" y="363" class="pinlabel ink">I²C SDA</text><rect x="1030" y="343" width="70" height="28" rx="14" fill="#d8f1ed"/><text x="1065" y="363" text-anchor="middle" class="pill" fill="#428a7b">BUS</text>
+  <text x="712" y="402" class="pin ink">GPIO5</text><text x="820" y="402" class="pinlabel ink">I²C SCL</text><rect x="1030" y="382" width="70" height="28" rx="14" fill="#d8f1ed"/><text x="1065" y="402" text-anchor="middle" class="pill" fill="#428a7b">BUS</text>
+  <text x="712" y="441" class="pin ink">GPIO6</text><text x="820" y="441" class="pinlabel ink">MUX S0</text><rect x="1030" y="421" width="70" height="28" rx="14" fill="#fae4df"/><text x="1065" y="441" text-anchor="middle" class="pill" fill="#b6625a">SEL</text>
+  <text x="712" y="480" class="pin ink">GPIO7</text><text x="820" y="480" class="pinlabel ink">MUX S1</text><rect x="1030" y="460" width="70" height="28" rx="14" fill="#fae4df"/><text x="1065" y="480" text-anchor="middle" class="pill" fill="#b6625a">SEL</text>
+  <text x="712" y="519" class="pin ink">GPIO10</text><text x="820" y="519" class="pinlabel ink">MUX S2</text><rect x="1030" y="499" width="70" height="28" rx="14" fill="#fae4df"/><text x="1065" y="519" text-anchor="middle" class="pill" fill="#b6625a">SEL</text>
+  <text x="712" y="558" class="pin ink">GPIO20</text><text x="820" y="558" class="pinlabel ink">MUX S3</text><rect x="1010" y="538" width="90" height="28" rx="14" fill="#fff0d9"/><text x="1055" y="558" text-anchor="middle" class="pill" fill="#ad7622">UART RX</text>
+  <text x="712" y="597" class="pin ink">GPIO0</text><text x="820" y="597" class="pinlabel ink">ADC · LEFT SIG</text><rect x="1030" y="577" width="70" height="28" rx="14" fill="#e9e9fb"/><text x="1065" y="597" text-anchor="middle" class="pill" fill="#6267a5">ADC</text>
+  <text x="712" y="636" class="pin ink">GPIO1</text><text x="820" y="636" class="pinlabel ink">ADC · RIGHT SIG</text><rect x="1030" y="616" width="70" height="28" rx="14" fill="#e9e9fb"/><text x="1065" y="636" text-anchor="middle" class="pill" fill="#6267a5">ADC</text>
+  <text x="712" y="675" class="pin ink">GPIO2</text><text x="820" y="675" class="pinlabel ink">부트 스트랩 · 비워 둠</text><rect x="1030" y="655" width="70" height="28" rx="14" fill="#fff0d9"/><text x="1065" y="675" text-anchor="middle" class="pill" fill="#ad7622">KEEP FREE</text>
+  <text x="712" y="714" class="pin ink">GPIO3</text><text x="820" y="714" class="pinlabel ink">진동모터 EN · 예비</text><rect x="1030" y="694" width="70" height="28" rx="14" fill="#edf1f5"/><text x="1065" y="714" text-anchor="middle" class="pill" fill="#718092">RES</text>
+  <text x="712" y="753" class="pin ink">GPIO21</text><text x="820" y="753" class="pinlabel ink">레이저 EN · 예비</text><rect x="1010" y="733" width="90" height="28" rx="14" fill="#fff0d9"/><text x="1055" y="753" text-anchor="middle" class="pill" fill="#ad7622">UART TX</text>
+  <text x="712" y="802" class="tiny muted">GPIO18/19 = USB D−/D+ · GPIO8/9 = BOOT strap · GPIO12~17 = flash/SPI 예약</text>
+
+  <!-- I2C mux -->
+  <rect x="95" y="230" width="470" height="360" rx="24" fill="#ffffff" class="box" filter="url(#shadow)"/>
+  <rect x="95" y="230" width="470" height="68" rx="24" fill="#e4f6f3"/><rect x="95" y="270" width="470" height="28" fill="#e4f6f3"/>
+  <text x="125" y="270" class="head ink">TCA9548A</text><text x="125" y="325" class="small muted">I²C 8채널 스위치 · GPIO 추가 사용 없음</text>
+  <rect x="125" y="350" width="182" height="40" rx="20" fill="#fff0d9"/><text x="216" y="376" text-anchor="middle" class="pill" fill="#a86e1a">주소 0x71 필수</text>
+  <text x="125" y="425" class="body ink">SDA ← GPIO4</text><text x="125" y="462" class="body ink">SCL ← GPIO5</text><text x="125" y="499" class="body ink">A0 = 3V3 · A1/A2 = GND</text>
+  <text x="125" y="548" class="tiny muted">기본 0x70은 SHTC3(0x70)와 충돌</text>
+  <path d="M565 395 H625 V363 H675" class="bus"/><path d="M565 430 H625 V402 H675" class="bus"/>
+  <text x="579" y="382" class="tiny" fill="#4a8e85">SDA</text><text x="579" y="453" class="tiny" fill="#4a8e85">SCL</text>
+
+  <!-- I2C devices -->
+  <rect x="95" y="625" width="470" height="210" rx="24" fill="#ffffff" class="box"/>
+  <text x="125" y="668" class="head ink">TCA9548A 하위 채널</text>
+  <rect x="125" y="694" width="185" height="80" rx="14" fill="#eef8fd"/><text x="143" y="724" class="small ink">CH0</text><text x="143" y="752" class="body ink">BMI270 · 0x68</text>
+  <rect x="330" y="694" width="205" height="80" rx="14" fill="#f2f0ff"/><text x="348" y="724" class="small ink">CH1</text><text x="348" y="752" class="body ink">SHTC3 · 0x70</text>
+  <path d="M330 590 V660 H217 V694" class="bus"/><path d="M440 590 V660 H432 V694" class="bus"/>
+  <text x="125" y="812" class="tiny muted">동일 주소 센서를 추가할 때 채널을 하나씩 선택해 읽습니다.</text>
+
+  <!-- analog mux left -->
+  <rect x="1235" y="230" width="470" height="360" rx="24" fill="#ffffff" class="box" filter="url(#shadow)"/>
+  <rect x="1235" y="230" width="470" height="68" rx="24" fill="#f9e8e3"/><rect x="1235" y="270" width="470" height="28" fill="#f9e8e3"/>
+  <text x="1265" y="270" class="head ink">CD74HC4067-A</text><text x="1265" y="325" class="small muted">왼발 FSR 8개 · 3.3 V 아날로그 MUX</text>
+  <text x="1265" y="375" class="body ink">S0/S1/S2/S3 ← 공통 선택선</text><text x="1265" y="412" class="body ink">SIG → GPIO1 ADC</text>
+  <rect x="1265" y="440" width="400" height="84" rx="14" fill="#fff5f2"/><text x="1285" y="472" class="small ink">CH0~CH7</text><text x="1285" y="504" class="body ink">FSR-L1 · L2 · L3 · L4 · L5 · L6 · L7 · L8</text>
+  <path d="M1125 441 H1175 V375 H1235" class="select"/><path d="M1125 480 H1185 V375 H1235" class="select"/><path d="M1125 519 H1195 V375 H1235" class="select"/><path d="M1125 558 H1205 V375 H1235" class="select"/>
+  <path d="M1125 597 H1215 V412 H1235" class="adc"/>
+  <text x="1144" y="355" class="tiny" fill="#b6625a">공통 S0~S3</text><text x="1150" y="616" class="tiny" fill="#6267a5">LEFT SIG</text>
+
+  <!-- analog mux right -->
+  <rect x="1235" y="625" width="470" height="210" rx="24" fill="#ffffff" class="box"/>
+  <text x="1265" y="668" class="head ink">CD74HC4067-B</text><text x="1265" y="705" class="small muted">오른발 FSR 8개 · 선택선은 A와 공유</text>
+  <text x="1265" y="752" class="body ink">S0/S1/S2/S3 ← 공통 선택선</text><text x="1265" y="790" class="body ink">SIG → GPIO2 ADC</text>
+  <rect x="1265" y="802" width="400" height="0" fill="none"/>
+  <path d="M1125 441 H1175 V752 H1235" class="select" opacity="0.9"/><path d="M1125 480 H1185 V752 H1235" class="select" opacity="0.9"/><path d="M1125 519 H1195 V752 H1235" class="select" opacity="0.9"/><path d="M1125 558 H1205 V752 H1235" class="select" opacity="0.9"/>
+  <path d="M1125 636 H1215 V790 H1235" class="adc"/>
+  <text x="1270" y="818" class="tiny muted">CH0~CH7 = FSR-R1~R8</text>
+
+  <!-- power rail -->
+  <path d="M900 175 V205" class="power"/><path d="M340 175 V220" class="power"/><path d="M1470 175 V220" class="power"/>
+  <text x="900" y="192" text-anchor="middle" class="tiny" fill="#ad7622">3V3 / GND 공통</text>
+  <rect x="650" y="878" width="500" height="46" rx="23" fill="#eaf7f6"/><text x="900" y="907" text-anchor="middle" class="small" fill="#428a7b">모든 MUX · 센서 · ESP32는 3.3 V와 GND를 공통으로 연결</text>
+
+  <!-- bottom notes -->
+  <rect x="95" y="965" width="1610" height="205" rx="24" fill="#fffdf7" stroke="#f0dfbd" stroke-width="2"/>
+  <text x="125" y="1010" class="head ink">반드시 확인할 조건</text>
+  <circle cx="136" cy="1050" r="6" fill="#e0a84f"/><text x="155" y="1057" class="body ink">GPIO20/21은 UART0 RX/TX이므로 시리얼 디버깅을 쓸 때는 MUX S3·레이저 출력과 충돌할 수 있음</text>
+  <circle cx="136" cy="1090" r="6" fill="#e0a84f"/><text x="155" y="1097" class="body ink">GPIO2·8·9는 부트 스트랩 핀, GPIO12~17은 플래시/SPI 용도라 센서 핀으로 피함</text>
+  <circle cx="136" cy="1130" r="6" fill="#e0a84f"/><text x="155" y="1137" class="body ink">FSR 분압 출력은 ESP32 ADC 입력에서 0~3.3 V를 넘지 않게 하고, MUX의 EN은 LOW로 고정해 사용</text>
+  <text x="1280" y="1010" class="small" fill="#b6625a">권장 시작 설정</text>
+  <text x="1280" y="1045" class="mono ink">USE_MOCK_SENSORS 0</text>
+  <text x="1280" y="1077" class="mono ink">USE_REAL_I2C_SENSORS 1</text>
+  <text x="1280" y="1109" class="mono ink">USE_I2C_MUX 1</text>
+  <text x="1280" y="1141" class="mono ink">I2C_MUX_ADDRESS 0x71</text>
+
+  <text x="90" y="1210" class="tiny muted">참고: ESP32-C3-MINI-1 공식 핀 정의 기준. 실제 사용하는 C3 MINI 캐리어 보드의 핀 라벨·USB 회로·부트 저항은 실물 보드에서 최종 확인하세요.</text>
+</svg>

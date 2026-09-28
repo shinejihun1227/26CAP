@@ -26,7 +26,7 @@ export function renderSidebar(activeView, state) {
 
       <div class="sidebar-section-label">내 보행 살펴보기</div>
       <nav class="primary-nav" aria-label="주요 메뉴">
-        ${navItems.map((item) => `
+        ${navItems.filter((item) => item.group !== 'manage').map((item) => `
           <button class="nav-item ${activeView === item.id ? "is-active" : ""}" data-view="${item.id}" ${activeView === item.id ? 'aria-current="page"' : ''}>
             ${icon(item.icon)}
             <span><b>${item.korean}</b><small>${item.label}</small><em class="nav-item-mobile-label">${mobileNavLabels[item.id] ?? item.korean}</em></span>
@@ -34,11 +34,15 @@ export function renderSidebar(activeView, state) {
         `).join("")}
       </nav>
 
+      <div class="sidebar-section-label">설정 · 자료 보관</div>
+      <nav class="primary-nav management-nav" aria-label="설정과 데이터 관리">
+        ${navItems.filter((item) => item.group === 'manage').map((item) => `<button class="nav-item ${activeView === item.id ? 'is-active' : ''}" data-view="${item.id}" ${activeView === item.id ? 'aria-current="page"' : ''}>${icon(item.icon)}<span><b>${item.korean}</b><small>${item.label}</small></span></button>`).join('')}
+      </nav>
+
       <div class="sidebar-spacer"></div>
       <div class="care-card">
-        <div class="care-card-icon">${icon("shoe")}</div>
-        <strong>처음 사용하시나요?</strong>
-        <p>깔창 연결부터 확인해 보세요.</p>
+        <div class="sidebar-help-title">${icon('help')}<strong>도움이 필요하신가요?</strong></div>
+        <a href="https://github.com/shinejihun1227/26CAP/blob/final/README.md" target="_blank" rel="noopener noreferrer">사용 가이드 ↗</a>
         <button class="text-button" data-view="devices">기기 연결 확인 ${icon("arrow")}</button>
       </div>
       <div class="sidebar-footer connection-${connection.tone}">

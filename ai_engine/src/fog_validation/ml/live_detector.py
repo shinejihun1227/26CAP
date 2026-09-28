@@ -70,6 +70,7 @@ from pathlib import Path
 import numpy as np
 
 from fog_validation.ml.calibration import AxisCalibration
+from fog_validation.ml.config import TARGET_FS_HZ
 from fog_validation.ml.evaluate import CLASS_ORDER
 from fog_validation.ml.model_io import load_cnn, load_rf
 from fog_validation.ml.models_baseline import predict_proba_baseline
@@ -186,6 +187,9 @@ class LiveFogDetector:
 
         self.last_diagnostics: dict = {}
         deploy_config = json.loads((artifact_dir / "deploy_config.json").read_text(encoding="utf-8"))
+        configured_hz = int(deploy_config.get("target_fs_hz", TARGET_FS_HZ))
+        if configured_hz != TARGET_FS_HZ:
+            raise ValueError(f"model_sampling_rate_mismatch: model={configured_hz}Hz runtime={TARGET_FS_HZ}Hz")
         if model_name == "rf":
             self.model = load_rf(artifact_dir / "rf_model.joblib")
             self.model.n_jobs = 1  # see ensemble_investigation_summary.json / deploy_config.json's

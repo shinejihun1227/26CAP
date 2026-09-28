@@ -1,38 +1,33 @@
-.venv/
-venv/
-node_modules/
-__pycache__/
-*.py[cod]
-*.egg-info/
-.pytest_cache/
-.DS_Store
-Thumbs.db
+.dart_tool/
 .idea/
-.vscode/
-.env
-.env.*
-!.env.example
-*.log
-*.tmp
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
 build/
-dist/
-.codex*/
 
-# Never upload personal sessions/settings
-recordings/
-*.calibration.json
+# Local 8000/8001 editor synchronization state
 cap_web/.stepon-editor-state.json
 
-# Only the three inference artifacts are shared
-ai_engine/data/**
-!ai_engine/data/processed/
-!ai_engine/data/processed/ml/
-!ai_engine/data/processed/ml/model_artifact/
-!ai_engine/data/processed/ml/model_artifact/rf_model.joblib
-!ai_engine/data/processed/ml/model_artifact/cnn_model.pt
-!ai_engine/data/processed/ml/model_artifact/deploy_config.json
-ai_engine/results/
-
-.venv-ai/
+# Private, file-backed camera angle observations (no video files)
 .stepon-data/
+
+# Local hotspot credentials (copy the example when sharing firmware)
 firmware/stepon_c3/04_sta_bilateral/wifi_secrets.h
+# Compiled images contain the local Wi-Fi credentials too.
+.codex-build/
+.codex-output/
+
+# Per-PC AI environment, recordings and calibration
+.venv-ai/
+.venv/
+__pycache__/
+*.py[cod]
+recordings/
+*.calibration.json
+
+# Never commit per-device Wi-Fi credentials
+firmware/**/wifi_secrets.h
+.env
+.env.*
+

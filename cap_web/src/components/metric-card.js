@@ -1,8 +1,8 @@
 import { icon } from "./icons.js";
 
-export function renderMetricCard({ label, value, unit, delta, description, tone = "blue", iconName }) {
+export function renderMetricCard({ label, value, unit, delta, description, tone = "blue", iconName, id = "" }) {
   return `
-    <article class="metric-card metric-${tone}">
+    <article class="metric-card metric-${tone}"${id ? ` data-metric="${id}"` : ""}>
       <div class="metric-card-top">
         <span class="metric-label">${label}</span>
         <span class="metric-icon">${icon(iconName)}</span>

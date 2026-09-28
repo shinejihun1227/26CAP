@@ -45,7 +45,8 @@ test('C3 and WROOM sensor histories reach real RF/CNN through Python and the web
     const result=await waitFor(async()=>{const s=await get();return s?.coverage===2&&s.window_ready?s:null;});
     assert.equal(result.api_version,2);assert.equal(result.source,'insole_hub');
     assert.ok(result.score_percent>=0&&result.score_percent<=100);
-    for(const foot of Object.values(result.feet)){assert.ok(foot.received_hz>=32);assert.ok(foot.window_count>0);}
+    assert.equal(result.sample_rate_hz,20);assert.equal(result.window_sec,4);assert.equal(result.hop_sec,.5);
+    for(const foot of Object.values(result.feet)){assert.ok(foot.received_hz>=8);assert.ok(foot.window_count>0);}
     const html=await(await fetch(base+'/?view=safety&esp32=1&transport=sta&ai=1')).text();assert.match(html,/ai-integration.css/);
     console.log(JSON.stringify({synthetic_e2e:true,coverage:result.coverage,state:result.state,score:result.score_percent,received_hz:Object.fromEntries(Object.entries(result.feet).map(([s,f])=>[s,f.received_hz]))}));
     const post=async(action)=>fetch(base+`/api/ai/calibration/${action}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({side:'left'})});

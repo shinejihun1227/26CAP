@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { TREND_PROTOCOL, SENSOR_METRICS, koreaDay, shiftDay, stableJson } from '../src/trends/trend-math.js';
-import { REHAB_ALGORITHM_ID, PRESSURE_LAYOUT_ID, PRESSURE_CHANNELS } from '../src/data/sensor-config.js';
+import { REHAB_ALGORITHM_ID, PRESSURE_LAYOUT_ID, validPressureChannels } from '../src/data/sensor-config.js';
 export const TREND_RETENTION_DAYS = 30;
 const FILE = /^daily-([a-f0-9]{64})\.json$/;
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -36,9 +36,9 @@ export function sanitizeSensorSample(input, now = Date.now()) {
   if (c.aiFoot != null && !['left', 'right'].includes(c.aiFoot)) fail('AI 분석 발이 올바르지 않습니다.');
   condition.aiFoot = c.aiFoot ?? null;
   if (c.algorithm === REHAB_ALGORITHM_ID) {
-    if (c.pressureLayout !== PRESSURE_LAYOUT_ID || JSON.stringify(c.pressureChannels) !== JSON.stringify(PRESSURE_CHANNELS)) fail('4개 압력센서 배치와 채널을 확인하세요.');
+    if (c.pressureLayout !== PRESSURE_LAYOUT_ID || !validPressureChannels(c.pressureChannels)) fail('4개 압력센서 배치와 채널을 확인하세요.');
     condition.pressureLayout = PRESSURE_LAYOUT_ID;
-    condition.pressureChannels = [...PRESSURE_CHANNELS];
+    condition.pressureChannels = [...c.pressureChannels];
   } else if (c.pressureLayout !== undefined || c.pressureChannels !== undefined) fail('이전 알고리즘과 새 센서 배치를 혼용할 수 없습니다.');
   if (stableJson(condition).length > 8000) fail('설정이 너무 큽니다.');
   if (typeof input.at !== 'string' || !Number.isFinite(Date.parse(input.at)) || Math.abs(now - Date.parse(input.at)) > 60000) fail('새로운 실시간 표본만 저장할 수 있습니다. PC 시계를 확인하세요.');
