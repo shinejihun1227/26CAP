@@ -46,6 +46,8 @@ test('comparison has no visible recorder or export, management retains them', ()
 test('mobile shares all measurement pages and has only four bottom tabs', () => {
   for (const view of navItems.map(i => i.id)) {
     const html = renderMobileApp(structuredClone(initialState), view);
+    assert.match(html, /data-action="mobile-fog-sound"/);
+    assert.match(html, /휴대폰 소리 알림/);
     const tabs = html.match(/<nav class="mobile-tabbar"[\s\S]*?<\/nav>/)?.[0];
     assert.equal((tabs.match(/data-view=/g) ?? []).length, 4);
     assert.equal((html.match(/<main[ >]/g) ?? []).length, 1);

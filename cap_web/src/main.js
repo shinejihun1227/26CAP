@@ -30,6 +30,7 @@ import { updateInsoleReadings } from "./components/insole-connection.js";
 import { createInteractionGuard } from './utils/interaction-guard.js';
 import { updateAppShell } from './utils/app-shell.js';
 import { createObservationMonitor } from './data/observation-monitor.js';
+import { createMobileFogAudio } from './services/mobile-fog-audio.js';
 
 const app = document.querySelector("#app");
 const profileStorageKey = "stepon-cap-web-profile";
@@ -94,6 +95,7 @@ let toastTimer;
 const toastMarkup = () => `<div class="toast-region" aria-live="polite">${toastMessage ? `<div class="toast">${escapeHtml(toastMessage)}</div>` : ''}</div>`;
 const interactionGuard = createInteractionGuard(app, () => renderView());
 const observationMonitor = createObservationMonitor();
+const mobileFogAudio = createMobileFogAudio();
 let observationUi = { mode: 'fog', metric: 'temperature', minutes: 5 };
 
 function renderView(force = false) {
@@ -115,7 +117,7 @@ function renderView(force = false) {
     app.innerHTML = `${isMobileUi ? renderMobileOnboarding(state) : renderOnboarding(state)}${toastMarkup()}`;
     return;
   }
-  const viewState = { ...state, aiEnabled, observation: observationMonitor.snapshot(), observationUi, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
+  const viewState = { ...state, aiEnabled, mobileFogSoundEnabled: mobileFogAudio.enabled, observation: observationMonitor.snapshot(), observationUi, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
   const continuity = renderedView === activeView ? captureViewContinuity(app) : null;
   const insoleControls = renderedView === activeView ? captureInsoleControls(app) : null;
   updateAppShell(app, `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${toastMarkup()}`, isMobileUi, renderedView === activeView);
@@ -237,6 +239,16 @@ function applyRehabAnalysis(nextState) {
 }
 
 async function handleAction(action, actionTarget) {
+  if (action === 'mobile-fog-sound') {
+    if (!mobileFogAudio.enabled) {
+      const result = await mobileFogAudio.activate();
+      showToast(result.ok ? '휴대폰 FoG 소리 알림을 켰어요. 테스트음을 확인하세요.' : result.reason === 'unsupported' ? '이 브라우저는 소리 알림을 지원하지 않습니다.' : '소리가 차단됐어요. 휴대폰 미디어 음량과 브라우저 설정을 확인하세요.');
+    } else {
+      await mobileFogAudio.deactivate();
+      showToast('휴대폰 FoG 소리 알림을 껐어요.');
+    }
+    renderView(); return;
+  }
   if (action === 'fog-cue-stop' || action === 'fog-cue-enable') {
     try {
       state = { ...state, ai: normalizeAiState(await setFogCue(action === 'fog-cue-enable'), state.ai) };
@@ -488,6 +500,7 @@ async function refreshAiState(force = false) {
   try {
     const payload = await fetchAiState();
     const nextAi = normalizeAiState(payload, state.ai);
+    if (isMobileUi) mobileFogAudio.observe(nextAi, { foreground: !document.hidden });
     const decisionChanged = nextAi.ready && nextAi.state && nextAi.state !== state.ai?.state;
     // Automatic physical outputs are owned by the PC live AI cue worker.
     const nextEvents = decisionChanged

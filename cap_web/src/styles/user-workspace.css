@@ -49,6 +49,16 @@
 .simple-mobile-header > b { color:var(--user-accent); font-size:1.2rem; letter-spacing:.06em; }
 .simple-mobile-header > span { margin-left:auto; font-size:.8rem; color:var(--user-muted); }
 .simple-mobile-header button { border:0; background:#edf5f1; border-radius:50%; width:40px; height:40px; display:grid; place-items:center; }
+.mobile-fog-audio { display:flex; align-items:center; gap:11px; padding:12px 16px; border-bottom:1px solid var(--user-line); background:#f4f8fa; }
+.mobile-fog-audio > span { width:34px; height:34px; flex:0 0 34px; display:grid; place-items:center; border-radius:50%; color:#526f7b; background:#e4edf1; }
+.mobile-fog-audio > span .icon { width:18px; height:18px; }
+.mobile-fog-audio > div { min-width:0; display:grid; gap:3px; }
+.mobile-fog-audio b { color:var(--user-ink); font-size:.83rem; }
+.mobile-fog-audio small { color:var(--user-muted); font-size:.7rem; line-height:1.4; }
+.mobile-fog-audio button { min-height:40px; flex:0 0 auto; padding:7px 11px; border:1px solid #9bc8b8; border-radius:10px; background:white; color:var(--user-accent); font:inherit; font-size:.72rem; font-weight:700; }
+.mobile-fog-audio.is-enabled { background:#eaf6f1; border-color:#c8e3d8; }
+.mobile-fog-audio.is-enabled > span { color:#fff; background:#248a76; }
+.mobile-fog-audio.is-enabled button { background:#176d68; color:white; border-color:#176d68; }
 .mobile-management { display:flex; justify-content:flex-end; gap:8px; padding:4px 20px 12px; background:#fff; border-bottom:1px solid var(--user-line); }
 .mobile-management button { border:1px solid var(--user-line); background:#fff; color:var(--user-muted); border-radius:9px; padding:9px 12px; min-height:40px; font:inherit; font-size:.85rem; }
 .mobile-management button[aria-current=page] { background:#e6f2ed; color:var(--user-accent); border-color:#aacfc1; }
@@ -73,6 +83,8 @@
 .simple-mobile .rom-layout { grid-template-columns:1fr; }
 .simple-mobile .rom-workspace { font-size:1rem; }
 @media(max-width:800px) {
+  .mobile-fog-audio { align-items:flex-start; }
+  .mobile-fog-audio > div { flex:1; }
   .simple-heading { flex-wrap:wrap; }
   .records-shortcuts a { flex:1 1 160px; }
   .simple-details { padding:0 14px; }
