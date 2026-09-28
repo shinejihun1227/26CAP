@@ -19,7 +19,11 @@ export function renderMediaPipeContent({ manage = false } = {}) {
   const settings = loadSettings();
   return `<section class="rom-workspace ${manage ? "is-management" : "is-measurement"}" data-rom-root data-rom-mode="${manage ? "manage" : "measure"}">
     <header class="rom-heading"><div><span class="rom-eyebrow">${manage ? "관절 자료" : "MEDIAPIPE · JOINT OBSERVATION"}</span><${manage ? "h2" : "h1"}>${manage ? "관절 기록과 측정 세트" : "관절 움직임 기록"}</${manage ? "h2" : "h1"}><p>${manage ? "저장한 기록을 골라 세트로 묶거나 내보내세요." : "같은 조건으로 움직임을 기록하고, 날짜별 변화를 살펴보세요."}</p></div><div class="rom-heading-actions"><div class="simple-route-link"><button type="button" ${manage ? 'data-view="mediapipe"' : 'data-rom-action="show-comparison"'}>${manage ? "새 관절 측정하기 →" : "기록 비교 ↓"}</button><button type="button" data-view="records" ${manage ? "hidden" : ""}>기록 · 세트 관리 →</button></div></div></header>
-    ${manage ? "" : `<section class="motion-purpose" aria-label="관절 움직임 기록의 목적"><span class="motion-purpose-badge">관찰·기록용</span><div><b>진단이 아니라, 내 움직임의 변화를 살펴보는 도구예요.</b><p>카메라가 추정한 관절 각도를 같은 촬영 조건의 내 기록끼리 비교하고, 필요하면 전문가와 공유할 참고 자료로 사용할 수 있어요.</p></div><ul><li>오늘 움직임 기록</li><li>내 이전 기록과 비교</li><li>필요할 때 전문가와 공유</li></ul></section>`}
+    ${manage ? "" : `<section class="motion-purpose" aria-label="관절 움직임 기록의 목적">
+      <div class="motion-purpose-main"><span class="motion-purpose-mark" aria-hidden="true"><span>↗</span></span><div class="motion-purpose-copy"><span class="motion-purpose-badge">PERSONAL MOVEMENT JOURNAL</span><h2>내 움직임을 기록하고, 변화를 비교해요</h2><p>같은 관절과 촬영 조건으로 남긴 기록을 날짜별로 살펴보세요.</p></div></div>
+      <ol class="motion-purpose-flow" aria-label="기록 활용 순서"><li><span>01</span><b>기록</b><small>카메라로 움직임 남기기</small></li><li><span>02</span><b>비교</b><small>내 이전 기록과 나란히 보기</small></li><li><span>03</span><b>공유</b><small>원할 때 참고 자료로 전달</small></li></ol>
+      <p class="motion-purpose-note"><span aria-hidden="true">ⓘ</span> 의료 진단이나 치료 처방이 아닌, 개인의 움직임 변화를 살펴보는 참고 자료입니다.</p>
+    </section>`}
     <div ${manage ? "" : "hidden"}>${renderSetWorkspace()}</div>
     <div class="rom-layout motion-capture ${manage ? "rom-management-layout" : ""}" ${manage ? "hidden" : ""}>
       <section class="rom-camera-panel" aria-label="웹캠 관절 분석" ${manage ? "hidden" : ""}>

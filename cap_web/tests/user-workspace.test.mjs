@@ -14,8 +14,9 @@ test('four everyday tasks are separate from settings and data management', () =>
   const jointHtml = renderMediaPipeContent();
   assert.match(jointHtml, /MEDIAPIPE · JOINT OBSERVATION/);
   assert.match(jointHtml, /관절 움직임 기록/);
-  assert.match(jointHtml, /진단이 아니라, 내 움직임의 변화를 살펴보는 도구/);
-  assert.match(jointHtml, /같은 촬영 조건의 내 기록끼리 비교/);
+  assert.match(jointHtml, /내 움직임을 기록하고, 변화를 비교해요/);
+  assert.match(jointHtml, /기록 활용 순서/);
+  assert.match(jointHtml, /개인의 움직임 변화를 살펴보는 참고 자료/);
 });
 
 test('measurement preserves save and recording controls while moving sets and history out of sight', () => {
