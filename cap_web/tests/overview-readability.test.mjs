@@ -96,6 +96,15 @@ test('AI disabled, offline, unavailable, warming-up and paused states suppress s
   assert.equal(aiPresentation(state).score, null);
 });
 
+test('overview personal calibration action names the device calibration panel', () => {
+  const state = hardwareState();
+  state.aiEnabled = true;
+  state.ai = { ...state.ai, available: true, status: 'calibration_missing', deviceConnected: true };
+  const html = renderAiStatusCard(state, { compact: true });
+  assert.match(html, /개인 보정 하러가기/);
+  assert.match(html, /data-view="devices" data-open-disclosure="device-baselines"/);
+});
+
 test('only a ready AI with a finite numeric output has a score, not a disease probability', () => {
   const state = connect(hardwareState()); state.aiEnabled = true;
   state.ai = { available: true, ready: true, deviceConnected: true, status: 'normal', score: .27 };
@@ -147,7 +156,8 @@ test('Korean navigation names, active-page semantics and connection tones agree'
   let html = renderSidebar('overview', state);
   assert.match(html, /data-view="overview" aria-current="page"/);
   assert.match(html, /<b>오늘 요약<\/b>/);
-  assert.match(html, /<b>관절 관리<\/b>/);
+  assert.match(html, /<b>정면 보행<\/b>/);
+  assert.match(html, /<b>발 움직임<\/b>/);
   assert.match(html, /sidebar-footer connection-waiting/);
   connect(state, ['left']); assert.equal(connectionSummary(state).tone, 'partial');
   connect(state); assert.equal(connectionSummary(state).tone, 'connected');

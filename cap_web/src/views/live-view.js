@@ -4,6 +4,7 @@ import { renderTopbar } from "../components/topbar.js";
 import { renderAiStatusCard } from "../components/ai-status-card.js";
 import { renderInsoleConnections } from '../components/insole-connection.js';
 import { renderObservationPanel } from '../components/observation-panel.js';
+import { renderEasyLiveContent } from './easy-view.js';
 
 function healthRow(label, detail, ready) {
   return `<div class="clarity-health-row ${ready ? "" : "is-waiting"}"><i></i><div><b>${label}</b><small>${detail}</small></div><strong>${ready ? "정상" : "확인 필요"}</strong></div>`;
@@ -15,6 +16,7 @@ function display(value, digits = 1, suffix = "") {
 }
 
 export function renderLiveView(state, { embedded = false } = {}) {
+  if (state.easyMode) return embedded ? renderEasyLiveContent(state) : `<div class="page-shell">${renderTopbar(state)}<main class="content-area">${renderEasyLiveContent(state)}</main></div>`;
   const sensors = state.hardware?.sensors ?? {};
   const sampleHz = state.hardware?.sampleHz ?? (state.dataSource === "esp32" ? 64 : 25);
   const auxSampleHz = state.hardware?.auxSampleHz ?? 20;
@@ -27,6 +29,7 @@ export function renderLiveView(state, { embedded = false } = {}) {
     <div class="page-shell clarity-page">
       ${renderTopbar(state)}
       <main class="content-area clarity-content">`}
+        <div class="scope-banner">발 기울기와 이탈 기록은 <button data-view="ankle">발 움직임 →</button>에서 확인하세요.</div>
         <section class="clarity-page-intro">
           <div><span class="eyebrow">LIVE MEASUREMENT</span><h1>보행 측정</h1><p>지금 발에 실리는 압력과 보행 상태를 확인하세요.</p></div>
           <button class="simple-secondary" data-view="records" data-record-section="walking">측정 기록 저장 →</button>
@@ -44,7 +47,7 @@ export function renderLiveView(state, { embedded = false } = {}) {
 
         <section class="clarity-section-heading"><div><span class="eyebrow">SENSOR SIGNALS</span><h2>발에 실리는 압력</h2></div><span>색이 진할수록 압력이 높아요</span></section>
         <section class="clarity-live-grid">
-          <div class="panel clarity-heatmap-card">${renderBilateralHeatmap(state)}</div>
+          <div class="clarity-heatmap-card">${renderBilateralHeatmap(state)}</div>
           <details class="simple-details clarity-health-card" data-ui-disclosure="live-sensors"><summary>연결과 센서 상태 자세히 보기</summary>${renderInsoleConnections(state)}<article class="panel"><div class="panel-heading"><div><span class="panel-kicker">CONNECTION CHECK</span><h2>연결 상태</h2></div><span class="clarity-status-chip ${state.connected ? "is-ready" : "is-waiting"}">${state.connected ? "연결됨" : "대기"}</span></div><div class="clarity-health-list">${healthRow("BMI270 움직임", "선택한 발 · 가속도·자이로", sensors.imu?.ready ?? state.dataSource !== 'esp32')}${healthRow("FSR406 압력", twoSensors ? "물리 센서 2개 · P1=P2 / P3=P4 공유 표시" : "선택한 발 · 압력 4채널", sensors.pressure?.ready ?? state.dataSource !== 'esp32')}${healthRow("SHTC3 온·습도", `${sensors.thermal?.count ?? (state.dataSource === 'esp32' ? 0 : 4)}/${sensors.thermal?.total ?? 4}개 유효값 · ${twoSensors ? '물리 센서 2개, 표시값 공유' : '보조 신호'}`, sensors.thermal?.ready ?? state.dataSource !== 'esp32')}${healthRow("진동 모터", "선택한 발 · 안내 출력부", sensors.drv2605?.ready ?? false)}</div><button class="clarity-link-button" data-view="devices">기기 상태 자세히 보기 ${icon("arrow")}</button></article></details>
         </section>
 

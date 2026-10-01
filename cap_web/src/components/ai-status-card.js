@@ -1,6 +1,8 @@
 import { escapeHtml } from "../utils/text.js";
 
 const STATUS_META = {
+  detection_unconfirmed: { label: '이 화면 알림 중지', tone: 'orange', detail: 'PC 감지 중지는 아직 확인되지 않았어요. 연결을 확인하고 위쪽에서 중지를 다시 요청하세요.' },
+  detection_paused: { label: 'FoG 감지 중지', tone: 'lavender', detail: '감지·경고 알림·자동 출력이 중지됐어요. 위쪽의 감지 재개를 눌러 다시 시작하세요.' },
   normal: { label: "지속 신호 미확인", tone: "mint", detail: "현재 연속 판정 조건을 충족한 보행동결 신호가 없어요." },
   warning: { label: "주의", tone: "orange", detail: "보행동결 가능성을 관찰하고 있어요." },
   confirmed: { label: "신호 감지", tone: "coral", detail: "최근 분석에서 보행동결 관련 신호가 이어졌어요." },
@@ -24,7 +26,7 @@ export function renderFogCue(state) {
   const cue = state.ai?.available ? state.ai.cue : null;
   const active = Object.entries(cue?.feet ?? {}).filter(([, v]) => v.requested && v.acknowledged).map(([s]) => s === 'left' ? '왼발' : '오른발');
   const error = Object.values(cue?.feet ?? {}).find(v => v.error)?.error;
-  const label = !cue ? 'AI 연결 후 확인할 수 있어요' : !cue.enabled ? '자동 출력 중지됨' : active.length ? `${active.join(' · ')} 진동·레이저 유지 명령 전달 중` : 'FoG 감지 시 자동 출력 대기';
+  const label = !cue ? 'AI 연결 후 확인할 수 있어요' : state.ai.detectionEnabled === false ? '감지 중지 모드 · 자동 출력 중지됨' : !cue.enabled ? '자동 출력 중지됨' : active.length ? `${active.join(' · ')} 진동·레이저 유지 명령 전달 중` : 'FoG 감지 시 자동 출력 대기';
   return `<div class="fog-cue-panel"><h3>FoG 감지 안내</h3><p data-live-copy><b>${escapeHtml(label)}</b></p><p>각 발의 AI가 신호 감지 상태일 때 진동과 레이저를 유지하고, 감지가 해제되면 자동으로 꺼요. 연결이 끊기면 마지막 명령 후 최대 1.5초 안에 꺼져요.</p><div class="device-actions"><button class="outline-button" data-action="fog-cue-stop" ${!cue ? 'disabled' : ''}>진동·레이저 자동 출력 중지</button><button class="outline-button" data-action="fog-cue-enable" ${!cue || cue.enabled ? 'disabled' : ''}>자동 출력 다시 켜기</button></div>${error ? `<p role="status">${escapeHtml(error)}</p>` : ''}<small>PC AI가 제어해요. 웹을 닫아도 동작하며, CSV 수집 중에는 자동 출력을 쉬어요. CSV 분석은 실제 출력을 켜지 않아요.</small></div>`;
 }
 
@@ -39,7 +41,7 @@ export function aiPresentation(state) {
   const disabled = state.aiEnabled === false;
   const offline = state.dataSource === 'esp32' && (!state.connected || ai.deviceConnected === false);
   const expired = Number.isFinite(ai.lastWindowAtMs) && Date.now() - ai.lastWindowAtMs > 2500;
-  const status = disabled ? 'disabled' : state.paused ? 'paused' : !ai.available ? 'unavailable'
+  const status = state.fogControlError || (!ai.available && (state.fogLocalStop || ai.detectionEnabled === false)) ? 'detection_unconfirmed' : state.fogLocalStop || ai.detectionEnabled === false ? 'detection_paused' : disabled ? 'disabled' : state.paused ? 'paused' : !ai.available ? 'unavailable'
     : ['calibration_missing', 'calibration_failed', 'calibrating', 'invalid_data', 'unavailable'].includes(ai.status) ? ai.status
     : offline || expired ? 'device_offline' : !ai.ready ? 'warming_up' : ai.status;
   const meta = getAiStatusMeta(status);
@@ -86,7 +88,7 @@ export function renderAiStatusCard(state, { compact = false } = {}) {
   const connection = ai.available ? (ai.ready ? "실시간 추론 연결됨" : "브리지 연결됨 · 준비 필요") : "브리지 연결 안 됨";
   const nextView = ['calibration_missing', 'calibration_failed', 'device_offline', 'unavailable', 'invalid_data'].includes(status) ? 'devices' : 'live';
 
-  if (compact) return `<article class="overview-insight" data-insight="ai"><div class="overview-insight-heading"><h3>AI 보행동결</h3><span class="overview-badge tone-${meta.tone}" data-live-copy>${disabled ? '선택 기능' : meta.label}</span></div><div class="overview-insight-value" data-live-copy>${score === null ? meta.label : `${displayScore(score)}점`}</div><p data-live-copy>${detail}</p><button class="text-button" data-view="${nextView}">${nextView === 'devices' ? '연결 · 개인 기준 확인' : '보행 측정에서 확인'} <span aria-hidden="true">→</span></button></article>`;
+  if (compact) return `<article class="overview-insight" data-insight="ai"><div class="overview-insight-heading"><h3>AI 보행동결</h3><span class="overview-badge tone-${meta.tone}" data-live-copy>${disabled ? '선택 기능' : meta.label}</span></div><div class="overview-insight-value" data-live-copy>${score === null ? meta.label : `${displayScore(score)}점`}</div><p data-live-copy>${detail}</p><button class="text-button" data-view="${nextView}"${nextView === 'devices' ? ' data-open-disclosure="device-baselines"' : ''}>${nextView === 'devices' ? '개인 보정 하러가기' : '보행 측정에서 확인'} <span aria-hidden="true">→</span></button></article>`;
 
   return `<article class="panel ai-status-panel">
     <div class="panel-heading"><div><span class="panel-kicker">현재 보행 신호</span><h2>AI 보행 관찰</h2></div><span class="algorithm-pill pill-${meta.tone}"><i></i><span data-live-copy>${meta.label}</span></span></div>

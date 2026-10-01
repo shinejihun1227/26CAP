@@ -39,3 +39,17 @@ class CueTests(unittest.TestCase):
             controller.set_enabled(True); controller.send.side_effect=OSError('offline'); controller.tick('left')
             self.assertFalse(controller.snapshot()['feet']['left']['acknowledged'])
             self.assertEqual(controller.snapshot()['feet']['left']['status'],'error')
+
+    def test_global_detection_pause_sends_off_even_with_confirmed_runtime(self):
+        with tempfile.TemporaryDirectory() as folder:
+            bridge = SimpleNamespace(lock=threading.RLock(), detection_enabled=False,
+                                     feet={'left':SimpleNamespace(snapshot=lambda:self.foot())},
+                                     datasets=SimpleNamespace(capture=None))
+            controller = FogCueController(bridge, folder)
+            controller.send = Mock(return_value={'cue_api_version':1, 'accepted':True})
+            controller.tick('left')
+            self.assertFalse(controller.send.call_args.args[2])
+            self.assertTrue(controller.enabled)  # Preserve the user's separate hardware preference.
+            bridge.detection_enabled=True
+            controller.tick('left')
+            self.assertTrue(controller.send.call_args.args[2])

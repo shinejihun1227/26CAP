@@ -13,7 +13,7 @@ test('recording is enabled only with a fresh valid pose and completed setup', ()
   const cases = [
     [{ consent: false }, /동의/],
     [{ starting: true, running: false }, /준비 중/],
-    [{ running: false }, /웹캠 켜기/],
+    [{ running: false }, /카메라 켜기/],
     [{ participant: '  ' }, /사용자 코드/],
     [{ setup: '' }, /촬영 환경 코드/],
     [{ directionConfirmed: false }, /체크/],

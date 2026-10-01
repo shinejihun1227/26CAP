@@ -104,6 +104,9 @@ body { font-size: 15px; }
 .foot-map-figure.is-unavailable { opacity: .68; }
 .foot-map-figure.is-unavailable .foot-side-label { color: #a2adb3; }
 .topbar-sensor-status { display: inline-flex; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; color: #8c9ba3; background: #fff; font-size: 8px; font-weight: 800; white-space: nowrap; }
+.topbar-audio-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.topbar-audio-toggle .icon { width: 15px; height: 15px; }
+.topbar-audio-toggle.is-enabled { color: #176d68; border-color: #a9d4c5; background: #eaf6f1; }
 .topbar-sensor-status i { width: 6px; height: 6px; border-radius: 50%; background: #b9c4ca; }
 .topbar-sensor-status.is-connected { color: #3e9b7b; border-color: #cce9df; background: #f5fcf9; }
 .topbar-sensor-status.is-connected i { background: var(--mint); box-shadow: 0 0 0 3px var(--mint-soft); }

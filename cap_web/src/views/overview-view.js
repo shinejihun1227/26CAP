@@ -7,6 +7,7 @@ import { connectionSummary } from '../components/connection-summary.js';
 import { analyzeThermalDifference } from '../data/gait-algorithms.js';
 import { riskLabel } from '../data/dashboard-data.js';
 import { escapeHtml as esc } from '../utils/text.js';
+import { renderEasyContent } from './easy-view.js';
 
 const finite = (value) => typeof value === 'number' && Number.isFinite(value);
 const display = (value, digits = 1) => finite(value) ? value.toFixed(digits) : '—';
@@ -75,6 +76,7 @@ function renderObservations(state, presentation) {
 }
 
 export function renderOverview(state, { embedded = false } = {}) {
+  if (state.easyMode) return embedded ? renderEasyContent(state) : `<div class="page-shell">${renderTopbar(state)}<main class="content-area">${renderEasyContent(state)}</main></div>`;
   const presentation = overviewPresentation(state);
   const { connection, usable, risk, title, description, action, view } = presentation;
   const metrics = state.metrics ?? {};

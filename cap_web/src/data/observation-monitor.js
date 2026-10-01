@@ -45,6 +45,7 @@ export function pairedDifference(feet, metric) {
 export function readFogObservation(state, now = Date.now()) {
   const ai = state.ai ?? {};
   const valid = state.dataSource === 'esp32' && state.connected && !state.paused && state.aiEnabled !== false
+    && !state.fogLocalStop && ai.detectionEnabled !== false
     && ai.available && ai.ready && ai.windowReady && ai.deviceConnected && fresh(ai.lastWindowAtMs, now)
     && ['normal', 'warning', 'confirmed'].includes(ai.state);
   if (!valid) return null;

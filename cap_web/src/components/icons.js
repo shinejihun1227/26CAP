@@ -4,7 +4,9 @@ const paths = {
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1-1.5 2M12 17h.01"/>',
 
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
+  accessibility: '<circle cx="12" cy="4.5" r="2"/><path d="M12 7v6M7 10l5 3 5-3M9 21l3-8 3 8M12 13v8"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  chart: '<path d="M4 19V5M4 19h17"/><path d="m7 15 4-4 3 2 5-6"/>',
   activity: '<path d="M3 12h4l2.1-6 4.2 12 2.1-6H21"/>',
   shield: '<path d="M12 3 20 6v5.8c0 4.9-3.4 7.8-8 9.2-4.6-1.4-8-4.3-8-9.2V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/>',
   report: '<path d="M6 3.5h9l3 3V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V7h4M8 11h6M8 15h6M8 18h3"/>',

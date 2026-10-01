@@ -25,18 +25,23 @@ export function updateAppShell(root, markup, mobile, sameView = false) {
     root.innerHTML = markup;
     return;
   }
+  // Easy mode changes the shell class while the page shell is replaced. Keep
+  // presentation state in sync as well as the page content.
+  current.className = next.className;
+  if (mobile) for (const selector of ['.mobile-fog-audio','[data-fog-control]']) {
+    const oldControl=current.querySelector(selector),newControl=next.querySelector(selector);
+    if(oldControl&&newControl)syncLiveNode(oldControl,newControl);
+  }
   if (sameView) syncLiveNode(current.querySelector(content), next.querySelector(content));
   else current.querySelector(content).replaceWith(next.querySelector(content));
-  const navs = mobile ? ['.mobile-management', '.mobile-tabbar'] : ['.sidebar'];
-  for (const selector of navs) {
-    const nav = current.querySelector(selector), newNav = next.querySelector(selector);
-    for (const [index, button] of [...(nav?.querySelectorAll('[data-view]') ?? [])].entries()) {
-      const peer = newNav?.querySelectorAll('[data-view]')[index];
-      if (!peer) continue;
-      button.className = peer.className;
-      if (peer.hasAttribute('aria-current')) button.setAttribute('aria-current', peer.getAttribute('aria-current'));
-      else button.removeAttribute('aria-current');
-    }
+  const navSelector = mobile ? '.mobile-management, .mobile-tabbar' : '.primary-nav';
+  const navs = [...current.querySelectorAll(navSelector)], newNavs = [...next.querySelectorAll(navSelector)];
+  for (const [navIndex, nav] of navs.entries()) if (newNavs[navIndex]) nav.replaceWith(newNavs[navIndex]);
+  if (!mobile) {
+    const oldStatus = current.querySelector('.easy-mode-status'), newStatus = next.querySelector('.easy-mode-status');
+    if (oldStatus && newStatus) oldStatus.replaceWith(newStatus);
+    else if (oldStatus) oldStatus.remove();
+    else if (newStatus) current.querySelector('.sidebar-section-label')?.before(newStatus);
   }
   const status = mobile ? '.simple-mobile-header > span' : '.sidebar-footer';
   const oldStatus = current.querySelector(status), newStatus = next.querySelector(status);

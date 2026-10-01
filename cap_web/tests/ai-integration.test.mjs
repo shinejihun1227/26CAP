@@ -53,6 +53,17 @@ const listen = async(handler,t)=>{
   const server=http.createServer(handler); await new Promise(r=>server.listen(0,'127.0.0.1',r));
   t.after(()=>{server.closeAllConnections();server.close();}); return `http://127.0.0.1:${server.address().port}`;
 };
+test('detection pause and resume use the same-origin API and reject foreign writes',async(t)=>{
+  const calls=[];
+  const base=await listen(createAiHandler({fetchImpl:async(url,opts)=>{calls.push([String(url),JSON.parse(opts.body)]);return new Response(JSON.stringify({...valid,detection:JSON.parse(opts.body)}));}}),t);
+  for(const enabled of [false,true]) {
+    const response=await fetch(base+'/api/ai/detection',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled})});
+    assert.equal(response.status,200);assert.equal((await response.json()).detection.enabled,enabled);
+  }
+  assert.deepEqual(calls.map(c=>c[1]),[{enabled:false},{enabled:true}]);
+  assert.equal((await fetch(base+'/api/ai/detection',{method:'POST',headers:{'content-type':'application/json',origin:'https://external.example'},body:'{"enabled":true}'})).status,403);
+  assert.equal(calls.length,2);
+});
 test('same-origin AI proxy forwards calibration, propagates errors and blocks cross-origin writes',async(t)=>{
   const calls=[];
   const base=await listen(createAiHandler({fetchImpl:async(url,opts)=>{calls.push([String(url),opts]);return new Response(JSON.stringify(valid));}}),t);

@@ -4,7 +4,7 @@ import { escapeHtml as e } from '../utils/text.js';
 
 export function renderTrendsContent({ manage = false } = {}) {
   return `<div class="trends-workspace" data-trends-root data-trends-mode="${manage ? "manage" : "compare"}">
-    <header class="trends-heading"><div><span class="trends-kicker">${manage ? "보행 자료" : "나의 지난 기록"}</span><${manage ? "h2" : "h1"}>${manage ? "보행 기록과 내보내기" : "변화 보기"}</${manage ? "h2" : "h1"}><p>${manage ? "측정값을 저장하고 필요한 자료를 내보내세요." : "같은 조건으로 측정한 지난 기록과 비교해 보세요."}</p></div><span class="trends-private">내 PC 저장 · 한국 날짜 기준</span></header>
+    <header class="trends-heading"><div><span class="trends-kicker">${manage ? "보행 센서 자료" : "나의 지난 기록"}</span><${manage ? "h2" : "h1"}>${manage ? "보행 센서 기록 관리" : "변화 보기"}</${manage ? "h2" : "h1"}><p>${manage ? "압력·온도·습도 표본을 저장하고 지표별 기록을 내보내세요." : "같은 조건으로 측정한 지난 기록과 비교해 보세요."}</p></div><span class="trends-private">내 PC 저장 · 한국 날짜 기준</span></header>
     <section class="trends-toolbar" aria-label="비교할 기록 선택">
       <label>측정 코드<input data-trend-participant maxlength="30" value="P01" list="trend-participants" autocomplete="off" /></label><datalist id="trend-participants"></datalist>
       <label>기준 날짜<input data-trend-date type="date" value="${koreaDay()}" max="${koreaDay()}" /></label>
@@ -18,7 +18,7 @@ export function renderTrendsContent({ manage = false } = {}) {
       <label class="trends-wide-label">비교할 관절·촬영 조건<select data-trend-rom><option value="">저장된 관절 기록 없음</option></select></label>
       <div data-trend-rom-result class="trends-empty">MediaPipe에서 15초 측정을 완료하고 ‘기록 저장’을 눌러 주세요. 정면·좌측·우측은 각각 같은 조건끼리 비교합니다.</div>
     </section>
-    <section class="trends-panel trends-sensors"><div class="trends-panel-head"><div><h2>보행·발 상태 기록</h2></div><span data-trend-live-status>기록 중 아님</span></div>
+    <section class="trends-panel trends-sensors"><div class="trends-panel-head"><div><h2>${manage ? "압력·온습도 센서 기록" : "보행·발 상태 기록"}</h2></div><span data-trend-live-status>기록 중 아님</span></div>
       <div ${manage ? "" : "hidden"}><div class="trends-recorder"><label>센서 환경 코드<input data-trend-setup value="보행-기본" maxlength="60" /></label><label class="trends-consent"><input type="checkbox" data-trend-consent />이 측정 코드로 실제 센서·알고리즘 관찰값을 PC에 30일 저장합니다.</label><button type="button" data-trend-action="start" disabled>센서 기록 시작</button><button type="button" data-trend-action="stop" disabled>기록 중지</button></div>
       <p class="trends-help">이 탭이 보이는 동안 약 1초마다 저장합니다. 탭을 숨기거나 다른 메뉴로 이동하면 중지됩니다. 시연값·연결 끊김·오래된 값은 제외하며, 기록 중 화면은 5초마다 갱신됩니다. 신발·센서 위치·운동 종류·모델 가중치 또는 보정 파일을 바꾸면 새 환경 코드를 사용하세요.</p></div>
       <div class="trends-filter-row"><label>센서·설정 조건<select data-trend-sensor><option value="">저장된 센서 기록 없음</option></select></label><label>관찰 지표<select data-trend-metric>${Object.entries(SENSOR_METRICS).map(([id, spec]) => `<option value="${id}">${e(spec.label)}</option>`).join('')}</select></label></div>

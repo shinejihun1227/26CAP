@@ -1,15 +1,14 @@
 import { renderSidebar } from "./components/sidebar.js";
+import { renderTopbar } from './components/topbar.js';
 import { initialState, evolveState } from "./data/dashboard-data.js";
 import { analyzeRehabFrame, captureRehabCalibration, createDefaultRehabState } from "./data/gait-algorithms.js";
-import { renderOverview } from "./views/overview-view.js";
 import { renderLiveView } from "./views/live-view.js";
 import { renderSafetyView } from "./views/safety-view.js";
 import { renderReportsView } from "./views/reports-view.js";
 import { renderDevicesView } from "./views/devices-view.js";
-import { renderMediaPipeView } from "./views/mediapipe-view.js";
 import { renderOnboarding } from "./views/onboarding-view.js";
 import { cueMessages, speakCue, runOutputTest, outputTestError } from "./services/cue-controller.js";
-import { observationGoals } from "./data/dashboard-data.js";
+import { profileFromForm } from './data/profile.js';
 import { escapeHtml } from "./utils/text.js";
 import { applyDirectTextOverrides, mountEditor } from "./editor/editor-view.js";
 import { saveMediaPipeSetting } from "./views/mediapipe-view.js";
@@ -18,7 +17,9 @@ import { loadFootLayout, normalizeFootLayout } from "./data/foot-layout.js";
 import { renderMobileApp, renderMobileOnboarding } from "./mobile/mobile-app.js";
 import { fetchEsp32State, markEsp32Disconnected, normalizeEsp32State } from "./services/esp32-api.js";
 import { setLaser, vibrate, usesBilateralSta, hubRequest } from "./services/esp32-api.js";
-import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi, setFogCue } from "./services/ai-api.js";
+import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi, setFogCue, setFogDetection } from "./services/ai-api.js";
+import { createFogNotifications } from './services/fog-notifications.js';
+import { renderFogPopup } from './components/fog-control.js';
 import { mountRomWorkspace } from "./mediapipe/rom-controller.js";
 import { renderTrendsView } from "./views/trends-view.js";
 import { renderRecordsView } from './views/records-view.js';
@@ -28,12 +29,18 @@ import { captureViewContinuity, restoreViewContinuity } from "./utils/view-conti
 import { captureInsoleControls, restoreInsoleControls, isEditingInsole } from "./utils/insole-ui.js";
 import { updateInsoleReadings } from "./components/insole-connection.js";
 import { createInteractionGuard } from './utils/interaction-guard.js';
-import { updateAppShell } from './utils/app-shell.js';
+import { updateAppShell, syncLiveNode } from './utils/app-shell.js';
 import { createObservationMonitor } from './data/observation-monitor.js';
-import { createMobileFogAudio } from './services/mobile-fog-audio.js';
+import { createAnkleMonitor } from './mediapipe/ankle-monitor.js';
+import { renderPurposeView } from './views/purpose-view.js';
+import { renderFrontView } from './views/front-view.js';
+import { renderAnkleDailyView } from './views/ankle-daily-view.js';
+import { mountFrontCamera } from './mediapipe/front-controller.js';
+import { mountDailyAnkle } from './mediapipe/daily-controller.js';
 
 const app = document.querySelector("#app");
 const profileStorageKey = "stepon-cap-web-profile";
+const easyModeStorageKey = 'stepon-easy-mode';
 const rehabLogStorageKey = "stepon-rehab-daily-log";
 const query = new URLSearchParams(window.location.search);
 const isEditorMode = window.location.port === "8001" || query.get("mode") === "editor";
@@ -43,7 +50,7 @@ const esp32Enabled = !isEditorMode && !["0", "false"].includes(query.get("esp32"
   try { return window.localStorage.getItem("stepon-esp32-enabled") === "true"; } catch { return false; }
 })());
 const aiEnabled = !isEditorMode && esp32Enabled && !['0', 'false'].includes(query.get('ai'));
-const viewRenderers = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView, records: renderRecordsView };
+const viewRenderers = { overview: renderPurposeView, easy: renderPurposeView, live: renderLiveView, ankle: renderAnkleDailyView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderFrontView, trends: renderTrendsView, records: renderRecordsView };
 const validViews = new Set(Object.keys(viewRenderers));
 
 function loadProfile() {
@@ -75,15 +82,17 @@ let esp32LastError = null;
 let rehabHistory = {};
 const requestedView = new URLSearchParams(window.location.search).get("view");
 let activeView = validViews.has(requestedView) ? requestedView : "overview";
+let easyMode = query.get('easy') === '1' || activeView === 'easy' || (() => { try { return window.localStorage.getItem(easyModeStorageKey) === 'true'; } catch { return false; } })();
 const previewDashboard = new URLSearchParams(window.location.search).get("preview") === "1";
-// Real-sensor mode should open the dashboard immediately so the ESP32 stream
-// can be verified before optional profile setup is completed.
-let showOnboarding = !storedProfile?.configured && !previewDashboard && !esp32Enabled;
+// First use asks for basic information only; all three features stay available.
+let showOnboarding = !storedProfile?.configured && !previewDashboard;
 let sharedDirectTextOverrides = {};
 let sharedSensorLayout = loadSensorLayout();
 let sharedFootLayout = loadFootLayout();
 let romWorkspace = null;
 let trendWorkspace = null;
+let frontWorkspace = null;
+let dailyWorkspace = null;
 let romContext = null;
 let trendContext = null;
 let esp32RequestInFlight = false;
@@ -92,11 +101,39 @@ let outputTestInFlight = false;
 let renderedView = null;
 let toastMessage = '';
 let toastTimer;
+let fogPopup = null;
+let fogReturnFocus = null;
+let detectionRevision = 0;
+const fogNotifications = createFogNotifications({onAlert: () => openFogPopup()});
 const toastMarkup = () => `<div class="toast-region" aria-live="polite">${toastMessage ? `<div class="toast">${escapeHtml(toastMessage)}</div>` : ''}</div>`;
+const fogPopupMarkup = () => fogPopup ? renderFogPopup(fogPopup) : '';
+function openFogPopup({ preview = false } = {}) {
+  if (!preview && (state.fogLocalStop || state.ai?.detectionEnabled === false)) return;
+  if (fogPopup && (!fogPopup.preview || preview)) return;
+  if (!fogPopup) fogReturnFocus = document.activeElement;
+  fogPopup = { openedAt: Date.now(), preview };
+  app.querySelector('.fog-alert-overlay')?.remove();
+  app.insertAdjacentHTML('beforeend', fogPopupMarkup());
+  app.querySelector('[data-action=dismiss-fog-popup]')?.focus();
+}
+function closeFogPopup() { fogPopup=null;app.querySelector('.fog-alert-overlay')?.remove();if(fogReturnFocus?.isConnected)fogReturnFocus.focus();fogReturnFocus=null; }
+function showNavigationLoading() { if (!app.querySelector('.navigation-loading')) app.insertAdjacentHTML('beforeend', '<div class="navigation-loading" role="status" aria-live="polite"><span></span><b>화면을 준비하고 있어요</b></div>'); }
 const interactionGuard = createInteractionGuard(app, () => renderView());
 const observationMonitor = createObservationMonitor();
-const mobileFogAudio = createMobileFogAudio();
+const ankleMonitor = createAnkleMonitor({ storage: (() => { try { return window.sessionStorage; } catch { return null; } })() });
 let observationUi = { mode: 'fog', metric: 'temperature', minutes: 5 };
+
+function refreshObservationChrome() {
+  const template = document.createElement('template');
+  const viewState = { ...state, easyMode };
+  template.innerHTML = isMobileUi ? renderMobileApp(viewState, activeView) : renderTopbar(viewState) + renderSidebar(activeView, viewState);
+  // Keep connection/sound controls current without touching video, recording or inputs.
+  const selectors = isMobileUi ? ['.simple-mobile-header', '.mobile-fog-audio', '[data-fog-control]'] : ['.topbar', '.sidebar-footer'];
+  for (const selector of selectors) {
+    const current = app.querySelector(selector), next = template.content.querySelector(selector);
+    if (current && next) syncLiveNode(current, next);
+  }
+}
 
 function renderView(force = false) {
   if (isEditorMode) {
@@ -109,6 +146,9 @@ function renderView(force = false) {
     return;
   }
   // Never replace a running video element when sensor/editor polling refreshes the app.
+  if ((frontWorkspace || dailyWorkspace) && renderedView === activeView && !showOnboarding) { refreshObservationChrome(); return; }
+  if (frontWorkspace) { frontWorkspace.destroy(); frontWorkspace = null; }
+  if (dailyWorkspace) { dailyWorkspace.destroy(); dailyWorkspace = null; }
   if (romWorkspace && renderedView === activeView && ['mediapipe', 'records'].includes(activeView) && !showOnboarding) return;
   if (trendWorkspace && renderedView === activeView && ['trends', 'records'].includes(activeView) && !showOnboarding) return;
   if (romWorkspace) { romContext = romWorkspace.getContext(); romWorkspace.destroy(); romWorkspace = null; }
@@ -117,15 +157,17 @@ function renderView(force = false) {
     app.innerHTML = `${isMobileUi ? renderMobileOnboarding(state) : renderOnboarding(state)}${toastMarkup()}`;
     return;
   }
-  const viewState = { ...state, aiEnabled, mobileFogSoundEnabled: mobileFogAudio.enabled, observation: observationMonitor.snapshot(), observationUi, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
+  const viewState = { ...state, aiEnabled, easyMode, ankle: ankleMonitor.snapshot(state), observation: observationMonitor.snapshot(), observationUi, sensorLayout: sharedSensorLayout, footLayout: sharedFootLayout };
   const continuity = renderedView === activeView ? captureViewContinuity(app) : null;
   const insoleControls = renderedView === activeView ? captureInsoleControls(app) : null;
-  updateAppShell(app, `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${toastMarkup()}`, isMobileUi, renderedView === activeView);
+  updateAppShell(app, `${isMobileUi ? renderMobileApp(viewState, activeView) : `<div class="app-frame ${easyMode ? 'is-easy-mode' : ''}">${renderSidebar(activeView, viewState)}${viewRenderers[activeView](viewState)}</div>`}${fogPopupMarkup()}${toastMarkup()}`, isMobileUi, renderedView === activeView);
   applySafeTextOverrides();
   restoreViewContinuity(app, continuity);
   restoreInsoleControls(app, insoleControls);
   renderedView = activeView;
-  if (['mediapipe', 'records'].includes(activeView)) romWorkspace = mountRomWorkspace(app.querySelector("[data-rom-root]"), romContext);
+  if (activeView === 'records') romWorkspace = mountRomWorkspace(app.querySelector("[data-rom-root]"), romContext, { getState: () => state, monitor: ankleMonitor });
+  if (activeView === 'mediapipe') frontWorkspace = mountFrontCamera(app.querySelector('[data-front-root]'));
+  if (activeView === 'ankle') dailyWorkspace = mountDailyAnkle(app.querySelector('[data-daily-root]'));
   if (['trends', 'records'].includes(activeView)) trendWorkspace = mountTrendWorkspace(app.querySelector("[data-trends-root]"), () => state, trendContext);
 }
 
@@ -232,22 +274,45 @@ function applyRehabAnalysis(nextState) {
     ? { ...nextState.metrics, steps: result.rehab.metrics.stepCount }
     : nextState.metrics;
   const stateWithRehab = { ...nextState, metrics: liveMetrics, rehab: result.rehab, rehabLog: updateRehabLog(nextState.rehabLog, result) };
-  if (result.triggeredAlert && esp32Enabled && !aiEnabled && !usesBilateralSta() && stateWithRehab.outputs?.vibration && result.feedback?.vibrationCount) {
+  // Only fresh confirmed AI decisions produce the FoG popup and voice.
+  if (result.triggeredAlert && !state.fogLocalStop && state.ai?.detectionEnabled !== false && esp32Enabled && !aiEnabled && !usesBilateralSta() && stateWithRehab.outputs?.vibration && result.feedback?.vibrationCount) {
     void vibrate(47, result.feedback?.side ?? stateWithRehab.rehab?.config?.activeFoot ?? 'left').catch(() => showToast("진동 출력 연결을 확인하세요."));
   }
   return stateWithRehab;
 }
 
 async function handleAction(action, actionTarget) {
+  if (action === 'dismiss-fog-popup') { closeFogPopup(); return; }
   if (action === 'mobile-fog-sound') {
-    if (!mobileFogAudio.enabled) {
-      const result = await mobileFogAudio.activate();
-      showToast(result.ok ? '휴대폰 FoG 소리 알림을 켰어요. 테스트음을 확인하세요.' : result.reason === 'unsupported' ? '이 브라우저는 소리 알림을 지원하지 않습니다.' : '소리가 차단됐어요. 휴대폰 미디어 음량과 브라우저 설정을 확인하세요.');
-    } else {
-      await mobileFogAudio.deactivate();
-      showToast('휴대폰 FoG 소리 알림을 껐어요.');
-    }
-    renderView(); return;
+    if (fogNotifications.soundEnabled) { await fogNotifications.deactivate(); state={...state,fogSoundEnabled:false};showToast('소리·음성 알림을 껐어요.'); }
+    else { const result=await fogNotifications.activate();state={...state,fogSoundEnabled:result.ok};openFogPopup({preview:true});showToast(result.ok ? result.voice ? '테스트 음성을 확인하세요. 들리지 않으면 기기 미디어 음량을 높여 주세요.' : '알림음만 사용할 수 있어요. 한국어 음성 지원을 확인하세요.' : '브라우저의 소리 재생 권한과 미디어 음량을 확인하세요.'); }
+    renderView();refreshObservationChrome();return;
+  }
+  if (action === 'fog-detection-toggle') {
+    if(state.fogControlPending)return;
+    const enabled=Boolean(!state.fogControlError && state.ai?.available && (state.fogLocalStop || state.ai?.detectionEnabled===false));
+    detectionRevision++;
+    state={...state,fogControlPending:true,fogLocalStop:true,fogControlError:null};
+    fogNotifications.silence();closeFogPopup();observationMonitor.interrupt();
+    refreshObservationChrome();
+    try {
+      const payload=await setFogDetection(Boolean(enabled));
+      if(payload.detection?.enabled!==Boolean(enabled))throw Error('AI 서버를 최신 버전으로 재시작해 주세요.');
+      state={...state,ai:normalizeAiState(payload,state.ai),fogLocalStop:false,fogControlError:null};
+      showToast(enabled?'FoG 감지를 재개했어요. 새 분석 창을 수집합니다.':'FoG 감지와 알림을 중지했어요. 자동 출력은 마지막 명령 후 최대 1.5초 안에 꺼져요.');
+    } catch(error) {state={...state,fogLocalStop:true,fogControlError:'PC 상태를 확인하고 중지를 다시 요청하세요.'};showToast(`이 화면의 알림은 중지했지만 PC 상태를 확인하지 못했어요. ${error.message}`);}
+    finally{state={...state,fogControlPending:false};renderView();refreshObservationChrome();}
+    return;
+  }
+  if (action === 'exit-easy-mode') {
+    easyMode = false;
+    try { window.localStorage.removeItem(easyModeStorageKey); } catch { /* optional preference */ }
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.delete('easy');
+    if (activeView === 'easy') { activeView = 'overview'; nextUrl.searchParams.set('view', activeView); }
+    window.history.replaceState({}, '', nextUrl);
+    renderView(true);
+    return;
   }
   if (action === 'fog-cue-stop' || action === 'fog-cue-enable') {
     try {
@@ -257,6 +322,7 @@ async function handleAction(action, actionTarget) {
     renderView(); return;
   }
   if (action === 'connect-sta') { window.location.href = '/?view=devices&esp32=1&transport=sta&ai=1&mobile=0'; return; }
+  if (action === 'connect-live-mode') { const url = new URL(window.location.href); url.searchParams.set('esp32','1'); url.searchParams.set('transport','sta'); url.searchParams.set('ai','1'); try { localStorage.setItem('stepon-esp32-enabled','true'); } catch {} window.location.href=url.href; return; }
   if (action === 'ai-calibrate' || action === 'ai-calibration-cancel') {
     const side = actionTarget?.dataset.aiSide;
     try {
@@ -269,6 +335,7 @@ async function handleAction(action, actionTarget) {
   if (action === 'forget-left' || action === 'forget-right') {
     void hubRequest('forget', { side: action.slice(7) }).then(() => refreshEsp32State(true)).catch((e) => showToast(e.message)); return;
   }
+  if (frontWorkspace && ["profile", "open-editor"].includes(action) && !frontWorkspace.canLeave()) return;
   if (romWorkspace && ["profile", "open-editor"].includes(action) && !romWorkspace.canLeave()) return;
   if (trendWorkspace && ["profile", "open-editor"].includes(action) && !trendWorkspace.canLeave()) return;
   const messages = {
@@ -289,7 +356,10 @@ async function handleAction(action, actionTarget) {
   if (action === "preview-dashboard") {
     showOnboarding = false;
     activeView = "overview";
+    const url = new URL(window.location.href); url.searchParams.set('view', 'overview');
+    window.history.replaceState({}, '', url);
     renderView();
+    window.scrollTo({top:0,behavior:'instant'});
     showToast("프로필 입력 전 미리보기 화면을 열었어요.");
     return;
   }
@@ -353,25 +423,34 @@ app.addEventListener("click", (event) => {
   if (viewTarget) {
     if (!validViews.has(viewTarget.dataset.view)) return;
     const changingView = viewTarget.dataset.view !== activeView;
+    if (changingView && frontWorkspace && !frontWorkspace.canLeave()) return;
     if (viewTarget.dataset.view !== activeView && romWorkspace && !romWorkspace.canLeave()) return;
     if (viewTarget.dataset.view !== activeView && trendWorkspace && !trendWorkspace.canLeave()) return;
-    activeView = viewTarget.dataset.view;
-    {
+    const navigate = () => {
+      if (viewTarget.dataset.easyExit === 'true') {
+        easyMode = false;
+        try { window.localStorage.removeItem(easyModeStorageKey); } catch { /* optional preference */ }
+      }
+      activeView = viewTarget.dataset.view;
+      if (activeView === 'easy') { easyMode = true; try { window.localStorage.setItem(easyModeStorageKey, 'true'); } catch { /* optional preference */ } }
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.set("view", activeView);
-      if (isMobilePath) nextUrl.pathname = "/mobile";
-      else if (isMobileUi) nextUrl.searchParams.set("mobile", "1");
+      if (easyMode) nextUrl.searchParams.set('easy', '1'); else nextUrl.searchParams.delete('easy');
+      if (isMobilePath) nextUrl.pathname = "/mobile"; else if (isMobileUi) nextUrl.searchParams.set("mobile", "1");
       window.history.replaceState({}, "", nextUrl);
-    }
-    renderView();
-    const section = viewTarget.dataset.recordSection;
-    if (activeView === 'records' && ['walking', 'joint'].includes(section)) app.querySelector(`#${section}-records`)?.scrollIntoView({ block: 'start' });
-    else if (changingView) {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      const heading = app.querySelector('main h1');
-      heading?.setAttribute('tabindex', '-1');
-      heading?.focus({ preventScroll: true });
-    }
+      renderView();
+      app.querySelector('.navigation-loading')?.remove();
+      const section = viewTarget.dataset.recordSection;
+      if (activeView === 'records' && ['walking', 'joint'].includes(section)) app.querySelector(`#${section}-records`)?.scrollIntoView({ block: 'start' });
+      else if (changingView) { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); const heading = app.querySelector('main h1'); heading?.setAttribute('tabindex', '-1'); heading?.focus({ preventScroll: true }); }
+    };
+    if (changingView) {
+      // Fast screen changes should feel instant. Only show feedback if a future
+      // transition actually takes longer than a brief moment.
+      const loadingDelay = window.setTimeout(showNavigationLoading, 450);
+      navigate();
+      window.clearTimeout(loadingDelay);
+    } else navigate();
     return;
   }
   const actionTarget = event.target.closest("[data-action]");
@@ -408,27 +487,18 @@ app.addEventListener("submit", (event) => {
   if (event.target.id !== "profile-form") return;
   event.preventDefault();
   const formData = new FormData(event.target);
-  const goals = formData.getAll("goals");
-  const preferredCues = formData.getAll("cues");
-  const safeGoals = goals.length ? goals : ["daily"];
-  const mode = observationGoals.find((goal) => goal.id === safeGoals[0])?.label ?? "일상 보행 기록";
-  const profile = {
-    ...state.profile,
-    name: String(formData.get("name") ?? "사용자").trim() || "사용자",
-    age: Number(formData.get("age") ?? 0),
-    gender: String(formData.get("gender") ?? "none"),
-    goals: safeGoals,
-    preferredCues,
-    mode,
-    configured: true,
-    outputs: { auto: true, laser: preferredCues.includes("laser"), vibration: preferredCues.includes("vibration"), voice: preferredCues.includes("voice") },
-  };
-  state = { ...state, profile, outputs: { ...state.outputs, ...profile.outputs } };
+  let profile;
+  try { profile = profileFromForm(formData, state.profile, state.outputs); }
+  catch (error) { const notice=event.target.querySelector('[data-profile-error]'); if(notice)notice.textContent=error.message; return; }
+  state = { ...state, profile };
   try { window.localStorage.setItem(profileStorageKey, JSON.stringify({ ...profile, outputs: state.outputs })); } catch { /* local storage is optional */ }
   showOnboarding = false;
   activeView = "overview";
+  const url = new URL(window.location.href); url.searchParams.set('view', 'overview'); url.searchParams.delete('preview');
+  window.history.replaceState({}, '', url);
   renderView();
-  showToast(`${profile.name}님에게 맞춘 화면을 준비했어요.`);
+  window.scrollTo({top:0,behavior:'instant'});
+  showToast(`${profile.name}님, 세 가지 기능을 모두 사용할 수 있어요.`);
 });
 
 app.addEventListener("change", (event) => {
@@ -482,12 +552,12 @@ async function refreshEsp32State(force = false) {
       state.sensorAdvancedAt = foot?.connected ? Date.now() - (foot.age_ms ?? 999999) : null;
     } else if (sensorFrameChanged) state.sensorAdvancedAt = state.sensorReceivedAt;
     esp32LastError = null;
-    if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
+    if (activeView === "easy" || activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
   } catch (error) {
     esp32LastError = error;
     if (state.dataSource === "esp32") {
       state = markEsp32Disconnected(state, error);
-      if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
+      if (activeView === "easy" || activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
     }
   } finally {
     esp32RequestInFlight = false;
@@ -495,13 +565,15 @@ async function refreshEsp32State(force = false) {
 }
 
 async function refreshAiState(force = false) {
-  if (!aiEnabled || showOnboarding || aiRequestInFlight || (state.paused && !force)) return;
+  if (showOnboarding || aiRequestInFlight || state.fogControlPending) return;
   aiRequestInFlight = true;
+  const revision = detectionRevision;
   try {
     const payload = await fetchAiState();
+    if(revision!==detectionRevision)return;
     const nextAi = normalizeAiState(payload, state.ai);
-    if (isMobileUi) mobileFogAudio.observe(nextAi, { foreground: !document.hidden });
-    const decisionChanged = nextAi.ready && nextAi.state && nextAi.state !== state.ai?.state;
+    const stoppedNow = nextAi.detectionEnabled === false && state.ai?.detectionEnabled !== false;
+    const decisionChanged = aiEnabled && !state.fogLocalStop && nextAi.ready && nextAi.state && nextAi.state !== state.ai?.state;
     // Automatic physical outputs are owned by the PC live AI cue worker.
     const nextEvents = decisionChanged
       ? [{
@@ -513,14 +585,23 @@ async function refreshAiState(force = false) {
       }, ...(state.events ?? [])].slice(0, 3)
       : state.events;
     state = { ...state, ai: nextAi, events: nextEvents };
+    if(nextAi.detectionEnabled===false) {
+      state={...state,fogLocalStop:false,fogControlError:null};
+      if(stoppedNow) { fogNotifications.silence(); if(!fogPopup?.preview)closeFogPopup(); }
+    }
+    fogNotifications.observe({...state,aiEnabled},{foreground:!document.hidden});
+    refreshObservationChrome();
     if (!document.hidden) observationMonitor.observeAi({ ...state, aiEnabled });
-    if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
+    if (activeView === "easy" || activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
   } catch (error) {
+    if(revision!==detectionRevision)return;
     const nextAi = markAiUnavailable(state.ai, error);
     observationMonitor.interrupt();
     if (JSON.stringify(nextAi) !== JSON.stringify(state.ai)) {
       state = { ...state, ai: nextAi };
-      if (activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
+      fogNotifications.silence();
+      refreshObservationChrome();
+      if (activeView === "easy" || activeView === "overview" || activeView === "live" || activeView === "safety" || activeView === "devices") renderView();
     }
   } finally { aiRequestInFlight = false; }
 }
@@ -537,7 +618,12 @@ if (isEditorMode) {
   window.setInterval(refreshAiState, 750);
   // Short, in-memory observation only. Background time, pauses and stale data
   // must never be counted as symptom-free time or a continuing FoG episode.
-  document.addEventListener('visibilitychange', () => observationMonitor.interrupt());
+  document.addEventListener('visibilitychange', () => {observationMonitor.interrupt();if(document.hidden)fogNotifications.silence();});
+  document.addEventListener('keydown',event=>{
+    if(!fogPopup)return;
+    if(event.key==='Escape'){event.preventDefault();closeFogPopup();return;}
+    if(event.key==='Tab'){const buttons=[...app.querySelectorAll('.fog-alert-overlay button:not(:disabled)')];if(!buttons.length)return;const i=buttons.indexOf(document.activeElement);event.preventDefault();buttons[(i+(event.shiftKey?-1:1)+buttons.length)%buttons.length].focus();}
+  });
   window.setInterval(() => {
     if (document.hidden || showOnboarding) { observationMonitor.interrupt(); return; }
     observationMonitor.observeAi({ ...state, aiEnabled });
@@ -547,7 +633,7 @@ if (isEditorMode) {
   window.setInterval(() => {
     if (!esp32Enabled && !showOnboarding && !state.paused) {
       state = applyRehabAnalysis(evolveState(state));
-      if (activeView === "overview" || activeView === "live") renderView();
+      if (activeView === "easy" || activeView === "overview" || activeView === "live") renderView();
     }
   }, 5000);
   if (!esp32Enabled) state = applyRehabAnalysis(state);

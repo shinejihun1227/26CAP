@@ -48,7 +48,7 @@ export function validateFrame(p, side, deviceId) {
   if (p.imu_ready && (!vector(p.accel) || !vector(p.gyro))) throw new Error('invalid_imu');
   return p;
 }
-export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, staleMs = 2000, now = Date.now, fetchImpl = fetch, allowLoopback = false } = {}) {
+export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, staleMs = 2000, now = Date.now, fetchImpl = fetch, allowLoopback = false, onSample = () => {} } = {}) {
   const devices = new Map();
   const streamId = randomUUID();
   const sampleHistory = [];
@@ -87,6 +87,7 @@ export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, s
         }
         d.advancedAt = now(); d.rateFrames++; revision++;
         sampleHistory.push({ cursor: ++sampleCursor, received_at_ms: now(), side: d.side, state: p });
+        onSample(d.side, p);
         // Keep every distinct collected frame so inference does not depend on UI polling.
         if (sampleHistory.length > 4096) sampleHistory.splice(0, sampleHistory.length - 4096);
       }

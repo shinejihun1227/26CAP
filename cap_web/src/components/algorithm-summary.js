@@ -22,8 +22,8 @@ export function renderSystemPipeline(state, { compact = false } = {}) {
   const source = isReal ? "ESP32 /api/state" : "로컬 시연 데이터";
   const aiState = state.aiEnabled === false ? "AI 분석 꺼짐" : ai.available ? (ai.ready ? "추론 연결됨" : "브리지 준비 필요") : "브리지 연결 대기";
   const steps = [
-    { index: "01", label: "센서 수집", detail: "ESP32 읽기 목표 64Hz · 압력·온습도", tone: "mint" },
-    { index: "02", label: "AI 입력 정리", detail: `모델 입력 ${ai.sampleRateHz ?? 20}Hz · ${ai.windowSec ?? 4}초 창`, tone: "sky" },
+    { index: "01", label: "센서 수집", detail: `ESP32 읽기 목표 64Hz · 압력·온습도`, tone: "mint" },
+    { index: "02", label: "창 구성·보정", detail: `모델 입력 ${ai.sampleRateHz ?? 20}Hz · ${ai.windowSec ?? 4}초 창 · ${ai.hopSec ?? 0.5}초 간격`, tone: "sky" },
     { index: "03", label: "AI 분석 (선택)", detail: state.aiEnabled === false ? '현재 사용 안 함' : `${model} · FoG 3단계`, tone: "lavender" },
     { index: "04", label: "재활 지표", detail: twoSensorProfile ? "전체 하중 · 움직임 · 발 상태" : "하중 · CoP · 착지 · 추진", tone: "orange" },
     { index: "05", label: "안내 출력", detail: "레이저 · 진동 · 음성", tone: "coral" },
@@ -35,7 +35,7 @@ export function renderSystemPipeline(state, { compact = false } = {}) {
       <span class="system-source"><i></i><b>${escapeHtml(source)}</b><small>${escapeHtml(aiState)}</small></span>
     </div>
     <div class="system-pipeline-steps">${steps.map((step, index) => `<div class="system-pipeline-step ${toneClass(step.tone)}"><span>${step.index}</span><strong>${step.label}</strong><small>${step.detail}</small>${index < steps.length - 1 ? `<i>${icon("arrow")}</i>` : ""}</div>`).join("")}</div>
-    <p class="system-pipeline-footnote">64Hz는 ESP32의 IMU 읽기 목표이고, AI 브리지는 받은 유효 샘플을 모델 입력 ${ai.sampleRateHz ?? 20}Hz로 재표본화합니다. PC 실제 수신 속도는 Wi-Fi에 따라 달라도 됩니다. 웹은 최신 판정 결과를 표시하며 압력·온습도와 재활 지표는 별도로 보여줍니다.</p>
+    <p class="system-pipeline-footnote">AI FoG 모델은 PC 수집 서버에 쌓인 유효 IMU 샘플을 분석하고, 웹은 최신 판정 결과를 표시합니다. PC 실제 수신 속도는 Wi-Fi에 따라 달라도 됩니다. 재활 보조 지표와 MediaPipe 개인화 기준은 별도 레이어로 함께 사용합니다.</p>
   </section>`;
 }
 

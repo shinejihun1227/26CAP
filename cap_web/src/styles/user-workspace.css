@@ -30,12 +30,32 @@
 .clarity-live-grid > .clarity-health-card { margin:0; }
 .ai-status-panel .ai-status-copy p { font-size:.86rem; color:var(--user-muted); }
 .records-workspace > .simple-note { padding:14px 18px; border-radius:12px; background:#edf5f1; }
-.records-shortcuts { display:flex; gap:12px; flex-wrap:wrap; margin:20px 0 28px; }
-.records-workspace > section { scroll-margin-top:24px; margin:26px 0; }
+.records-categories { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:20px 0 30px; }
+.records-category { display:grid; grid-template-columns:54px minmax(0,1fr); align-items:start; gap:14px; min-width:0; padding:20px; border:1px solid var(--user-line); border-radius:16px; background:#fff; color:inherit; text-decoration:none; box-shadow:0 5px 18px #173b4208; transition:transform .16s,border-color .16s,box-shadow .16s; }
+.records-category:hover { transform:translateY(-2px); border-color:#9bc9bb; box-shadow:0 10px 24px #173b4212; }
+.records-category:focus-visible { outline:3px solid #16a996; outline-offset:3px; }
+.records-category--walking { background:linear-gradient(135deg,#fff 40%,#f1f8f5); }
+.records-category--joint { background:linear-gradient(135deg,#fff 40%,#f1f7fa); }
+.records-category-icon { display:grid; place-items:center; width:52px; height:52px; border-radius:15px; background:#e5f4ee; color:#177866; font-size:30px; font-weight:700; }
+.records-category--joint .records-category-icon { background:#eaf1f7; color:#456c86; }
+.records-category-copy { display:grid; gap:6px; min-width:0; }
+.records-category-copy small { color:#218376; font-size:10px; font-weight:800; letter-spacing:.11em; }
+.records-category-copy b { color:var(--user-ink); font-size:19px; }
+.records-category-copy > span { color:var(--user-muted); font-size:13px; line-height:1.6; }
+.records-category-copy strong { display:flex; gap:6px; align-items:center; margin-top:7px; color:var(--user-accent); font-size:13px; }
+.records-category-copy strong i { font-style:normal; font-size:17px; }
+.records-workspace > .records-domain { scroll-margin-top:24px; margin:28px 0; padding:20px; border:1px solid var(--user-line); border-radius:18px; background:#fff; box-shadow:0 8px 24px #173b4208; }
+.records-domain--walking { border-top:4px solid #228b78!important; }
+.records-domain--joint { border-top:4px solid #517d9a!important; }
+.records-domain-heading { display:flex; align-items:flex-start; gap:13px; margin-bottom:12px; }
+.records-domain-number { display:grid; place-items:center; flex:0 0 34px; width:34px; height:34px; border-radius:11px; background:#e7f4ef; color:#187764; font-size:13px; font-weight:800; }
+.records-domain--joint .records-domain-number { background:#eaf1f6; color:#486f88; }
+.records-domain-heading h2 { margin:0; color:var(--user-ink); font-size:21px; }
+.records-domain-heading p { margin:5px 0 0; color:var(--user-muted); font-size:13px; line-height:1.6; }
 .records-workspace .rom-heading h2, .records-workspace .trends-heading h2 { font-size:1.45rem; }
 .records-workspace .rom-management-layout { grid-template-columns:1fr; }
 .records-workspace .rom-set-panel { margin-bottom:16px; }
-.records-workspace .rom-heading, .records-workspace .trends-heading { border-top:1px solid var(--user-line); padding-top:24px; }
+.records-workspace .records-domain .rom-heading, .records-workspace .records-domain .trends-heading { margin-top:12px; padding-top:0; border-top:0; }
 .rom-workspace.is-measurement .rom-setup-panel .rom-panel-head { margin-bottom:10px; }
 .rom-identity { margin-top:0; }
 .rom-workspace .rom-joint-help { font-size:.86rem; margin-top:4px; }
@@ -86,7 +106,12 @@
   .mobile-fog-audio { align-items:flex-start; }
   .mobile-fog-audio > div { flex:1; }
   .simple-heading { flex-wrap:wrap; }
-  .records-shortcuts a { flex:1 1 160px; }
+  .records-categories { grid-template-columns:1fr; gap:10px; margin:16px 0 22px; }
+  .records-category { grid-template-columns:44px minmax(0,1fr); gap:11px; padding:15px; }
+  .records-category-icon { width:42px; height:42px; border-radius:12px; font-size:25px; }
+  .records-category-copy b { font-size:17px; }
+  .records-workspace > .records-domain { margin:20px 0; padding:15px; }
+  .records-domain-heading h2 { font-size:19px; }
   .simple-details { padding:0 14px; }
   .rom-workspace .rom-camera-panel, .rom-workspace .rom-setup-panel { padding:16px; }
   .simple-mobile .ai-status-body { flex-direction:column; align-items:flex-start; }

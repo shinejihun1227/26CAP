@@ -9,9 +9,9 @@ const output = fileURLToPath(new URL("../vendor/mediapipe/", import.meta.url));
 const base = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${version}/`;
 const files = ["vision_bundle.mjs", "wasm/vision_wasm_internal.js", "wasm/vision_wasm_internal.wasm", "wasm/vision_wasm_nosimd_internal.js", "wasm/vision_wasm_nosimd_internal.wasm"];
 const sources = files.map((name) => ({ name, url: base + name }));
-sources.push({ name: "pose_landmarker_lite.task", url: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task" });
+sources.push({ name: "pose_landmarker_full.task", url: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task" });
 sources.push({ name: "LICENSE", url: "https://raw.githubusercontent.com/google-ai-edge/mediapipe/master/LICENSE" });
-const manifest = { package: "@mediapipe/tasks-vision", version, model: "pose_landmarker_lite/float16/1", files: [] };
+const manifest = { package: "@mediapipe/tasks-vision", version, model: "pose_landmarker_full/float16/1", files: [] };
 for (const { name, url } of sources) {
   const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
   if (!response.ok) throw new Error(`Download failed (${response.status}): ${url}`);

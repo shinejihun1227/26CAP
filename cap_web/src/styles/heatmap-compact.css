@@ -1,0 +1,72 @@
+/* One compact sensor workspace; keep saved foot transforms and point coordinates. */
+.compact-heatmap { padding: 22px; container-type: inline-size; }
+.compact-heatmap .heatmap-heading { gap: 16px; margin: 0; }
+.compact-heatmap .panel-kicker { font-size: 12px; color: #277b72; }
+.compact-heatmap .heatmap-heading h2 { margin: 4px 0 0; font-size: 24px; }
+.compact-heatmap .heatmap-heading h2 small { margin-left: 6px; color: #607782; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.compact-heatmap .heatmap-heading-actions { flex-direction: row; width: auto; }
+.compact-heatmap .heatmap-mode-switch { gap: 3px; padding: 4px; border-radius: 12px; background: #edf4f4; }
+.compact-heatmap .heatmap-tab { min-width: 66px; min-height: 44px; font-size: 16px; color: #4b6873; border-radius: 9px; }
+.compact-heatmap .heatmap-tab.is-active { color: #fff; background: #16756c; box-shadow: 0 2px 5px #12473f18; }
+.compact-heatmap .heatmap-status { margin: 10px 0 14px; color: #4b6873; font-size: 14px; line-height: 1.6; word-break: keep-all; }
+.compact-heatmap .heatmap-status > span { margin-left: 8px; color: #637b84; }
+.compact-heatmap .heatmap-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 212px; gap: 16px; align-items: stretch; }
+.compact-heatmap .foot-pair-map { width: 100%; max-width: none; height: 440px; aspect-ratio: auto; margin: 0; padding: 48px 6% 28px; gap: 6%; justify-content: space-evenly; border-radius: 16px; background: linear-gradient(135deg, #f2faf7, #e5f3ee); }
+.compact-heatmap .foot-map-figure { flex: 0 0 auto; width: min(34%, 185px); height: auto; aspect-ratio: 223 / 447; }
+.compact-heatmap .foot-shape-surface img { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
+.compact-heatmap .foot-map-figure.is-unavailable { opacity: 1; }
+.compact-heatmap .foot-map-figure .foot-side-label { top: -32px; padding: 5px 10px; color: #285d54; border: 0; background: #fff; font-size: 14px; box-shadow: none; }
+.compact-heatmap .heat-spot { --heat-spot-scale: 1; }
+.compact-heatmap .heat-spot i { width: 28px; height: 28px; font-size: 12px; }
+.compact-heatmap .heat-spot.is-unavailable i { color: #45655d; border-color: #fff; background: #d9e6df; opacity: 1; }
+.compact-heatmap .heat-spot b { min-height: 23px; padding: 2px 7px; border-radius: 7px; background: #fff; border-color: #c7ddd5; }
+.compact-heatmap .heat-spot b em { color: #537769; font-size: 11px; }
+.compact-heatmap .heat-spot b span { color: #173e34; font-size: 14px; font-variant-numeric: tabular-nums; }
+.compact-heatmap .heat-label-above b { top: -24px; left: 50%; right: auto; transform: translateX(-50%); }
+.compact-heatmap .heat-spot.is-unavailable { opacity: 1; }
+.compact-heatmap .heatmap-summary { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 10px; margin: 0; padding: 0; border: 0; }
+.compact-heatmap .heatmap-summary > div { min-width: 0; gap: 9px; padding: 16px 18px; border: 1px solid #dce9e5; border-radius: 13px; background: #f8fbfa; }
+.compact-heatmap .heatmap-summary span { color: #4d6a72; font-size: 15px; line-height: 1.35; }
+.compact-heatmap .heatmap-summary span small { display: block; margin-top: 3px; font-size: 12px; color: #688087; }
+.compact-heatmap .heatmap-summary b { color: #184e45; font: 750 32px/1.15 var(--font-ui); font-variant-numeric: tabular-nums; }
+.compact-heatmap .heatmap-summary .heatmap-difference { background: #eaf5f0; border-color: #c7e2d6; }
+.compact-heatmap .heatmap-reading-note { margin: 0; padding: 0 4px; font-size: 12px; line-height: 1.6; color: #667c84; word-break: keep-all; }
+.compact-heatmap .heatmap-reading-note b { font-size: inherit; }
+.compact-heatmap .heatmap-legend { flex-wrap: wrap; gap: 8px 16px; margin: 12px 0; min-height: 0; color: #536d76; font-size: 13px; }
+.compact-heatmap .heatmap-details { margin-top: 12px; border-top: 1px solid #e0ebe7; }
+.compact-heatmap .heatmap-details > summary { padding: 14px 0 0; color: #496773; font-size: 14px; font-weight: 650; cursor: pointer; }
+.compact-heatmap .heatmap-details .panel-description { margin-top: 12px; font-size: 13px; line-height: 1.65; }
+.compact-heatmap .heatmap-detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; color: #5e777f; }
+.compact-heatmap .heatmap-edit-button { width: auto; }
+
+/* Respond to the panel width, including the editor canvas and narrow sidebars. */
+@container (max-width: 740px) {
+  .compact-heatmap .heatmap-workspace { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .compact-heatmap .heatmap-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .compact-heatmap .heatmap-summary > div { padding: 12px; }
+  .compact-heatmap .heatmap-summary b { font-size: 26px; }
+  .compact-heatmap .heatmap-reading-note { grid-column: 1 / -1; }
+  .compact-heatmap .heatmap-reading-note br { display: none; }
+}
+@container (max-width: 480px) {
+  .compact-heatmap .heatmap-heading { flex-direction: column; align-items: stretch; gap: 10px; }
+  .compact-heatmap .heatmap-heading h2 { font-size: 22px; }
+  .compact-heatmap .heatmap-heading-actions, .compact-heatmap .heatmap-mode-switch { width: 100%; }
+  .compact-heatmap .heatmap-tab { flex: 1; min-width: 0; }
+  .compact-heatmap .heatmap-status { font-size: 13px; }
+  .compact-heatmap .heatmap-status > span { display: block; margin-left: 0; }
+  .compact-heatmap .foot-pair-map { height: 322px; padding: 43px 3% 36px; gap: 7%; }
+  .compact-heatmap .foot-map-figure { width: 39%; }
+  .compact-heatmap .foot-map-figure .foot-side-label { font-size: 12px; padding: 5px 7px; }
+  .compact-heatmap .heat-spot { --heat-spot-scale: .9; }
+  .compact-heatmap .heat-spot b { top: 29px; left: 50%; right: auto; transform: translateX(-50%); padding: 2px 4px; }
+  .compact-heatmap .heat-label-above b { top: -24px; }
+  .compact-heatmap .heatmap-summary > div { padding: 10px 8px; gap: 8px; }
+  .compact-heatmap .heatmap-summary span { font-size: 12px; }
+  .compact-heatmap .heatmap-summary span small { font-size: 10px; }
+  .compact-heatmap .heatmap-summary b { font-size: 22px; }
+  .compact-heatmap .heatmap-legend { font-size: 12px; gap: 8px 12px; }
+}
+@media (max-width: 600px) {
+  .compact-heatmap { padding: 16px 12px; }
+}

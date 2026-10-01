@@ -38,25 +38,43 @@ export function analyzePose(poses, { view, metric, width, height, confidence = 0
   const blocked = (reason, values = {}) => ({ valid: false, reason, values, primary: null });
   if (!METRICS[metric]?.views.includes(view)) return blocked("촬영 방향에 맞는 관절을 선택하세요.");
   if (!(width > 0 && height > 0)) return blocked("카메라 영상을 기다리는 중입니다.");
-  if (!Array.isArray(poses) || poses.length !== 1) return blocked(poses?.length > 1 ? "한 사람만 화면에 들어오세요." : "몸이 화면에 보이도록 위치를 조정하세요.");
+  const ankleMetric = metric === "left_ankle" || metric === "right_ankle";
+  if (!Array.isArray(poses) || poses.length !== 1) {
+    if (poses?.length > 1) return blocked("한 사람만 화면에 들어오세요.");
+    return blocked(ankleMetric
+      ? "MediaPipe가 사람 포즈를 찾지 못했습니다. 어깨·골반부터 발끝까지 화면에 넣고 카메라를 조금 뒤로 옮기세요. 각도는 발의 네 점만 계산합니다."
+      : "몸이 화면에 보이도록 위치를 조정하세요.");
+  }
   if (!directionConfirmed) return blocked("촬영 방향과 화면 속 한 사람을 확인해 주세요.");
   const points = poses[0];
   if (!Array.isArray(points) || points.length < 33) return blocked("관절 좌표가 충분하지 않습니다.");
   const pixel = (i) => ({ x: points[i].x * width, y: points[i].y * height });
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
-  // This is only a coarse camera-plane check; left/right must be confirmed by the wearer.
-  const torsoIds = view === "front" ? [11, 12, 23, 24] : view === "left" ? [11, 23] : [12, 24];
-  if (!torsoIds.every((i) => visible(points[i], confidence))) return blocked("어깨와 골반이 가려지지 않게 촬영하세요.");
-  const side = view === "right" ? [12, 24] : [11, 23];
-  const torsoLength = distance(pixel(side[0]), pixel(side[1]));
-  if (torsoLength < height * 0.12) return blocked("몸이 너무 작게 보입니다. 필요한 관절이 잘 보이도록 카메라를 조정하세요.");
-  if ([11, 12, 23, 24].every((i) => visible(points[i], Math.min(confidence, 0.55)))) {
-    const widthRatio = (distance(pixel(11), pixel(12)) + distance(pixel(23), pixel(24))) / (2 * torsoLength);
-    if (view === "front" && widthRatio < 0.38) return blocked("정면을 향하고 어깨와 골반이 모두 보이게 해 주세요.");
-    if (view !== "front" && widthRatio > 0.60) return blocked("측면 촬영입니다. 선택한 몸의 옆면을 카메라로 향해 주세요.");
+  let compensation = null;
+  // Torso landmarks guide camera framing and compensatory-movement observation for other joints.
+  // Ankle angle itself needs only knee, ankle, heel and toe, so a cropped torso cannot reject it.
+  if (!ankleMetric) {
+    const torsoIds = view === "front" ? [11, 12, 23, 24] : view === "left" ? [11, 23] : [12, 24];
+    if (!torsoIds.every((i) => visible(points[i], confidence))) return blocked("어깨와 골반이 가려지지 않게 촬영하세요.");
+    const side = view === "right" ? [12, 24] : [11, 23];
+    const torsoLength = distance(pixel(side[0]), pixel(side[1]));
+    if (torsoLength < height * 0.12) return blocked("몸이 너무 작게 보입니다. 필요한 관절이 잘 보이도록 카메라를 조정하세요.");
+    const shoulder = pixel(side[0]), hip = pixel(side[1]);
+    const trunkTilt = Math.abs(Math.atan2(shoulder.x - hip.x, hip.y - shoulder.y) * 180 / Math.PI);
+    compensation = { detected: trunkTilt >= 15, trunkTilt: round(trunkTilt) };
+    if ([11, 12, 23, 24].every((i) => visible(points[i], Math.min(confidence, 0.55)))) {
+      const widthRatio = (distance(pixel(11), pixel(12)) + distance(pixel(23), pixel(24))) / (2 * torsoLength);
+      if (view === "front" && widthRatio < 0.38) return blocked("정면을 향하고 어깨와 골반이 모두 보이게 해 주세요.");
+      if (view !== "front" && widthRatio > 0.60) return blocked("측면 촬영입니다. 선택한 몸의 옆면을 카메라로 향해 주세요.");
+    }
+  } else if ([25, 26, 27, 28].every((i) => visible(points[i], Math.min(confidence, 0.55)))) {
+    const legLength = (distance(pixel(25), pixel(27)) + distance(pixel(26), pixel(28))) / 2;
+    const widthRatio = (distance(pixel(25), pixel(26)) + distance(pixel(27), pixel(28))) / (2 * legLength);
+    if (widthRatio > 0.60) return blocked("발의 옆면을 카메라로 향해 주세요.");
   }
   const values = {};
-  for (const [id, definition] of metricsForView(view)) {
+  const selectedMetrics = ankleMetric ? [[metric, METRICS[metric]]] : metricsForView(view);
+  for (const [id, definition] of selectedMetrics) {
     if (!definition.points.every((i) => visible(points[i], confidence))) { values[id] = null; continue; }
     const p = definition.points.map(pixel);
     const pairs = definition.kind === "segments" ? [[0, 1], [2, 3]] : [[0, 1], [1, 2]];
@@ -67,7 +85,7 @@ export function analyzePose(poses, { view, metric, width, height, confidence = 0
     values[id] = angle === null ? null : round(definition.kind === "flexion" ? 180 - angle : angle);
   }
   if (!Number.isFinite(values[metric])) return blocked("선택한 관절이 가려졌거나 너무 작게 보입니다. 해당 부위를 화면 안에 넣으세요.", values);
-  return { valid: true, reason: "측정 가능 · 영상 평면의 추정 각도", values, primary: values[metric] };
+  return { valid: true, reason: "측정 가능 · 영상 평면의 추정 각도", values, primary: values[metric], ...(compensation ? { compensation } : {}) };
 }
 export function quantile(values, p) {
   if (!values.length) return null;
@@ -82,6 +100,8 @@ export function summarizeSession(samples, metric, durationMs, interrupted = fals
   const ratio = expected ? good.length / expected : 0;
   const durationOk = durationMs >= (CAPTURE_SECONDS - 0.5) * 1000 && durationMs <= (CAPTURE_SECONDS + 2) * 1000;
   const eligible = !interrupted && durationOk && good.length >= 40 && ratio >= 0.7;
+  const compensationCount = good.filter((s) => s.compensation?.detected).length;
+  const compensationRatio = good.length ? compensationCount / good.length : 0;
   const byMetric = {};
   for (const id of Object.keys(METRICS)) {
     const values = good.map((s) => s.values?.[id]).filter(Number.isFinite);
@@ -90,6 +110,7 @@ export function summarizeSession(samples, metric, durationMs, interrupted = fals
     byMetric[id] = { count: values.length, min: round(Math.min(...values)), max: round(Math.max(...values)), median: round(quantile(values, 0.5)), p05: round(low), p95: round(high), observedRange: round(high - low) };
   }
   return { eligible, validCount: good.length, totalCount: expected, validRatio: round(ratio, 3), byMetric,
+    compensation: { detected: compensationRatio >= 0.2, count: compensationCount, ratio: round(compensationRatio, 3) },
     reason: interrupted ? "중단된 기록 · 비교 제외" : !durationOk ? "15초 기록을 완료해야 합니다." : good.length < 40 ? "유효 표본 부족 · 다시 측정" : ratio < 0.7 ? "유효 표본 70% 미만 · 다시 측정" : "기록 품질 기준 통과 · 임상 정확도 검증을 뜻하지 않음" };
 }
 export function comparisonKey(record) {

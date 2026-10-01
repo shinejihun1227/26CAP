@@ -64,6 +64,7 @@ export function calibrateAi(side, action = 'start') {
   return request(`/api/ai/calibration/${action}`, { method: 'POST', body: { side }, timeoutMs: 9000 });
 }
 export function setFogCue(enabled) { return request('/api/ai/cue', { method: 'POST', body: { enabled } }); }
+export function setFogDetection(enabled) { return request('/api/ai/detection', { method: 'POST', body: { enabled }, timeoutMs: 9000 }); }
 
 export function markAiUnavailable(previous, error) {
   return {
@@ -84,13 +85,14 @@ export function markAiUnavailable(previous, error) {
 
 export function normalizeAiState(payload, previous = {}) {
   if (payload?.service !== 'stepon-ai-bridge') throw new Error('AI 응답 형식이 올바르지 않습니다.');
-  const ready = Boolean(payload.detector_loaded && payload.device_connected && payload.window_ready && ['normal', 'warning', 'confirmed'].includes(payload.state));
+  const ready = Boolean(payload.detection?.enabled !== false && payload.detector_loaded && payload.device_connected && payload.window_ready && ['normal', 'warning', 'confirmed'].includes(payload.state));
   const numeric = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
   const rawScore = numeric(payload.fog_score);
   const score = numeric(payload.api_version >= 2 ? payload.decision_score : payload.fog_score);
   return {
     ...previous,
     available: true,
+    detectionEnabled: typeof payload.detection?.enabled === 'boolean' ? payload.detection.enabled : null,
     ready,
     status: String(payload?.status ?? "unavailable"),
     state: ready ? payload.state : null,

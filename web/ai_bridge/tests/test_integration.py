@@ -79,6 +79,45 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(r.snapshot()['status'], 'calibration_missing')
         self.assertIsNone(r.snapshot()['fog_score'])
 
+    def test_detection_stop_blocks_model_keeps_calibration_and_resume_requires_new_window(self):
+        with tempfile.TemporaryDirectory() as folder:
+            bridge = BridgeState(data_dir=folder)
+            runtime = self.runtime()
+            bridge.feet = {'right':runtime}
+            self.fill(runtime)
+            self.assertTrue(bridge.snapshot()['ready'])
+            runtime.capture = {'status':'countdown','started_at':time.monotonic()+100,'duration_sec':25}
+            bridge.set_detection_enabled(False)
+            self.assertEqual(runtime.capture['status'],'countdown')
+            runtime.capture = None
+            with patch.object(runtime.detector, 'push_sample', wraps=runtime.detector.push_sample) as predict:
+                self.fill(runtime,start=300,stop=600)
+                predict.assert_not_called()
+            self.assertTrue(bridge.snapshot()['device_connected'])
+            self.assertFalse(bridge.snapshot()['ready'])
+            self.assertIsNone(bridge.snapshot()['fog_score'])
+            self.assertEqual(bridge.snapshot()['status'],'detection_paused')
+            bridge.set_detection_enabled(True)
+            self.fill(runtime,start=600,stop=800)
+            self.assertFalse(bridge.snapshot()['ready'])
+            self.fill(runtime,start=800,stop=900)
+            self.assertTrue(bridge.snapshot()['ready'])
+
+    def test_detection_preference_survives_restart_and_rejects_non_booleans(self):
+        with tempfile.TemporaryDirectory() as folder:
+            bridge = BridgeState(data_dir=folder)
+            for value in (None, 0, 1, 'false', [], {}):
+                with self.assertRaises(ValueError):
+                    bridge.set_detection_enabled(value)
+            bridge.set_detection_enabled(False)
+            restarted = BridgeState(data_dir=folder)
+            self.assertFalse(restarted.detection_enabled)
+            self.assertTrue(all(not foot.detection_enabled for foot in restarted.feet.values()))
+            restarted.set_detection_enabled(True)
+            self.assertTrue(BridgeState(data_dir=folder).detection_enabled)
+            (Path(folder)/'fog-detection-settings.json').write_text('[]')
+            self.assertFalse(BridgeState(data_dir=folder).detection_enabled)
+
     def test_duplicate_frames_do_not_fill_window(self):
         r = self.runtime()
         for _ in range(400): r.ingest(frame(0))

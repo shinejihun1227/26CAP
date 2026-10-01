@@ -23,6 +23,9 @@
 .rom-camera-tools, .rom-buttons { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .rom-camera-tools { margin: 16px 0; }
 .rom-camera-tools > span { margin-left: auto; color: #677789; font-size: .8rem; }
+.rom-camera-select { display:grid; grid-template-columns:minmax(110px,auto) minmax(0,1fr); align-items:center; gap:10px; margin-top:14px; color:#314b5b; font-size:.9rem; font-weight:700; }
+.rom-camera-select select { width:100%; min-height:42px; padding:8px 12px; border:1px solid #bfd2d8; border-radius:9px; background:#fff; color:#243e52; font:inherit; font-size:.9rem; }
+.rom-camera-help { margin:5px 0 0 !important; color:#64798a !important; font-size:.82rem !important; }
 .rom-workspace button { min-height: 42px; border: 1px solid #bacdd4; border-radius: 9px; background: white; color: #273f54; padding: 9px 14px; font: inherit; font-size: .9rem; font-weight: 650; cursor: pointer; line-height: 1.4; }
 .rom-workspace button.rom-primary { background: #176d68; border-color: #176d68; color: white; }
 .rom-workspace button.rom-danger { color: #a6362b; border-color: #e7b9af; }
@@ -102,4 +105,4 @@
 .rom-set-status { font-size: 1rem; color: #176d68; }
 @media (max-width: 640px) { .rom-set-panel, .rom-set-report { padding: 15px; } .rom-set-views { grid-template-columns: 1fr; } .rom-set-view { display: grid; grid-template-columns: 1fr auto; } .rom-set-view button { grid-column: 2; grid-row: 1 / span 2; align-self: center; } }
 @media (max-width: 1150px) { .rom-layout { grid-template-columns: 1fr; } .rom-camera-panel { max-width: 100%; } }
-@media (max-width: 640px) { .rom-heading { display: block; } .rom-local-badge { display: inline-block; margin-top: 8px; } .rom-camera-panel, .rom-setup-panel, .rom-validation-panel, .rom-history-panel, .rom-details { padding: 15px; border-radius: 13px; } .rom-form-grid { grid-template-columns: 1fr; } .rom-workspace button { min-height: 44px; } .rom-camera-tools > span { margin-left: 0; } .rom-workspace h1 { font-size: 1.6rem; } .rom-view-summary { gap: 6px; } .rom-view-summary > div { padding: 9px; } .rom-panel-head > .rom-buttons { width: 100%; } }
+@media (max-width: 640px) { .rom-heading { display: block; } .rom-local-badge { display: inline-block; margin-top: 8px; } .rom-camera-panel, .rom-setup-panel, .rom-validation-panel, .rom-history-panel, .rom-details { padding: 15px; border-radius: 13px; } .rom-form-grid { grid-template-columns: 1fr; } .rom-workspace button { min-height: 44px; } .rom-camera-tools > span { margin-left: 0; } .rom-camera-select { grid-template-columns:1fr; gap:5px; } .rom-workspace h1 { font-size: 1.6rem; } .rom-view-summary { gap: 6px; } .rom-view-summary > div { padding: 9px; } .rom-panel-head > .rom-buttons { width: 100%; } }

@@ -31,3 +31,18 @@ firmware/**/wifi_secrets.h
 .env
 .env.*
 
+# Publication excludes local measurements and generated output.
+!.env.example
+*.csv
+!cap_web/data/imu-template.csv
+node_modules/
+*.egg-info/
+.agents/
+.codex/
+output/
+tmp/
+*.log
+*.zip
+/.codex_*.tmp
+/.codex_*_patch.ps1
+

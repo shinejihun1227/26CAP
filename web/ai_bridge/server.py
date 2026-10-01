@@ -208,7 +208,7 @@ class FootRuntime:
             return False
 
     def _score_sample(self, accel, gyro, timestamp):
-        if not self.detector or (self.capture and self.capture['status'] in ('countdown', 'recording', 'failed')):
+        if not getattr(self, 'detection_enabled', True) or not self.detector or (self.capture and self.capture['status'] in ('countdown', 'recording', 'failed')):
             return
         decision = self.detector.push_sample({f'{self.foot}_raw_acc': accel, f'{self.foot}_raw_gyro': gyro})
         if decision is None:
@@ -315,12 +315,24 @@ class BridgeState:
         self.model_name, self.foot = model_name, foot
         self.lock = threading.RLock()
         self.stop = threading.Event()
+        self.detection_path = Path(data_dir) / 'fog-detection-settings.json'
+        self.detection_enabled = True
+        self.detection_changed_at_ms = 0
+        try:
+            settings = json.loads(self.detection_path.read_text(encoding='utf-8'))
+            self.detection_enabled = isinstance(settings, dict) and settings.get('enabled') is True
+        except FileNotFoundError:
+            pass
+        except (ValueError, OSError):
+            self.detection_enabled = False
         self.stream_id, self.cursor = None, 0
         paths = dict(calibrations or {})
         if calibration_path:
             paths[foot] = calibration_path
         self.feet = {s: FootRuntime(s, paths.get(s, Path(data_dir) / f'{s}.calibration.json'), model_name, artifact_dir, data_dir)
                      for s in ((foot,) if esp32_url else SIDES)}
+        for runtime in self.feet.values():
+            runtime.detection_enabled = self.detection_enabled
         digest = hashlib.sha256()
         try:
             for name in ('rf_model.joblib', 'cnn_model.pt', 'deploy_config.json'):
@@ -339,6 +351,23 @@ class BridgeState:
         else:
             from fog_cue import FogCueController
         self.cue = FogCueController(self, data_dir)
+
+    def set_detection_enabled(self, enabled):
+        if not isinstance(enabled, bool):
+            raise ValueError('enabled must be boolean')
+        with self.lock:
+            self.detection_path.parent.mkdir(parents=True, exist_ok=True)
+            pending = self.detection_path.with_suffix('.pending')
+            pending.write_text(json.dumps({'enabled': enabled}), encoding='utf-8')
+            pending.replace(self.detection_path)
+            if self.detection_enabled == enabled:
+                return
+            self.detection_enabled = enabled
+            self.detection_changed_at_ms = int(time.time() * 1000)
+            self.last_decision = None
+            for runtime in self.feet.values():
+                runtime.detection_enabled = enabled
+                runtime.reset('warming_up' if enabled else 'detection_paused', keep_capture=True)
 
     def consume(self, payload):
         with self.lock:
@@ -401,13 +430,18 @@ class BridgeState:
     def snapshot(self):
         with self.lock:
             feet = {s: runtime.snapshot() for s, runtime in self.feet.items()}
+            if not self.detection_enabled:
+                for foot in feet.values():
+                    foot.update(ready=False, window_ready=False, status='detection_paused', state=None,
+                                fog_score=None, decision_score=None, score_percent=None, diagnostics={})
             ready = [s for s in feet.values() if s['ready']]
             severity = {'normal': 0, 'warning': 1, 'confirmed': 2}
             selected = max(ready, key=lambda s: (severity.get(s['state'], -1), s['decision_score'])) if ready else None
             fallback = next((s for s in feet.values() if s['status'] == 'calibrating'), None) or next((s for s in feet.values() if s['device_connected']), None) or next(iter(feet.values()))
             result = selected or fallback
             return {'service': 'stepon-ai-bridge', 'api_version': 2, 'ok': bool(selected), 'ready': bool(selected),
-                    'status': result['status'], 'state': selected['state'] if selected else None,
+                    'status': result['status'] if self.detection_enabled else 'detection_paused', 'state': selected['state'] if selected else None,
+                    'detection': {'enabled': self.detection_enabled, 'changed_at_ms': self.detection_changed_at_ms},
                     'fog_score': selected['fog_score'] if selected else None,
                     'decision_score': selected['decision_score'] if selected else None,
                     'score_percent': selected['score_percent'] if selected else None,
@@ -493,6 +527,9 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 raise ValueError('json_object_required')
             if route == '/api/ai/cue':
                 self.bridge.cue.set_enabled(body.get('enabled'))
+                return self.send_json(200, self.bridge.snapshot())
+            if route == '/api/ai/detection':
+                self.bridge.set_detection_enabled(body.get('enabled'))
                 return self.send_json(200, self.bridge.snapshot())
             if route == '/api/ai/datasets/validate':
                 return self.send_json(200, self.bridge.datasets.validate(body))

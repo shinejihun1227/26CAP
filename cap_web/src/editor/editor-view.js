@@ -2,12 +2,13 @@ import { icon } from "../components/icons.js";
 import { PRESSURE_POINTS, PRESSURE_SITES, PRESSURE_CHANNELS, THERMAL_SITES, THERMAL_CHANNELS } from '../data/sensor-config.js';
 import { renderSidebar } from "../components/sidebar.js";
 import { escapeHtml } from "../utils/text.js";
-import { renderOverview } from "../views/overview-view.js";
+import { renderPurposeView as renderOverview } from "../views/purpose-view.js";
 import { renderLiveView } from "../views/live-view.js";
 import { renderSafetyView } from "../views/safety-view.js";
 import { renderReportsView } from "../views/reports-view.js";
 import { renderDevicesView } from "../views/devices-view.js";
-import { renderMediaPipeView } from "../views/mediapipe-view.js";
+import { renderFrontView as renderMediaPipeView } from "../views/front-view.js";
+import { renderAnkleDailyView } from '../views/ankle-daily-view.js';
 import { renderRecordsView } from '../views/records-view.js';
 import { renderTrendsView } from "../views/trends-view.js";
 import { loadSensorLayout, normalizeSensorLayout, persistSensorLayout } from "../data/sensor-layout.js";
@@ -27,7 +28,8 @@ const SCREEN_DEFS = [
   { id: "reports", label: "보행 리포트", short: "Reports", description: "일간·주간 보행 기록" },
   { id: "trends", label: "변화 추이", short: "Trends", description: "같은 조건의 개인 기록과 날짜별 비교" },
   { id: "devices", label: "기기 관리", short: "Devices", description: "ESP32와 센서 연결 상태" },
-  { id: "mediapipe", label: "관절 건강 관리", short: "MediaPipe", description: "여러 관절 측정·기록·목표·변화 확인" },
+  { id: "mediapipe", label: "정면 보행", short: "MediaPipe", description: "정면 관절점·골반 높이·몸통 기울기" },
+  { id: "ankle", label: "발 움직임", short: "BMI270", description: "양발 기울기 기준·하루 이탈 기록" },
 ];
 
 const COMPONENT_CATALOG = [
@@ -41,7 +43,7 @@ const COMPONENT_CATALOG = [
   { type: "image", label: "참고 이미지", description: "내 이미지 등록", icon: "image", width: 6, height: 5, tone: "plain" },
 ];
 
-const PREVIEW_RENDERERS = { overview: renderOverview, live: renderLiveView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView, records: renderRecordsView };
+const PREVIEW_RENDERERS = { overview: renderOverview, live: renderLiveView, ankle: renderAnkleDailyView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderMediaPipeView, trends: renderTrendsView, records: renderRecordsView };
 
 // The editor preview deliberately points at the real 8000 DOM instead of a second
 // design-only canvas. Each entry connects one persisted editor block to the

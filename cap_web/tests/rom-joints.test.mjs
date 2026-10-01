@@ -6,7 +6,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { once } from 'node:events';
 import { METRICS, VIEWS, analyzePose, compareSessions } from '../src/mediapipe/rom-math.js';
-import { JOINT_GROUPS, resolveJointSelection, renderJointOptions, jointGuide, renderJointGuide, renderLiveJointMetrics } from '../src/mediapipe/rom-joints.js';
+import { JOINT_GROUPS, resolveJointSelection, renderJointOptions, jointGuide, renderJointGuide, renderLandmarkGuide, renderLiveJointMetrics } from '../src/mediapipe/rom-joints.js';
 import { renderMediaPipeContent } from '../src/views/mediapipe-view.js';
 import { createRomStore, createRomHandler, sanitizeConfig } from '../server/rom-store.mjs';
 import { config, session, pose } from './rom-fixtures.mjs';
@@ -19,16 +19,16 @@ function temporary(t) {
   return dir;
 }
 
-test('all 12 observations appear once in five joint groups regardless of current view', () => {
-  assert.equal(JOINT_GROUPS.length, 5);
+test('new measurement selector offers only left and right ankle, historical joints remain readable', () => {
+  assert.equal(JOINT_GROUPS.length, 1);
   const ids = JOINT_GROUPS.flatMap((g) => g.metrics);
-  assert.equal(ids.length, 12); assert.equal(new Set(ids).size, 12);
-  assert.deepEqual([...ids].sort(), Object.keys(METRICS).sort());
-  const html = renderJointOptions('right_knee');
-  assert.equal((html.match(/<option /g) ?? []).length, 12);
+  assert.equal(ids.length, 2); assert.equal(new Set(ids).size, 2);
+  assert.deepEqual([...ids].sort(), ['left_ankle','right_ankle'].sort());
+  const html = renderJointOptions('right_ankle');
+  assert.equal((html.match(/<option /g) ?? []).length, 2);
   assert.equal((html.match(/ selected/g) ?? []).length, 1);
-  assert.match(html, /value="right_knee" selected/);
-  assert.match(html, /어깨 앞쪽 들기/); assert.match(html, /발목/); assert.match(html, /팔꿈치/);
+  assert.match(html, /value="right_ankle" selected/);
+  assert.doesNotMatch(html, /몸통–허벅지|무릎/); assert.match(html, /발목/);
   for (const id of ids) { assert.match(html, new RegExp(`value="${id}"`)); assert.ok(jointGuide(id)); }
 });
 
@@ -45,9 +45,9 @@ test('changing camera side keeps the same joint when possible, and never mixes p
     assert.deepEqual(resolveJointSelection(`left_${joint}`, 'right'), { view: 'right', metric: `right_${joint}` });
     assert.deepEqual(resolveJointSelection(`right_${joint}`, 'left'), { view: 'left', metric: `left_${joint}` });
   }
-  assert.deepEqual(resolveJointSelection('left_knee', 'front'), { view: 'front', metric: 'left_shoulder' });
+  assert.deepEqual(resolveJointSelection('left_knee', 'front'), { view: 'left', metric: 'left_ankle' });
   assert.deepEqual(resolveJointSelection('wrong', 'left'), { view: 'left', metric: 'left_ankle' });
-  assert.deepEqual(resolveJointSelection(null, 'wrong'), { view: 'front', metric: 'left_shoulder' });
+  assert.deepEqual(resolveJointSelection(null, 'wrong'), { view: 'left', metric: 'left_ankle' });
   assert.throws(() => sanitizeConfig(config({ metric: 'left_shoulder_flexion', view: 'front' })));
 });
 
@@ -77,20 +77,37 @@ test('guidance states required visibility, projected definitions and limitations
   assert.equal(jointGuide('left_wrist'), null);
 });
 
-test('initial 8000/8001 shared view explains participant ID and offers full selector without starting camera', () => {
+test('ankle guide clearly separates the four measured points from framing guidance', () => {
+  const ankle = jointGuide('left_ankle');
+  assert.deepEqual(ankle.calculationPoints, ['왼쪽 무릎', '왼쪽 발목', '왼쪽 뒤꿈치', '왼쪽 발끝']);
+  assert.deepEqual(ankle.orientationPoints, []);
+  assert.match(ankle.framing, /정강이부터 발끝까지/);
+  assert.match(ankle.orientationWhy, /각도 계산에는 쓰지 않습니다/);
+  const image = renderLandmarkGuide('left_ankle');
+  assert.match(image, /role="img"/);
+  assert.match(image, /뒤꿈치/);
+  assert.match(image, /정강이부터 발끝까지 선명하게 보이게 하세요/);
+  assert.match(image, /ankle-measure-segment/);
+  assert.match(image, /정강이 선의 위쪽/);
+  assert.match(image, /각도는 초록 네 점으로 계산해요/);
+  const liveAnkle = renderLiveJointMetrics('right', 'right_ankle');
+  assert.match(liveAnkle, /data-rom-angle="right_ankle"/);
+  assert.doesNotMatch(liveAnkle, /data-rom-angle="right_(knee|hip|elbow)"/);
+  assert.match(renderLandmarkGuide('right_knee'), /오른쪽 무릎/);
+  assert.notEqual(renderLandmarkGuide('left_shoulder'), image);
+});
+
+test('compact measurement view shows camera consent, simple controls and the selected joint points', () => {
   const html = renderMediaPipeContent();
-  assert.match(html, /누구의 기록인가요\? \(개인 코드\)/); assert.match(html, /개인 코드.*이름 대신 P01/);
-  assert.match(html, /카메라·장소 설정 코드/); assert.match(html, /관절 인식 신뢰도 기준/);
-  assert.match(html, /질환의 심각도나 의학적 신뢰도가 아닙니다/);
-  assert.match(html, /data-rom-step="camera"[\s\S]*data-rom-consent[\s\S]*data-rom-action="start"[\s\S]*data-rom-config="metric"/);
-  assert.match(html, /data-rom-step="camera"[\s\S]*data-rom-mirror[\s\S]*data-rom-config="metric"/);
-  assert.match(html, /rom-camera-panel[\s\S]*data-rom-step="camera"[\s\S]*rom-setup-panel[\s\S]*<ol class="motion-preparation-steps" start="2"/);
-  assert.match(html, /data-rom-step="pose"[\s\S]*data-rom-direction-confirmed/);
+  assert.match(html, /사용자 코드 \(측정 코드\)/); assert.match(html, /P01 = 한 사람의 기록 이름표/);
+  assert.match(html, /data-rom-consent/); assert.match(html, /data-rom-action="start"/);
+  assert.match(html, /data-rom-step="camera"/); assert.match(html, /data-rom-step="pose"/);
+  assert.match(html, /data-rom-landmark-guide/); assert.match(html, /무릎, 발목, 뒤꿈치, 발끝/);
   assert.match(html, /data-rom-step="record"[\s\S]*data-rom-action="record"/);
   assert.equal((html.match(/data-rom-config="metric"/g) ?? []).length, 1);
-  assert.equal((html.match(/<optgroup /g) ?? []).length, 5);
+  assert.equal((html.match(/<optgroup /g) ?? []).length, 1);
   assert.match(html, /data-rom-joint-guide/); assert.match(html, /data-rom-consent/);
-  assert.match(html, /치료 동작·범위는 담당 전문가/);
+  assert.match(html, /부상 위험 판정이나 의료적 안전 한계가 아닙니다/);
   const cards = renderLiveJointMetrics('right', 'right_elbow');
   assert.equal((cards.match(/is-selected/g) ?? []).length, 1);
   assert.match(cards, /right_shoulder_flexion/); assert.doesNotMatch(cards, /left_knee/);

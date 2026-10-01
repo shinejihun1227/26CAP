@@ -18,10 +18,19 @@ test("front and side protocols expose only appropriate joints", () => {
 test("ankle raw angle, knee flexion and elbow flexion", () => {
   const result = analyze(pose());
   assert.equal(result.valid, true); assert.equal(result.primary, 90);
-  assert.equal(result.values.left_knee, 0); assert.equal(result.values.left_elbow, 90);
-  assert.equal(result.values.left_hip, 0);
+  assert.deepEqual(Object.keys(result.values), ['left_ankle']);
+  assert.equal(analyze(pose(), { metric: 'left_knee' }).primary, 0);
+  assert.equal(analyze(pose(), { metric: 'left_elbow' }).primary, 90);
+  assert.equal(analyze(pose(), { metric: 'left_hip' }).primary, 0);
   assert.equal(analyze(pose("front"), { view: "front", metric: "left_shoulder" }).primary, 90);
   assert.equal(analyze(pose("right"), { view: "right", metric: "right_ankle" }).valid, true);
+});
+test("ankle calculator does not require shoulder or hip keypoints after pose detection", () => {
+  const p = pose();
+  for (const id of [11, 12, 23, 24]) p[id].visibility = .05;
+  const result = analyze(p);
+  assert.equal(result.valid, true);
+  assert.equal(result.primary, 90);
 });
 test("angles use pixel coordinates, not distorted normalized coordinates", () => {
   const p = pose(); p[25] = { ...p[25], x: .55, y: .74 };
@@ -32,6 +41,7 @@ test("angles use pixel coordinates, not distorted normalized coordinates", () =>
 });
 test("missing or multiple people and unconfirmed direction block measurement", () => {
   for (const poses of [[], [pose(), pose()], [[{}]]]) assert.equal(analyzePose(poses, { ...config(), directionConfirmed: true }).valid, false);
+  assert.match(analyzePose([], { ...config(), directionConfirmed: true }).reason, /어깨·골반부터 발끝까지 화면에 넣고 카메라를 조금 뒤로/);
   assert.equal(analyze(pose(), { directionConfirmed: false }).valid, false);
   assert.equal(analyze(pose(), { metric: "right_knee" }).valid, false);
   assert.equal(analyze(pose(), { width: 0 }).valid, false);
@@ -46,7 +56,7 @@ test("occlusion, missing confidence, edge clipping and tiny foot suppress angles
 test("coarse camera-plane and subject-size guards", () => {
   assert.equal(analyze(pose("front")).valid, false);
   assert.equal(analyze(pose(), { view: "front", metric: "left_shoulder" }).valid, false);
-  const p = pose(); p[23].y = .22; assert.equal(analyze(p).valid, false);
+  const p = pose(); p[23].y = .22; assert.equal(analyze(p, { metric: 'left_knee' }).valid, false);
 });
 test("completed observations are eligible; interruption and missing samples are not", () => {
   const s = session(); assert.equal(s.summary.eligible, true); assert.equal(s.summary.validRatio, 1);
@@ -81,11 +91,11 @@ test("CSV protects spreadsheet formulas and preserves missing values", () => {
   const s = session({ config: { participant: "=P01", setup: '쉼표,따옴표"' } });
   s.samples[0].values = {}; const csv = csvForSession(s);
   assert.ok(csv.startsWith("\uFEFF")); assert.ok(csv.includes('"\'=P01"')); assert.ok(csv.includes('"쉼표,따옴표"""'));
-  assert.ok(csv.split("\r\n")[1].endsWith('"","","",""')); assert.equal(csv.split("\r\n").length, 76);
+  assert.ok(csv.split("\r\n")[1].endsWith('""')); assert.equal(csv.split("\r\n").length, 76);
 });
 test("camera errors have actionable permission/device guidance", () => {
   assert.match(cameraErrorMessage({ name: "NotAllowedError" }), /권한/);
   assert.match(cameraErrorMessage({ name: "NotFoundError" }), /웹캠/);
   assert.match(cameraErrorMessage({ name: "NotReadableError" }), /다른/);
-  assert.match(cameraErrorMessage({ name: "OverconstrainedError" }), /해상도/);
+  assert.match(cameraErrorMessage({ name: "OverconstrainedError" }), /선택한 카메라/);
 });

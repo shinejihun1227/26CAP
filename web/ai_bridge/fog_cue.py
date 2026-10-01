@@ -66,8 +66,9 @@ class FogCueController:
             foot = self.bridge.feet[side].snapshot()
             capture = self.bridge.datasets.capture or {}
             collecting = capture.get('status') in ('countdown', 'recording')
+            detection_enabled = getattr(self.bridge, 'detection_enabled', True)
         with self.lock:
-            active = wants_cue(foot, self.enabled, collecting)
+            active = wants_cue(foot, self.enabled and detection_enabled, collecting)
         if not foot.get('device_connected'):
             with self.lock:
                 self.feet[side] = {'requested': False, 'acknowledged': False, 'status': 'offline', 'error': None}

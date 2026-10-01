@@ -6,9 +6,9 @@ self.onmessage = async ({ data }) => {
       const { FilesetResolver, PoseLandmarker } = await import("/vendor/mediapipe/vision_bundle.mjs");
       const files = await FilesetResolver.forVisionTasks(new URL("/vendor/mediapipe/wasm", self.location.origin).href);
       detector = await PoseLandmarker.createFromOptions(files, {
-        baseOptions: { modelAssetPath: new URL("/vendor/mediapipe/pose_landmarker_lite.task", self.location.origin).href, delegate: "CPU" },
+        baseOptions: { modelAssetPath: new URL("/vendor/mediapipe/pose_landmarker_full.task", self.location.origin).href, delegate: "CPU" },
         runningMode: "VIDEO", numPoses: 2,
-        minPoseDetectionConfidence: 0.6, minPosePresenceConfidence: 0.6, minTrackingConfidence: 0.6,
+        minPoseDetectionConfidence: 0.5, minPosePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
         outputSegmentationMasks: false,
       });
       self.postMessage({ type: "ready" });

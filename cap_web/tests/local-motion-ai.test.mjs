@@ -15,7 +15,7 @@ function mockResponse() {
 }
 const valid = { metric: 'right_ankle', medianDeg: 18.2, observedRangeDeg: 7.4, validRatio: 0.92, previousRangeDeltaDeg: -0.4 };
 
-test('local ankle feedback calls only fixed localhost Ollama with numeric summary, returns concise model text', async () => {
+test('local ankle feedback calls only fixed localhost Ollama with numeric summary and safe mobility framing', async () => {
   let url, sent;
   const handler = createLocalMotionAiHandler({ fetchImpl: async (nextUrl, options) => {
     url = nextUrl; sent = JSON.parse(options.body);
@@ -26,6 +26,9 @@ test('local ankle feedback calls only fixed localhost Ollama with numeric summar
   assert.equal(response.code, 200);
   assert.equal(url, 'http://127.0.0.1:11434/api/chat');
   assert.match(sent.messages[1].content, /right_ankle/);
+  assert.match(sent.messages[0].content, /오늘 해볼 수 있는 가벼운 움직임/);
+  assert.match(sent.messages[0].content, /통증, 어지럼, 불편감이 생기면 즉시 멈추고/);
+  assert.match(sent.messages[0].content, /개인별 치료 계획/);
   assert.doesNotMatch(JSON.stringify(sent), /participant|webcam|video|P01|csv/i);
   assert.match(response.body.text, /18.2/);
 });

@@ -1,0 +1,32 @@
+/* Shared desktop / phone control; never replace the camera to refresh it. */
+.topbar { height:auto; flex-wrap:wrap; gap:12px 20px; }
+.fog-detection-control { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; min-width:0; padding:14px 18px; border:1px solid #afd6cd; border-radius:16px; background:#eef8f5; color:#144c44; }
+.topbar > .fog-detection-control { flex:1 0 100%; }
+.fog-detection-control > div { min-width:0; }
+.fog-detection-control b { display:block; font-size:18px; font-weight:800; line-height:1.4; word-break:keep-all; }
+.fog-detection-control span { display:block; margin-top:4px; color:#45665f; font-size:14px; line-height:1.5; word-break:keep-all; overflow-wrap:anywhere; }
+.fog-detection-control button { flex:0 0 auto; min-height:48px; padding:10px 22px; border:1px solid #466862; border-radius:12px; background:#fff; color:#193f38; font-family:inherit; font-size:18px; font-weight:800; line-height:1.3; cursor:pointer; white-space:nowrap; }
+.fog-detection-control button:focus-visible, .fog-alert-card button:focus-visible { outline:3px solid #087f86; outline-offset:4px; }
+.fog-detection-control button:disabled { opacity:.65; cursor:wait; }
+.fog-detection-control.is-stopped { background:#fff7e9; border-color:#e6c997; color:#674515; }
+.fog-detection-control.is-stopped span { color:#705a39; }
+.fog-detection-control.is-stopped button { background:#15584d; border-color:#15584d; color:#fff; }
+.mobile-app > .fog-detection-control { width:calc(100% - 24px); margin:0 12px 12px; }
+.fog-alert-overlay { overflow-y:auto; overscroll-behavior:contain; }
+.fog-alert-card { max-height:calc(100dvh - 36px); overflow:auto; }
+.fog-alert-card h2 { word-break:keep-all; line-height:1.3; }
+.fog-alert-card > b { display:block; word-break:keep-all; line-height:1.5; }
+.fog-alert-card small { margin-top:18px; }
+.fog-alert-card .fog-popup-stop { margin-top:10px; border:1px solid #aabdc2; background:#fff; color:#254653; }
+.fog-test-label { margin-bottom:18px; padding:8px 12px; border:1px solid #c8d8e8; border-radius:9px; color:#264e78; background:#edf5fc; font-size:15px; font-weight:750; line-height:1.5; }
+@media(max-width:800px) {
+  .topbar > .fog-detection-control { grid-column:1 / -1; }
+  .fog-detection-control { padding:12px; gap:12px; }
+  .fog-detection-control b { font-size:17px; }
+  .fog-detection-control span { font-size:13px; }
+  .fog-detection-control button { min-height:50px; padding:10px 14px; font-size:17px; }
+  .fog-alert-card { padding:24px 18px; }
+  .fog-alert-card h2 { font-size:29px; }
+  .fog-alert-card > b { font-size:19px; }
+}
+@media(max-width:359px) { .fog-detection-control { flex-wrap:wrap; }.fog-detection-control button { width:100%; } }

@@ -1,11 +1,18 @@
 export function speakCue(message) {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(message);
+  if (typeof window === "undefined" || !window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== "function") return false;
+  const speech = window.speechSynthesis;
+  speech.cancel();
+  const utterance = new window.SpeechSynthesisUtterance(message);
   utterance.lang = "ko-KR";
-  utterance.rate = 0.9;
-  utterance.pitch = 1;
-  window.speechSynthesis.speak(utterance);
+  utterance.rate = 0.86;
+  utterance.pitch = 1.04;
+  utterance.volume = 1;
+  const koreanVoices = speech.getVoices?.().filter((voice) => /^ko([-_]KR)?$/i.test(voice.lang)) ?? [];
+  utterance.voice = koreanVoices.find((voice) => /natural|neural|online/i.test(voice.name))
+    ?? koreanVoices.find((voice) => /google|sunhi|heami/i.test(voice.name))
+    ?? koreanVoices[0]
+    ?? null;
+  speech.speak(utterance);
   return true;
 }
 

@@ -10,20 +10,24 @@ function oscillatorBeep(context, frequency, startAt) {
   gain.connect(context.destination);
   oscillator.start(startAt);
   oscillator.stop(startAt + 0.23);
+  return oscillator;
 }
 
 export function createMobileFogAudio({ AudioContextCtor = globalThis.AudioContext || globalThis.webkitAudioContext } = {}) {
   let context = null, enabled = false, wasConfirmed = false;
+  const playing = new Set();
+  function silence() { for (const oscillator of playing) { try { oscillator.stop(); } catch {} } playing.clear(); }
 
   function playPattern(frequencies) {
     if (!enabled || !context || context.state !== 'running') return false;
     const at = context.currentTime + 0.01;
-    frequencies.forEach((frequency, index) => oscillatorBeep(context, frequency, at + index * 0.3));
+    frequencies.forEach((frequency, index) => { const oscillator = oscillatorBeep(context, frequency, at + index * 0.3); playing.add(oscillator); oscillator.onended = () => playing.delete(oscillator); });
     return true;
   }
 
   return {
     get enabled() { return enabled; },
+    silence,
     async activate() {
       if (typeof AudioContextCtor !== 'function') return { ok: false, reason: 'unsupported' };
       try {
@@ -37,6 +41,7 @@ export function createMobileFogAudio({ AudioContextCtor = globalThis.AudioContex
     },
     async deactivate() {
       enabled = false;
+      silence();
       if (context && context.state !== 'closed') await context.suspend().catch(() => {});
     },
     observe(ai, { foreground = true } = {}) {

@@ -8,7 +8,8 @@ if (-not (Test-Path -LiteralPath $nodePath)) { throw 'Node.js was not found. Ins
 $logRoot = Join-Path ([IO.Path]::GetFullPath((Join-Path $webRoot '..'))) '.codex-output'
 New-Item -ItemType Directory -Path $logRoot -Force | Out-Null
 foreach ($webPort in @(8000, 8001)) {
-  $listener = Get-NetTCPConnection -State Listen -LocalPort $webPort -ErrorAction SilentlyContinue | Select-Object -First 1
+  $occupied = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners() | Where-Object Port -eq $webPort
+  $listener = if ($occupied) { Get-NetTCPConnection -State Listen -LocalPort $webPort -ErrorAction Stop | Select-Object -First 1 } else { $null }
   if ($listener) {
     $serverProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$($listener.OwningProcess)"
     $isOurServer = $false
@@ -26,9 +27,10 @@ foreach ($webPort in @(8000, 8001)) {
     Stop-Process -Id $serverProcess.ProcessId
     Wait-Process -Id $serverProcess.ProcessId -Timeout 5 -ErrorAction SilentlyContinue
   }
-  Start-Process -FilePath $nodePath -ArgumentList @("`"$serverFile`"", "$webPort", '0.0.0.0') -WorkingDirectory $webRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logRoot "web-$webPort.log") -RedirectStandardError (Join-Path $logRoot "web-$webPort.error.log") | Out-Null
+  $startedServer = Start-Process -FilePath $nodePath -ArgumentList @("`"$serverFile`"", "$webPort", '0.0.0.0') -WorkingDirectory $webRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logRoot "web-$webPort.log") -RedirectStandardError (Join-Path $logRoot "web-$webPort.error.log") -PassThru
   $ready = $false
   for ($attempt = 0; $attempt -lt 30; $attempt++) {
+    if ($startedServer.HasExited) { throw "StepOn $webPort exited before startup. Check .codex-output/web-$webPort.error.log" }
     try {
       $health = Invoke-RestMethod "http://127.0.0.1:$webPort/api/insoles/state" -TimeoutSec 1
       if ($health.service -eq 'stepon-bilateral-v1') { $ready = $true; break }

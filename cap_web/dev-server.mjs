@@ -7,11 +7,15 @@ import { createTrendHandler } from "./server/trend-store.mjs";
 import { createInsoleHub, createInsoleHandler, forwardInsoleRequest } from "./server/insole-hub.mjs";
 import { createAiHandler } from "./server/ai-proxy.mjs";
 import { createLocalMotionAiHandler } from "./server/local-motion-ai.mjs";
+import { createAnkleDaily, createAnkleDailyHandler } from './server/ankle-daily.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const port = Number(process.argv[2] || 8000);
 const host = process.argv[3] || "127.0.0.1";
-const insoleHub = port === 8001 ? null : createInsoleHub();
+const ankleDaily = createAnkleDaily({ directory: process.env.STEPON_ANKLE_DATA_DIR || path.resolve(root, '..', '.stepon-data', 'ankle-daily') });
+const insoleHub = port === 8001 ? null : createInsoleHub({ onSample: ankleDaily.observe });
+const handleAnkle = insoleHub ? createAnkleDailyHandler(ankleDaily, insoleHub) : forwardInsoleRequest;
+if (insoleHub) setInterval(ankleDaily.tick, 250).unref();
 const handleInsoles = insoleHub ? createInsoleHandler(insoleHub) : forwardInsoleRequest;
 const handleAi = createAiHandler();
 const handleLocalMotionAi = createLocalMotionAiHandler();
@@ -75,6 +79,7 @@ function readSharedEditorState(callback) {
 
 const server = http.createServer((request, response) => {
   const pathname = new URL(request.url || "/", `http://${host}`).pathname;
+  if (pathname === '/api/ankle-daily') { void handleAnkle(request, response); return; }
   if (pathname.startsWith('/api/ai/')) { void handleAi(request, response); return; }
   if (pathname === "/api/rom/feedback") { void handleLocalMotionAi(request, response); return; }
   if (pathname.startsWith('/api/insoles/')) { void handleInsoles(request, response); return; }

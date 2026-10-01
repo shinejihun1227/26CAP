@@ -1,7 +1,7 @@
 {
   "package": "@mediapipe/tasks-vision",
   "version": "1.0.1",
-  "model": "pose_landmarker_lite/float16/1",
+  "model": "pose_landmarker_full/float16/1",
   "files": [
     {
       "name": "vision_bundle.mjs",
@@ -34,10 +34,10 @@
       "sha256": "a28483cd42e74e855bf5ebdb6b40d9b66a5b49e35e95020bc97669e6822a3192"
     },
     {
-      "name": "pose_landmarker_lite.task",
-      "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-      "bytes": 5777746,
-      "sha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a"
+      "name": "pose_landmarker_full.task",
+      "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
+      "bytes": 9398198,
+      "sha256": "5134a3aad27a58b93da0088d431f366da362b44e3ccfbe3462b3827a839011b1"
     },
     {
       "name": "LICENSE",

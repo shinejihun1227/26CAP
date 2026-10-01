@@ -2,8 +2,9 @@ import { createDefaultRehabState } from "./gait-algorithms.js";
 
 export const navItems = [
   { id: "overview", label: "Today", korean: "오늘 요약", icon: "grid" },
-  { id: "live", label: "Walk", korean: "보행 측정", icon: "activity" },
-  { id: "mediapipe", label: "MediaPipe", korean: "관절 관리", icon: "camera" },
+  { id: "live", label: "FoG", korean: "AI 보행동결", icon: "activity" },
+  { id: "ankle", label: "BMI270", korean: "발 움직임", icon: "shoe" },
+  { id: "mediapipe", label: "MediaPipe", korean: "정면 보행", icon: "camera" },
   { id: "trends", label: "Changes", korean: "변화 보기", icon: "chart" },
   { id: "devices", label: "Devices", korean: "기기 설정", icon: "device", group: "manage" },
   { id: "records", label: "Data", korean: "데이터 관리", icon: "report", group: "manage" },

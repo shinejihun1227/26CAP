@@ -1,7 +1,7 @@
 import { PROTOCOL, summarizeSession } from "../src/mediapipe/rom-math.js";
 export function config(overrides = {}) {
   return { participant: "P01", setup: "책상-기본", view: "left", metric: "left_ankle", posture: "seated",
-    protocol: PROTOCOL, modelVersion: "tasks-vision-1.0.1/pose-lite-f16-v1", width: 960, height: 720, confidence: .75, ...overrides };
+    protocol: PROTOCOL, modelVersion: "tasks-vision-1.0.1/pose-full-f16-v1", width: 960, height: 720, confidence: .75, ...overrides };
 }
 export function session(overrides = {}) {
   const c = config(overrides.config);

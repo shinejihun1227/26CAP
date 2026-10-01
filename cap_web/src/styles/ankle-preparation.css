@@ -1,0 +1,80 @@
+/* Ankle preparation has its own compact composition, independent of legacy ROM cards. */
+.rom-workspace [hidden], .ankle-capture [hidden] { display:none !important; }
+.ankle-intro { display:flex; justify-content:space-between; align-items:center; gap:24px; margin:4px 0 24px; }
+.ankle-intro > div > span, .ankle-section-title > div > span { color:#207b72; font-size:15px; font-weight:750; }
+.rom-workspace .ankle-intro h1 { margin:7px 0 9px; color:#123d49; font-size:clamp(30px,3vw,42px); line-height:1.22; letter-spacing:-.05em; }
+.ankle-intro p { margin:0; font-size:19px; color:#536e76; }
+.ankle-intro button, .ankle-section-title button { min-height:48px; padding:10px 17px; border:1px solid #bfd6d6; background:white; border-radius:12px; color:#22535c; font-weight:700; }
+.ankle-side-picker { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+.rom-workspace .ankle-side-picker button { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:16px; text-align:left; min-height:88px; padding:17px 24px; border:2px solid #d8e4e6; border-radius:18px; background:#fff; }
+.ankle-side-picker button > span { display:grid; place-items:center; height:40px; width:40px; border-radius:50%; background:#edf3f4; color:#50717a; font-size:17px; }
+.ankle-side-picker b { font-size:27px; color:#19434f; }.ankle-side-picker small { font-size:15px; color:#536e76; }
+.rom-workspace .ankle-side-picker [aria-pressed=true] { border-color:#168679; background:#eef9f5; box-shadow:0 0 0 1px #168679; }
+.ankle-side-picker [aria-pressed=true] > span { background:#168679; color:white; }
+.rom-workspace .ankle-capture { align-items:start; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:24px; padding:24px; border-radius:22px; }
+.rom-workspace .ankle-capture .rom-camera-panel { position:sticky; top:16px; align-self:start; }
+.rom-workspace .ankle-capture .rom-video-stage { aspect-ratio:4/3; height:auto; min-height:0; background:#eaf3f3; }
+.ankle-capture .rom-video-empty { padding:12px 20px 32px; background:#eff7f5; color:#19434f; }
+.ankle-capture [data-ankle-empty-guide] { width:100%; }
+.ankle-capture .rom-landmark-guide { display:block; background:none; border:0; padding:0; margin:0; }
+.ankle-capture .rom-landmark-copy { display:none; }
+.ankle-capture .rom-landmark-figure svg { background:transparent; width:100%; max-height:270px; }
+.rom-workspace .ankle-capture .rom-video-empty b { font-size:22px; }
+.rom-workspace .ankle-capture .rom-video-empty p { font-size:16px !important; max-width:none; }
+.rom-workspace .ankle-capture .rom-panel-head h2 { font-size:22px; }
+.rom-workspace .ankle-capture .rom-consent, .rom-workspace .ankle-capture .rom-camera-tools label { font-size:16px; }
+.rom-workspace .ankle-capture .rom-camera-tools button { min-height:50px; font-size:18px; padding:10px 20px; }
+.ankle-capture input[type=checkbox] { width:21px; height:21px; flex:0 0 21px; accent-color:#117d71; }
+.ankle-camera-options { margin-top:16px; color:#42606a; }.ankle-camera-options summary { min-height:44px; padding:8px 0; font-size:16px; cursor:pointer; }
+.ankle-camera-options p { font-size:14px; }
+.rom-workspace .ankle-steps { display:grid; gap:13px; background:transparent; }
+.ankle-step { min-height:0; padding:20px; border:1px solid #d9e5e7; border-radius:16px; background:#fafcfc; }
+.ankle-step.is-current { border-color:#90c8be; background:#f0f9f6; }
+.ankle-step-title { display:flex; align-items:center; gap:11px; }.ankle-step-title .step-number { display:grid; place-items:center; flex:0 0 32px; height:32px; border-radius:50%; color:#186a63; background:#dfeeea; font-size:17px; font-weight:800; }
+.rom-workspace .ankle-step-title h2 { margin:0; font-size:22px; line-height:1.3; }.ankle-step-title small { margin-left:auto; font-size:13px; white-space:nowrap; color:#5a767d; }
+.ankle-step.is-complete .step-number { background:#167f71; color:white; }
+.ankle-step > p { margin:11px 0; color:#4e6b73; font-size:17px; line-height:1.6; }
+.rom-workspace .ankle-capture .rom-check { font-size:17px !important; margin:10px 0; }
+.rom-workspace .ankle-neutral-button { width:100%; min-height:52px; margin:2px 0 6px; border:1px solid #176e65; background:#fff; color:#176e65; font-size:19px; font-weight:800; border-radius:11px; }
+.rom-workspace .ankle-camera-only, .rom-workspace .ankle-connection-link { background:transparent; padding:8px 0; min-height:44px; border:0; font-size:15px; color:#4b6d76; text-align:left; text-decoration:underline; text-underline-offset:4px; }
+.ankle-camera-only[aria-pressed=true] { color:#976014; font-weight:750; }.ankle-connection-link { display:block; }
+.rom-workspace .ankle-capture .rom-record-box { margin:12px 0 0; padding:0; background:transparent; border:0; }
+.rom-workspace .ankle-capture .rom-record-box button { font-size:20px; min-height:54px; }
+.rom-workspace .ankle-capture .rom-record-box > small { font-size:15px !important; }
+.ankle-capture [data-rom-record-help], .ankle-capture [data-ankle-calibration] { margin:10px 0; font-size:16px; color:#496871; line-height:1.5; }
+.rom-workspace .ankle-capture [data-rom-quality] { font-size:16px; line-height:1.5; }
+.ankle-today, .ankle-live-panel { border:1px solid #d8e5e6; background:white; padding:24px; margin:22px 0; border-radius:20px; }
+.ankle-section-title { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; }
+.ankle-section-title h2 { margin:5px 0 0; font-size:25px; }
+.ankle-status-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.ankle-foot-status { min-width:0; border:1px solid #d4e1e5; border-radius:16px; padding:22px; background:#f8fbfb; }
+.ankle-status-top { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }.ankle-status-top b { font-size:22px; }.ankle-status-top span { font-size:14px; color:#536f79; }
+.ankle-foot-status h3 { margin:18px 0 9px; font-size:23px; line-height:1.4; color:#1a4350; }.ankle-foot-status p { font-size:16px; line-height:1.6; color:#4d6973; margin:0; }
+.ankle-foot-status.is-outside { border:2px solid #bd572e; background:#fff7ef; }.ankle-foot-status.is-outside h3 { color:#954018; }
+.ankle-foot-status.is-within { border-color:#75b9a6; background:#eff9f5; }
+.ankle-values { display:grid; gap:14px; margin:20px 0 12px; grid-template-columns:1fr 1fr; }.ankle-values dt { font-size:14px; color:#55727a; }.ankle-values dd { font-size:25px; color:#153f4b; margin:6px 0 0; font-variant-numeric:tabular-nums; font-weight:800; }
+.ankle-foot-status > small { display:block; color:#607b83; font-size:13px; line-height:1.6; }
+.ankle-scope-note { font-size:15px !important; line-height:1.7; color:#526d75; margin:15px 0 0; }
+.ankle-method, .ankle-record-details { margin-top:18px; padding:14px 18px; border:1px solid #d4e1e4; border-radius:14px; background:white; }.ankle-method summary, .ankle-record-details > summary { padding:6px 0; min-height:44px; font-size:17px; font-weight:700; cursor:pointer; }.ankle-method p { font-size:15px; line-height:1.7; color:#52707a; }
+.ankle-record-extrema { display:flex; gap:35px; margin:15px 0; }.ankle-record-extrema span { display:grid; gap:5px; font-size:16px; }.ankle-record-extrema strong { color:#126b63; font-size:34px; }
+.ankle-easy-home, .ankle-easy-live { max-width:960px; }.ankle-easy-home .easy-heading { text-align:left; padding:15px 0 25px; }.ankle-easy-home .easy-heading h1 { font-size:clamp(34px,4vw,50px); line-height:1.2; }
+.easy-preparation-progress { display:flex; justify-content:space-between; align-items:center; margin:6px 0 15px; color:#30545f; font-size:18px; }.easy-preparation-progress b { font-size:22px; }
+.easy-main-action { display:flex; align-items:center; gap:20px; width:100%; margin:0 0 22px; padding:26px; background:#126b63; color:white; border:0; border-radius:20px; text-align:left; }.easy-main-action > .icon { width:38px; height:38px; }.easy-main-action span { flex:1; }.easy-main-action b { display:block; font-size:28px; }.easy-main-action small { display:block; margin-top:8px; font-size:18px; color:#e4f4ef; }.easy-main-action em { font-size:30px; font-style:normal; }
+.easy-secondary-actions { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px; }.easy-secondary-actions button { min-height:68px; border:1px solid #bcd3d6; border-radius:14px; font-size:22px; font-weight:750; color:#194a55; background:white; }
+.easy-fog-status { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; padding:22px; border:1px solid #d2e2e4; border-radius:16px; background:white; font-size:20px; }.easy-fog-status button, .easy-history-link { min-height:50px; padding:10px 18px; border-radius:12px; border:1px solid #bcd3d6; background:white; color:#194a55; font-size:17px; }.easy-fog-status.is-alert { border-color:#c95d2d; background:#fff5eb; }.easy-history-link { margin-top:18px; }
+.is-easy-mode .topbar :is([data-action=open-editor], .notification-button), .is-easy-mode .sidebar .care-card { display:none; }
+.is-easy-mode .ankle-record-details { display:none; }
+.is-easy-mode .sidebar .easy-mode-shortcut { display:none; }
+.mobile-app.is-easy-mode .mobile-tabbar { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.mobile-app.is-easy-mode .mobile-fog-audio small { display:none; }
+.is-easy-mode .ankle-foot-status h3 { font-size:26px; }.is-easy-mode .ankle-foot-status p { font-size:18px; }
+@media(max-width:1000px) { .rom-workspace .ankle-capture { grid-template-columns:1fr; }.rom-workspace .ankle-capture .rom-camera-panel { position:static; }.ankle-capture .rom-video-stage { max-height:430px; } }
+@media(max-width:600px) {
+ .ankle-intro { display:block; margin-bottom:18px; }.ankle-intro button { margin-top:15px; }.ankle-intro p { font-size:18px; }
+ .ankle-side-picker { gap:12px; }.rom-workspace .ankle-side-picker button { grid-template-columns:1fr; gap:6px; padding:14px 18px; }.ankle-side-picker button > span { display:none; }.ankle-side-picker b { font-size:26px; }
+ .rom-workspace .ankle-capture { padding:15px; gap:20px; }.ankle-step { padding:16px; }.rom-workspace .ankle-step-title h2 { font-size:21px; }.ankle-step-title small { display:none; }
+ .ankle-capture .rom-video-empty { padding:5px 8px 32px; }.rom-workspace .ankle-capture .rom-video-empty b { font-size:18px; }.rom-workspace .ankle-capture .rom-video-empty p { font-size:14px !important; margin:4px 0; }
+ .ankle-status-grid { grid-template-columns:1fr; }.ankle-today, .ankle-live-panel { padding:18px; }.ankle-foot-status { padding:20px; }.ankle-values { gap:12px; }.ankle-values dd { font-size:23px; }
+ .ankle-section-title { flex-wrap:wrap; }.easy-secondary-actions { grid-template-columns:1fr; gap:12px; }.easy-main-action { gap:12px; padding:22px 18px; }.easy-main-action > .icon { display:none; }.easy-main-action b { font-size:25px; }.easy-main-action small { font-size:17px; }.easy-main-action em { font-size:25px; }
+ .ankle-easy-home .easy-heading p { font-size:20px; }.ankle-step > p { font-size:17px; }.ankle-record-details { padding:12px; }
+}

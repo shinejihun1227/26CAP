@@ -1,0 +1,136 @@
+/* One consistent, safe-area-aware layout for small touch screens (including
+   iPhone 15 Pro at 393 CSS px). Loaded after the legacy responsive layers. */
+@media (max-width: 800px) {
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { min-width: 320px; width: 100%; overflow-x: hidden; }
+  #app, .app-frame, .page-shell, .content-area { width: 100%; min-width: 0; max-width: 100%; }
+  .app-frame { display: block; min-height: 100dvh; padding: 0 0 calc(78px + env(safe-area-inset-bottom)); }
+
+  /* Keep all six destinations reachable in one stable bottom bar. */
+  .app-frame > .sidebar {
+    position: fixed; inset: auto 0 0; z-index: 50; display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: stretch;
+    width: 100%; height: auto; min-height: 0; max-height: calc(78px + env(safe-area-inset-bottom));
+    overflow: visible; padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    border: 0; border-top: 1px solid #d4e3e5; background: #fffffffa;
+    box-shadow: 0 -6px 20px #153b4b12; backdrop-filter: blur(16px);
+  }
+  .sidebar .brand-lockup, .sidebar .sidebar-section-label, .sidebar .sidebar-spacer,
+  .sidebar .care-card, .sidebar .sidebar-footer { display: none !important; }
+  .sidebar .primary-nav { display: contents; }
+  .sidebar .nav-item {
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    gap: 4px; width: 100%; min-width: 0; min-height: 58px; padding: 5px 2px;
+    border: 0; border-radius: 10px; color: #54717c; background: transparent;
+  }
+  .sidebar .nav-item .icon { width: 21px; height: 21px; flex: 0 0 21px; }
+  .sidebar .nav-item > span { display: block; width: 100%; min-width: 0; text-align: center; }
+  .sidebar .nav-item b, .sidebar .nav-item small { display: none !important; }
+  .sidebar .nav-item .nav-item-mobile-label {
+    display: block; width: 100%; overflow: hidden; color: inherit; font-size: 11px;
+    font-style: normal; font-weight: 650; line-height: 1.25; letter-spacing: -.02em;
+    white-space: normal; text-align: center; overflow-wrap: anywhere;
+  }
+  .sidebar .nav-item.is-active { color: #126e67; background: #e9f6f2; box-shadow: inset 0 0 0 1px #cce6de; }
+  .sidebar .nav-item.is-active .icon { color: #168576; }
+
+  .page-shell { padding-top: env(safe-area-inset-top); }
+  .topbar {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+    width: 100%; min-height: 58px; height: auto; padding: 8px 14px;
+    border-bottom: 1px solid #dce8ed; background: #ffffffed;
+  }
+  .mobile-brand { display: flex; align-items: center; gap: 8px; min-width: 0; color: #123646; }
+  .mobile-brand .brand-mark { width: 34px; height: 34px; flex: 0 0 34px; font-size: 21px; border-radius: 11px; }
+  .mobile-brand strong { font-size: 13px; letter-spacing: .08em; }
+  .topbar-context { display: none; }
+  .topbar-actions { display: flex; flex-wrap: nowrap; align-items: center; justify-content: flex-end; gap: 5px; min-width: 0; margin: 0; }
+  .topbar-actions .editor-link-button:not(.topbar-audio-toggle),
+  .topbar-actions .notification-button { display: none !important; }
+  .topbar-sensor-status { display: grid; place-items: center; width: 36px; height: 38px; min-height: 38px; flex: 0 0 36px; padding: 0; overflow: hidden; }
+  .topbar-sensor-status span { display: none; }
+  .topbar-audio-toggle { display: grid !important; place-items: center; width: 38px; height: 38px; min-height: 38px; flex: 0 0 38px; padding: 0; }
+  .topbar-audio-toggle > span { display: none; }
+  .topbar-audio-toggle .icon { width: 20px; height: 20px; }
+  .profile-button { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; padding: 0; }
+  .profile-button > .avatar { width: 34px; height: 34px; }
+  .profile-button > .icon, .profile-copy { display: none !important; }
+
+  .content-area {
+    padding: 18px 14px 30px; overflow: clip;
+  }
+  .content-area > *, .content-area :is(section, article, aside, form, fieldset, details, figure) { min-width: 0; max-width: 100%; }
+  .content-area :is(h1, h2, h3, p, label, small, summary, li, a, button, td, th) {
+    overflow-wrap: anywhere; word-break: keep-all;
+  }
+  .content-area :is(p, .panel-description) { font-size: 16px; line-height: 1.7; }
+  .content-area :is(button, select, input, textarea, label, summary) { max-width: 100%; font-size: 15px; line-height: 1.5; }
+  .content-area :is(input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea) { min-width: 0; }
+  .content-area :is(small, .panel-kicker, .eyebrow, .section-overline) { font-size: 13px; line-height: 1.55; }
+  .content-area :is(h1, h2, h3) { line-height: 1.3; text-wrap: pretty; }
+  .content-area :is(.welcome-row, .overview-intro, .subpage-heading, .simple-heading, .rom-heading,
+    .trends-heading, .panel-heading, .motion-section-heading, .section-heading-row) {
+    display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; min-width: 0;
+  }
+  .content-area :is(.welcome-row, .overview-intro, .subpage-heading, .simple-heading, .rom-heading,
+    .trends-heading) > :first-child { min-width: 0; flex: 1 1 100%; }
+  .content-area :is(.welcome-row h1, .overview-intro h1, .subpage-heading h1, .simple-heading h1,
+    .rom-heading h1, .trends-heading h1) { max-width: 100%; font-size: clamp(26px, 7.2vw, 32px); line-height: 1.2; letter-spacing: -.035em; }
+  .content-area :is(.welcome-row p, .overview-intro p, .subpage-heading p, .simple-heading p, .rom-heading p, .trends-heading p) {
+    margin-top: 5px; font-size: 15px; line-height: 1.65;
+  }
+  .content-area :is(.panel, .rom-camera-panel, .rom-setup-panel, .rom-validation-panel,
+    .rom-history-panel, .rom-details, .trends-panel, .insole-card) { padding: 16px; border-radius: 15px; }
+  .content-area :is(.dashboard-grid, .lower-grid, .overview-bottom-grid, .overview-insights,
+    .overview-page .clarity-overview-hero, .device-grid, .algorithm-grid, .live-analysis-grid,
+    .safety-grid, .rom-layout, .motion-analysis-grid, .motion-comparison-grid,
+    .rom-management-layout, .record-coverage, .calendar-layout, .trend-layout) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .content-area :is(.metrics-grid, .motion-stats, .environment-values, .mobile-rehab-counts) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px;
+  }
+  .content-area :is(.panel-heading, .motion-section-heading) { justify-content: space-between; }
+  .content-area :is(.overview-section-heading, .recent-records-heading) { flex-wrap: wrap; }
+  .content-area :is(.overview-status-actions, .rom-buttons, .rom-camera-tools, .motion-review-controls) {
+    min-width: 0; max-width: 100%; flex-wrap: wrap;
+  }
+  .content-area :is(.rom-camera-tools button, .rom-buttons button, .motion-review-controls button) { min-width: 0; }
+  .content-area :is(.rom-form-grid, .motion-goal-fields, .personal-form) { grid-template-columns: minmax(0, 1fr) !important; }
+  .content-area .rom-camera-select { width: 100%; grid-template-columns: 1fr; gap: 5px; }
+  .content-area .rom-camera-select select { width: 100%; min-width: 0; }
+  .content-area :is(.motion-goal-fields .motion-goal-note, .motion-goal-fields .motion-goal-baseline) { grid-column: 1 / -1; }
+  .content-area :is(.rom-form-grid label, .motion-goal-fields label) { min-width: 0; }
+  .content-area :is(.overview-page .clarity-status-card, .clarity-status-card, .device-hero,
+    .status-hero, .live-state-card, .ai-status-panel) { grid-template-columns: minmax(0, 1fr); }
+  .content-area :is(.rom-video-stage, .motion-chart, svg, canvas, video, img) { max-width: 100%; }
+  .content-area :is(.rom-history, .rom-set-report, .recent-records, .table-scroll) { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+  .content-area table { max-width: 100%; }
+  .content-area :is(.rom-workspace, .motion-local-ai, .motion-panel, .rom-panel) { overflow-wrap: anywhere; }
+  .mobile-app, .mobile-onboarding, .simple-mobile { min-width: 0; width: 100%; max-width: 100%; overflow-x: clip; }
+  .mobile-main { width: 100%; min-width: 0; max-width: 560px; padding-right: 14px; padding-left: 14px; }
+  .mobile-main :is(p, label, small, button, a, span) { overflow-wrap: anywhere; word-break: keep-all; }
+  .mobile-main p { font-size: 15px; line-height: 1.7; }
+  .mobile-main :is(small, .mobile-disclaimer, .mobile-hardware-note, .mobile-algorithm-disclaimer) { font-size: 13px; line-height: 1.55; }
+  .mobile-main :is(button, select, input, label, summary) { font-size: 15px; line-height: 1.5; }
+  .mobile-main :is(.metrics-grid, .mobile-metrics-grid, .mobile-algorithm-grid, .mobile-device-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .toast, [role=dialog] { width: min(100% - 24px, 520px); max-width: calc(100vw - 24px); }
+}
+
+@media (max-width: 390px) {
+  .content-area { padding-right: 12px; padding-left: 12px; }
+  .sidebar .nav-item { min-height: 56px; }
+  .sidebar .nav-item .icon { width: 20px; height: 20px; }
+  .sidebar .nav-item .nav-item-mobile-label { font-size: 10px; }
+  .content-area :is(.metrics-grid, .motion-stats) { gap: 7px; }
+  .content-area :is(.metric-card, .motion-stat) { padding: 12px; }
+  .content-area :is(.heatmap-summary, .overview-start-steps) { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-frame { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  .app-frame > .sidebar { grid-template-columns: repeat(6, minmax(48px, 1fr)); max-height: calc(64px + env(safe-area-inset-bottom)); }
+  .sidebar .nav-item { min-height: 50px; }
+  .sidebar .nav-item .icon { width: 18px; height: 18px; }
+  .sidebar .nav-item .nav-item-mobile-label { font-size: 10px; }
+}

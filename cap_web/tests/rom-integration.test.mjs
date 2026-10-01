@@ -9,6 +9,7 @@ import { once } from "node:events";
 import { createHash } from "node:crypto";
 import vm from "node:vm";
 import { renderMediaPipeContent } from "../src/views/mediapipe-view.js";
+import { cameraMediaConstraints } from "../src/mediapipe/rom-controller.js";
 const root = fileURLToPath(new URL("../", import.meta.url));
 function filesIn(directory) {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((item) => item.isDirectory() ? filesIn(path.join(directory, item.name)) : [path.join(directory, item.name)]);
@@ -22,14 +23,26 @@ test("all app JS parses and relative module imports resolve", () => {
     for (const match of code.matchAll(/(?:from\s*|import\s*)["'](\.[^"']+)["']/g)) assert.ok(fs.existsSync(path.resolve(path.dirname(file), match[1])), `${file}: ${match[1]}`);
   }
 });
-test("camera UI has consent, three views, explicit save, stop, reference, and no autoplay permission request", () => {
+test("camera UI has consent, three views, explicit save and stop without goniometer controls", () => {
   const html = renderMediaPipeContent();
   for (const value of ["front", "left", "right"]) assert.ok(html.includes(`name="rom-view" value="${value}"`));
-  for (const action of ["start", "stop", "record", "abort", "save", "baseline", "freeze", "reference", "export-json", "export-csv", "clear"]) assert.equal(html.split(`data-rom-action="${action}"`).length - 1, 1);
-  assert.match(html, /data-rom-consent/); assert.match(html, /임상 검증 아님/); assert.match(html, /영상·음성은 저장하지 않습니다/);
+  for (const action of ["start", "stop", "record", "abort", "save", "baseline", "export-json", "export-csv", "clear"]) assert.equal(html.split(`data-rom-action="${action}"`).length - 1, 1);
+  assert.match(html, /data-rom-consent/); assert.match(html, /치료 처방이 아닙니다/); assert.match(html, /영상 저장 안 함/);
+  assert.match(html, /data-rom-camera-select/); assert.match(html, /사용할 카메라/);
+  assert.doesNotMatch(html, /data-rom-action="(freeze|reference)"/);
   assert.doesNotMatch(html, /<script|onload=|getUserMedia/);
   const controller = fs.readFileSync(path.join(root, "src/mediapipe/rom-controller.js"), "utf8");
-  for (const [, action] of controller.matchAll(/button\("([a-z-]+)"\)/g)) assert.ok(html.includes(`data-rom-action="${action}"`), `Missing required controller button: ${action}`);
+  for (const [, action] of controller.matchAll(/button\("([a-z-]+)"\)/g)) {
+    if (["freeze", "reference"].includes(action)) continue;
+    assert.ok(html.includes(`data-rom-action="${action}"`), `Missing required controller button: ${action}`);
+  }
+});
+test("camera chooser uses the browser default or pins an explicitly selected device without audio", () => {
+  const fallback = cameraMediaConstraints();
+  assert.equal(fallback.audio, false); assert.equal(fallback.video.facingMode, 'user');
+  const selected = cameraMediaConstraints('usb-camera-id');
+  assert.equal(selected.audio, false); assert.deepEqual(selected.video.deviceId, { exact: 'usb-camera-id' });
+  assert.equal('facingMode' in selected.video, false);
 });
 test("worker protocol initializes local CPU model and releases frame resources (mock inference)", async () => {
   let options, filesPath, bitmapClosed = 0, shouldThrow = false;
@@ -44,7 +57,7 @@ test("worker protocol initializes local CPU model and releases frame resources (
   await context.self.onmessage({ data: { type: "init" } });
   assert.equal(messages[0].type, "ready"); assert.equal(options.baseOptions.delegate, "CPU"); assert.equal(options.numPoses, 2);
   assert.equal(options.runningMode, "VIDEO"); assert.equal(options.outputSegmentationMasks, false);
-  assert.match(filesPath, /^http:\/\/127\.0\.0\.1:8000\/vendor\//); assert.match(options.baseOptions.modelAssetPath, /pose_landmarker_lite\.task$/);
+  assert.match(filesPath, /^http:\/\/127\.0\.0\.1:8000\/vendor\//); assert.match(options.baseOptions.modelAssetPath, /pose_landmarker_full\.task$/);
   const bitmap = { close: () => bitmapClosed++ };
   await context.self.onmessage({ data: { type: "frame", timestamp: 200, bitmap } });
   assert.equal(messages[1].timestamp, 200); assert.equal(messages[1].poses, landmarks); assert.deepEqual(Object.keys(messages[1]).sort(), ["poses", "timestamp", "type"]);
@@ -80,7 +93,7 @@ test("real dev server serves app, model, MIME types and private ROM API", { time
     const response = await fetch(url + "/" + path.relative(root, file).split(path.sep).join("/"));
     assert.equal(response.status, 200, file); assert.equal(await response.text(), fs.readFileSync(file, "utf8"));
   }
-  for (const [file, mime] of [["vision_bundle.mjs", "text/javascript"], ["wasm/vision_wasm_internal.wasm", "application/wasm"], ["pose_landmarker_lite.task", "application/octet-stream"]]) {
+  for (const [file, mime] of [["vision_bundle.mjs", "text/javascript"], ["wasm/vision_wasm_internal.wasm", "application/wasm"], ["pose_landmarker_full.task", "application/octet-stream"]]) {
     const response = await fetch(`${url}/vendor/mediapipe/${file}`); assert.equal(response.status, 200); assert.ok(response.headers.get("content-type").startsWith(mime)); await response.arrayBuffer();
   }
   const response = await fetch(`${url}/api/rom`); assert.equal(response.status, 200); assert.deepEqual((await response.json()).sessions, []);

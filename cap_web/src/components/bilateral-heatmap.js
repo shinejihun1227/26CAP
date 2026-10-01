@@ -80,12 +80,14 @@ function renderSpots(values, mode, side, sensorLayout, pressureChannels, sensorP
     const statusLabel = mode === "pressure"
       ? unavailable ? "측정 대기" : pressureActive ? "압력 있음" : "압력 없음"
       : label;
-    return `<span class="heat-spot heat-${mode} ${stateClass}" data-sensor-kind="${sensorKind}" data-sensor-side="${side}" data-sensor-index="${index}" data-pressure-state="${mode === "pressure" ? pressureState : "not-applicable"}" style="left:${left}%;top:${top}%;--heat:${intensity}%" title="${side === "left" ? "왼발" : "오른발"} ${sensorKind === "pressure" ? "압력" : "온습도"} 센서 ${index + 1} · ${siteLabel} · ${sourceLabel} · ${label} · ${statusLabel}"><i>${index + 1}</i><b><em>${sensorKind === "pressure" ? "P" : "T"}${index + 1}</em><span>${formatValue(value, mode, sensorProfile === 'two-shared')}</span></b></span>`;
+    // Separate the two middle badges only when the saved points share a row.
+    const labelAbove = mode === 'pressure' && index === 1 && Math.abs(points[1][1] - points[2][1]) < 12;
+    return `<span class="heat-spot heat-${mode} ${stateClass}${labelAbove ? ' heat-label-above' : ''}" data-sensor-kind="${sensorKind}" data-sensor-side="${side}" data-sensor-index="${index}" data-pressure-state="${mode === "pressure" ? pressureState : "not-applicable"}" style="left:${left}%;top:${top}%;--heat:${intensity}%" title="${side === "left" ? "왼발" : "오른발"} ${sensorKind === "pressure" ? "압력" : "온습도"} 센서 ${index + 1} · ${siteLabel} · ${sourceLabel} · ${label} · ${statusLabel}"><i>${index + 1}</i><b><em>${sensorKind === "pressure" ? "P" : "T"}${index + 1}</em><span>${formatValue(value, mode, sensorProfile === 'two-shared')}</span></b></span>`;
   }).join("");
 }
 
 function renderModeTabs(activeMode) {
-  return MODES.map((mode) => `<button type="button" class="heatmap-tab ${activeMode === mode.id ? "is-active" : ""}" data-heatmap-mode="${mode.id}">${mode.label}</button>`).join("");
+  return MODES.map((mode) => `<button type="button" class="heatmap-tab ${activeMode === mode.id ? "is-active" : ""}" data-heatmap-mode="${mode.id}" aria-pressed="${activeMode === mode.id}">${mode.label}</button>`).join("");
 }
 
 export function renderBilateralHeatmap(state) {
@@ -126,16 +128,23 @@ export function renderBilateralHeatmap(state) {
     ? '압력 P1 앞쪽 · P2 가운데 안쪽 · P3 가운데 바깥쪽 · P4 뒤꿈치. 연결된 보드의 MUX 채널을 표시합니다.'
     : leftAvailable || rightAvailable ? '한쪽 깔창이 연결되어 있습니다. 압력은 앞쪽 1개·가운데 2개·뒤꿈치 1개이며, 반대쪽 발은 연결 대기로 표시합니다.' : '양발 연결 대기 중입니다. ESP32와 노트북을 같은 핫스팟 또는 Wi-Fi에 연결하세요.');
   const comparisonPoints = sharedProfile ? '물리 센서 2개 · 파생 표시 4곳' : mode === "pressure" ? "한 발당 4개" : "한 발당 4개 부위";
+  const connectionLabel = leftAvailable && rightAvailable ? '양발 연결됨' : leftAvailable ? '오른발 연결 대기' : rightAvailable ? '왼발 연결 대기' : '양발 연결 대기';
 
-  return `<article class="panel bilateral-heatmap-panel">
-    <div class="panel-heading heatmap-heading"><div><span class="panel-kicker">BILATERAL HEATMAP</span><h2>양발 ${selectedMode.label} 히트맵</h2></div><div class="heatmap-heading-actions"><div class="heatmap-mode-switch" role="tablist" aria-label="히트맵 표시 종류">${renderModeTabs(mode)}</div><button type="button" class="heatmap-edit-button" data-action="open-editor">이 화면 직접 편집</button></div></div>
-    <p class="panel-description">${description}</p>
-    <div class="sensor-channel-map" aria-label="센서 위치와 연결 정보">${(mode === "pressure" ? PRESSURE_SITES : THERMAL_SITES).map((site, i) => `<span><b>${mode === "pressure" ? "P" : "T"}${i + 1}</b> ${site} <small>${sharedProfile ? `센서 ${(mapForSide(leftAvailable ? 'left' : 'right', mode === 'pressure' ? 'pressure' : 'thermal')[i] ?? i) + 1} 공유` : channelLabel(i)}</small></span>`).join("")}</div>
+  return `<article class="panel bilateral-heatmap-panel compact-heatmap">
+    <div class="panel-heading heatmap-heading"><div><span class="panel-kicker">양발 한눈에 보기</span><h2>양발 ${selectedMode.label} 히트맵 <small>단위 ${selectedMode.unit}</small></h2></div><div class="heatmap-heading-actions"><div class="heatmap-mode-switch" role="group" aria-label="히트맵 표시 종류">${renderModeTabs(mode)}</div></div></div>
+    <p class="heatmap-status">${connectionLabel}${sharedProfile ? ' · 센서 2개 기반, 4곳은 파생 표시' : ''} <span>숫자는 센서 위치예요.</span></p>
+    <div class="heatmap-workspace">
     <div class="foot-pair-map" aria-label="양발 ${selectedMode.label} 히트맵">
       <div class="foot-map-figure foot-map-left ${leftAvailable ? "" : "is-unavailable"}" data-foot-side="left" role="img" aria-label="왼발 발바닥 형상과 센서 위치"><div class="foot-map-layer" data-foot-mode="${mode}" data-foot-layer-side="left" style="${footLayoutStyle(mode, "left", footLayout)}"><div class="foot-shape-surface"><img src="/assets/foot-left-silhouette.png" alt="" draggable="false" /></div><div class="foot-hotspots">${renderSpots(leftValues, mode, "left", sensorLayout, leftChannels, profileForSide('left'), mapForSide('left', mode === 'pressure' ? 'pressure' : 'thermal'))}</div></div><span class="foot-side-label">왼발${leftAvailable ? "" : " · 연결 대기"}</span></div>
       <div class="foot-map-figure foot-map-right ${rightAvailable ? "" : "is-unavailable"}" data-foot-side="right" role="img" aria-label="오른발 발바닥 형상과 센서 위치"><div class="foot-map-layer" data-foot-mode="${mode}" data-foot-layer-side="right" style="${footLayoutStyle(mode, "right", footLayout)}"><div class="foot-shape-surface"><img src="/assets/foot-right-silhouette.png" alt="" draggable="false" /></div><div class="foot-hotspots">${renderSpots(rightValues, mode, "right", sensorLayout, rightChannels, profileForSide('right'), mapForSide('right', mode === 'pressure' ? 'pressure' : 'thermal'))}</div></div><span class="foot-side-label">오른발${rightAvailable ? "" : " · 연결 대기"}</span></div>
     </div>
-    <div class="heatmap-legend ${mode === "pressure" ? "is-pressure-threshold" : ""}">${mode === "pressure" ? `<span><i class="legend-high"></i>압력 있음 ≥ ${PRESSURE_ACTIVE_THRESHOLD}%</span><span><i class="legend-low"></i>압력 없음 &lt; ${PRESSURE_ACTIVE_THRESHOLD}%</span>` : `<span><i class="legend-low"></i>낮음</span><span><i class="legend-mid"></i>중간</span><span><i class="legend-high"></i>높음</span>`}<small>오른발 - 왼발 <b>${differenceLabel}</b></small></div>
-    <div class="heatmap-summary"><div><span>왼발 평균</span><b>${formatValue(leftAverage, mode)}${leftAverage === null ? "" : selectedMode.unit}</b></div><div><span>오른발 평균</span><b>${formatValue(rightAverage, mode)}${rightAverage === null ? "" : selectedMode.unit}</b></div><div><span>비교 포인트</span><b>${leftAvailable && rightAvailable ? comparisonPoints : leftAvailable ? "오른발 대기" : "왼발 대기"}</b></div><button class="text-button" type="button" data-view="safety">알고리즘 보기 ${icon("arrow")}</button></div>
+    <div class="heatmap-summary" aria-label="양발 측정 요약"><div><span>왼발 평균</span><b>${formatValue(leftAverage, mode)}${leftAverage === null ? "" : selectedMode.unit}</b></div><div><span>오른발 평균</span><b>${formatValue(rightAverage, mode)}${rightAverage === null ? "" : selectedMode.unit}</b></div><div class="heatmap-difference"><span>좌우 차이 <small>오른발 − 왼발</small></span><b>${differenceLabel}</b></div><p class="heatmap-reading-note">${sharedProfile ? '원본 센서에서 만든 화면용 표시값의 평균이에요.' : '표시된 센서값의 평균이에요.'}<br>값이 없으면 <b>--</b>로 표시해요.</p></div>
+    </div>
+    <div class="heatmap-legend ${mode === "pressure" ? "is-pressure-threshold" : ""}">${mode === "pressure" ? `<span><i class="legend-high"></i>압력 있음 ≥ ${PRESSURE_ACTIVE_THRESHOLD}%</span><span><i class="legend-low"></i>압력 없음 &lt; ${PRESSURE_ACTIVE_THRESHOLD}%</span>` : `<span><i class="legend-low"></i>낮음</span><span><i class="legend-mid"></i>중간</span><span><i class="legend-high"></i>높음</span>`}</div>
+    <details class="heatmap-details" data-ui-disclosure="heatmap-sensor-details"><summary>센서 위치 · 표시 안내</summary>
+      <p class="panel-description">${description}</p>
+      <div class="sensor-channel-map" aria-label="센서 위치와 연결 정보">${(mode === "pressure" ? PRESSURE_SITES : THERMAL_SITES).map((site, i) => `<span><b>${mode === "pressure" ? "P" : "T"}${i + 1}</b> ${site} <small>${sharedProfile ? `센서 ${(mapForSide(leftAvailable ? 'left' : 'right', mode === 'pressure' ? 'pressure' : 'thermal')[i] ?? i) + 1} 공유` : channelLabel(i)}</small></span>`).join("")}</div>
+      <div class="heatmap-detail-actions"><span>${comparisonPoints}</span><button type="button" class="heatmap-edit-button" data-action="open-editor">이 화면 직접 편집</button><button class="text-button" type="button" data-view="safety">알고리즘 보기 ${icon("arrow")}</button></div>
+    </details>
   </article>`;
 }

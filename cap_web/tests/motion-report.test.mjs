@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { session } from './rom-fixtures.mjs';
-import { comparableRecords, observationPlanFromRecord, motionCards, recordInsights, angleSeries, renderAngleChart, renderDailyAngleChart, dailyAnglePoints, renderRecordComparison, renderMotionDashboard } from '../src/mediapipe/motion-report.js';
+import { comparableRecords, observationPlanFromRecord, motionCards, recordInsights, renderMotionInsights, angleSeries, renderAngleChart, renderDailyAngleChart, dailyAnglePoints, renderRecordComparison, renderMotionDashboard } from '../src/mediapipe/motion-report.js';
 import { METRICS } from '../src/mediapipe/rom-math.js';
 
 const current = () => session({id:'now',capturedAt:'2026-09-23T08:00:00.000Z'});
@@ -15,7 +15,7 @@ test('comparison uses earlier eligible records of the same person and exact cond
   assert.deepEqual(comparableRecords(null,records),[]);
 });
 test('empty or stale camera data stays unknown; real zero angles remain zero', () => {
-  assert.deepEqual(motionCards({metric:'left_knee'}).map(c=>c.value),['—','—','—','—']);
+  assert.deepEqual(motionCards({metric:'left_knee'}).map(c=>c.value),['—','—','—','—','—']);
   const live={metric:'left_knee',analysis:{valid:true,primary:0},fresh:true};
   assert.equal(motionCards(live)[0].value,'0°');
   assert.equal(motionCards({...live,fresh:false})[0].value,'—');
@@ -23,11 +23,21 @@ test('empty or stale camera data stays unknown; real zero angles remain zero', (
 });
 test('dashboard frames MediaPipe as personal observation and same-condition trend tracking', () => {
   const html = renderMotionDashboard();
-  assert.match(html, /내 움직임 기록/);
-  assert.match(html, /같은 조건의 내 기록과 비교/);
+  assert.match(html, /측정값 한눈에 보기/);
+  assert.match(html, /같은 조건끼리 비교해요/);
   assert.match(html, /내 관찰 계획/);
-  assert.match(html, /수치 차이는 측정값의 차이이며 개선이나 악화를 판정하지 않습니다/);
+  assert.match(html, /data-goal-baseline-record/);
+  assert.match(html, /저장한 유효 관절 기록 하나를 골라 목표 시작값으로 사용합니다/);
+  assert.match(html, /이번 기록의 해석/);
   assert.doesNotMatch(html, /정상 범위/);
+});
+test('local AI card explains Ollama and Qwen roles without implying camera analysis or CLI setup', () => {
+  const html = renderMotionInsights(null, null);
+  assert.match(html, /Ollama.*PC에서 AI 모델을 실행하는 도구/);
+  assert.match(html, /Qwen2\.5 3B.*언어 모델/);
+  assert.match(html, /관절 각도는 MediaPipe가 계산/);
+  assert.match(html, /선택한 기록의 요약 숫자만 이 PC의 Ollama로 전달/);
+  assert.doesNotMatch(html, /ChatGPT와 비슷|ollama run qwen2\.5:3b/);
 });
 test('first eligible record creates a personal observation plan for every supported joint', () => {
   for (const [metric, definition] of Object.entries(METRICS)) {
@@ -49,7 +59,7 @@ test('saved cards and comparison bars use stored range, median and valid sample 
   assert.equal(cards[0].value,`${record.summary.byMetric.left_ankle.median}°`);
   assert.equal(cards[1].value,`${record.summary.byMetric.left_ankle.observedRange}°`);
   assert.equal(cards[2].value,'100%');
-  assert.equal(cards[3].value,'0°');
+  assert.equal(cards[3].value,'뚜렷하지 않음');
   const html=renderRecordComparison(record,baseline);
   assert.match(html,/유효 표본 비율/); assert.doesNotMatch(html,/안정도|정상 범위|NaN|undefined/);
   const bad=session({interrupted:true});
