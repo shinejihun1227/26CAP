@@ -36,10 +36,10 @@ export function updateAppShell(root, markup, mobile, sameView = false) {
   else current.querySelector(content).replaceWith(next.querySelector(content));
   const navSelector = mobile ? '.mobile-management, .mobile-tabbar' : '.primary-nav';
   const navs = [...current.querySelectorAll(navSelector)], newNavs = [...next.querySelectorAll(navSelector)];
-  for (const [navIndex, nav] of navs.entries()) if (newNavs[navIndex]) nav.replaceWith(newNavs[navIndex]);
+  for (const [navIndex, nav] of navs.entries()) if (newNavs[navIndex]) syncLiveNode(nav, newNavs[navIndex]);
   if (!mobile) {
     const oldStatus = current.querySelector('.easy-mode-status'), newStatus = next.querySelector('.easy-mode-status');
-    if (oldStatus && newStatus) oldStatus.replaceWith(newStatus);
+    if (oldStatus && newStatus) syncLiveNode(oldStatus, newStatus);
     else if (oldStatus) oldStatus.remove();
     else if (newStatus) current.querySelector('.sidebar-section-label')?.before(newStatus);
   }

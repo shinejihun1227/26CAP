@@ -4,10 +4,10 @@ import { initialState, evolveState } from "./data/dashboard-data.js";
 import { analyzeRehabFrame, captureRehabCalibration, createDefaultRehabState } from "./data/gait-algorithms.js";
 import { renderLiveView } from "./views/live-view.js";
 import { renderSafetyView } from "./views/safety-view.js";
-import { renderReportsView } from "./views/reports-view.js";
 import { renderDevicesView } from "./views/devices-view.js";
 import { renderOnboarding } from "./views/onboarding-view.js";
 import { cueMessages, speakCue, runOutputTest, outputTestError } from "./services/cue-controller.js";
+import { ALL_OUTPUTS_TEST_MESSAGE } from './services/announcement-catalog.js';
 import { profileFromForm } from './data/profile.js';
 import { escapeHtml } from "./utils/text.js";
 import { applyDirectTextOverrides, mountEditor } from "./editor/editor-view.js";
@@ -19,11 +19,10 @@ import { fetchEsp32State, markEsp32Disconnected, normalizeEsp32State } from "./s
 import { setLaser, vibrate, usesBilateralSta, hubRequest } from "./services/esp32-api.js";
 import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi, setFogCue, setFogDetection } from "./services/ai-api.js";
 import { createFogNotifications } from './services/fog-notifications.js';
+import { requestLatestSensorFeedback } from './services/sensor-feedback-api.js';
 import { renderFogPopup } from './components/fog-control.js';
-import { mountRomWorkspace } from "./mediapipe/rom-controller.js";
-import { renderTrendsView } from "./views/trends-view.js";
 import { renderRecordsView } from './views/records-view.js';
-import { mountTrendWorkspace } from "./trends/trend-controller.js";
+import { mountRecordsWorkspace } from './records-controller.js';
 import { emptyPressure } from "./data/sensor-config.js";
 import { captureViewContinuity, restoreViewContinuity } from "./utils/view-continuity.js";
 import { captureInsoleControls, restoreInsoleControls, isEditingInsole } from "./utils/insole-ui.js";
@@ -37,6 +36,7 @@ import { renderFrontView } from './views/front-view.js';
 import { renderAnkleDailyView } from './views/ankle-daily-view.js';
 import { mountFrontCamera } from './mediapipe/front-controller.js';
 import { mountDailyAnkle } from './mediapipe/daily-controller.js';
+import { openNavigationShortcut } from './utils/navigation-shortcuts.js';
 
 const app = document.querySelector("#app");
 const profileStorageKey = "stepon-cap-web-profile";
@@ -50,7 +50,8 @@ const esp32Enabled = !isEditorMode && !["0", "false"].includes(query.get("esp32"
   try { return window.localStorage.getItem("stepon-esp32-enabled") === "true"; } catch { return false; }
 })());
 const aiEnabled = !isEditorMode && esp32Enabled && !['0', 'false'].includes(query.get('ai'));
-const viewRenderers = { overview: renderPurposeView, easy: renderPurposeView, live: renderLiveView, ankle: renderAnkleDailyView, safety: renderSafetyView, reports: renderReportsView, devices: renderDevicesView, mediapipe: renderFrontView, trends: renderTrendsView, records: renderRecordsView };
+const viewRenderers = { overview: renderPurposeView, easy: renderPurposeView, live: renderLiveView, ankle: renderAnkleDailyView, safety: renderSafetyView, devices: renderDevicesView, mediapipe: renderFrontView, records: renderRecordsView };
+const currentRoute = view => ['trends','reports'].includes(view) ? 'records' : view;
 const validViews = new Set(Object.keys(viewRenderers));
 
 function loadProfile() {
@@ -81,7 +82,7 @@ let state = {
 let esp32LastError = null;
 let rehabHistory = {};
 const requestedView = new URLSearchParams(window.location.search).get("view");
-let activeView = validViews.has(requestedView) ? requestedView : "overview";
+let activeView = validViews.has(currentRoute(requestedView)) ? currentRoute(requestedView) : "overview";
 let easyMode = query.get('easy') === '1' || activeView === 'easy' || (() => { try { return window.localStorage.getItem(easyModeStorageKey) === 'true'; } catch { return false; } })();
 const previewDashboard = new URLSearchParams(window.location.search).get("preview") === "1";
 // First use asks for basic information only; all three features stay available.
@@ -89,14 +90,13 @@ let showOnboarding = !storedProfile?.configured && !previewDashboard;
 let sharedDirectTextOverrides = {};
 let sharedSensorLayout = loadSensorLayout();
 let sharedFootLayout = loadFootLayout();
-let romWorkspace = null;
-let trendWorkspace = null;
+let recordsWorkspace = null;
 let frontWorkspace = null;
 let dailyWorkspace = null;
-let romContext = null;
-let trendContext = null;
+let recordsContext = requestedView === 'trends' ? {selected:'sensors'} : {};
 let esp32RequestInFlight = false;
 let aiRequestInFlight = false;
+let summaryAnkleRequestInFlight = false;
 let outputTestInFlight = false;
 let renderedView = null;
 let toastMessage = '';
@@ -149,10 +149,8 @@ function renderView(force = false) {
   if ((frontWorkspace || dailyWorkspace) && renderedView === activeView && !showOnboarding) { refreshObservationChrome(); return; }
   if (frontWorkspace) { frontWorkspace.destroy(); frontWorkspace = null; }
   if (dailyWorkspace) { dailyWorkspace.destroy(); dailyWorkspace = null; }
-  if (romWorkspace && renderedView === activeView && ['mediapipe', 'records'].includes(activeView) && !showOnboarding) return;
-  if (trendWorkspace && renderedView === activeView && ['trends', 'records'].includes(activeView) && !showOnboarding) return;
-  if (romWorkspace) { romContext = romWorkspace.getContext(); romWorkspace.destroy(); romWorkspace = null; }
-  if (trendWorkspace) { trendContext = trendWorkspace.getContext(); trendWorkspace.destroy(); trendWorkspace = null; }
+  if (recordsWorkspace && renderedView === activeView && activeView === 'records' && !showOnboarding) { refreshObservationChrome(); return; }
+  if (recordsWorkspace) { recordsContext = recordsWorkspace.getContext(); recordsWorkspace.destroy(); recordsWorkspace = null; }
   if (showOnboarding) {
     app.innerHTML = `${isMobileUi ? renderMobileOnboarding(state) : renderOnboarding(state)}${toastMarkup()}`;
     return;
@@ -165,10 +163,9 @@ function renderView(force = false) {
   restoreViewContinuity(app, continuity);
   restoreInsoleControls(app, insoleControls);
   renderedView = activeView;
-  if (activeView === 'records') romWorkspace = mountRomWorkspace(app.querySelector("[data-rom-root]"), romContext, { getState: () => state, monitor: ankleMonitor });
+  if (activeView === 'records') recordsWorkspace = mountRecordsWorkspace(app.querySelector('[data-records-root]'), () => state, recordsContext);
   if (activeView === 'mediapipe') frontWorkspace = mountFrontCamera(app.querySelector('[data-front-root]'));
   if (activeView === 'ankle') dailyWorkspace = mountDailyAnkle(app.querySelector('[data-daily-root]'));
-  if (['trends', 'records'].includes(activeView)) trendWorkspace = mountTrendWorkspace(app.querySelector("[data-trends-root]"), () => state, trendContext);
 }
 
 function applySafeTextOverrides() {
@@ -282,6 +279,25 @@ function applyRehabAnalysis(nextState) {
 }
 
 async function handleAction(action, actionTarget) {
+  if (action === 'sensor-feedback') {
+    if (Object.values(state.sensorFeedbackRequests || {}).some(r => r.pending)) return;
+    const { feedbackKind: kind, feedbackSide: side } = actionTarget.dataset;
+    if (!['rom', 'cop'].includes(kind) || !['left', 'right'].includes(side)) return;
+    let eventId = null;
+    const key = `${kind}-${side}`;
+    const update = value => { state = { ...state, sensorFeedbackRequests: { ...state.sensorFeedbackRequests, [key]: { eventId, ...value } } }; if (['overview', 'easy'].includes(activeView)) renderView(); };
+    if (state.dataSource !== 'esp32') { update({ pending: false, notice: '실제 신발 센서를 연결하면 내 관찰 기록으로 AI 피드백을 받을 수 있어요.' }); return; }
+    update({ pending: true });
+    try {
+      const response = await requestLatestSensorFeedback(kind, side, { onRecord(data, evidence) {
+        eventId = evidence?.id || null;
+        state = { ...state, sensorFeedback: { data, receivedAt: Date.now(), error: null } };
+        update({ pending: true });
+      } });
+      update({ pending: false, ...(response.needsData ? { notice: response.message } : { result: response.result }) });
+    } catch (error) { update({ pending: false, error: error.name === 'TimeoutError' ? 'AI 응답이 늦어졌어요. 잠시 후 다시 시도하세요.' : error.message }); }
+    return;
+  }
   if (action === 'dismiss-fog-popup') { closeFogPopup(); return; }
   if (action === 'mobile-fog-sound') {
     if (fogNotifications.soundEnabled) { await fogNotifications.deactivate(); state={...state,fogSoundEnabled:false};showToast('소리·음성 알림을 껐어요.'); }
@@ -336,8 +352,7 @@ async function handleAction(action, actionTarget) {
     void hubRequest('forget', { side: action.slice(7) }).then(() => refreshEsp32State(true)).catch((e) => showToast(e.message)); return;
   }
   if (frontWorkspace && ["profile", "open-editor"].includes(action) && !frontWorkspace.canLeave()) return;
-  if (romWorkspace && ["profile", "open-editor"].includes(action) && !romWorkspace.canLeave()) return;
-  if (trendWorkspace && ["profile", "open-editor"].includes(action) && !trendWorkspace.canLeave()) return;
+  if (recordsWorkspace && ["profile", "open-editor"].includes(action) && !recordsWorkspace.canLeave()) return;
   const messages = {
     notifications: "새로운 보행 인사이트가 도착했어요.",
     profile: "프로필 설정은 다음 단계에서 연결할 예정이에요.",
@@ -398,7 +413,7 @@ async function handleAction(action, actionTarget) {
   }
   if (action === "test-all") {
     showToast("레이저·진동·음성 안내 테스트를 실행했어요.");
-    if (state.outputs.voice) speakCue("안내 테스트입니다. 레이저 기준점을 따라 천천히 발을 내딛어 주세요.");
+    if (state.outputs.voice) speakCue(ALL_OUTPUTS_TEST_MESSAGE);
   }
   if (messages[action]) showToast(messages[action]);
   renderView();
@@ -421,17 +436,17 @@ app.addEventListener("click", (event) => {
   }
   const viewTarget = event.target.closest("[data-view]");
   if (viewTarget) {
-    if (!validViews.has(viewTarget.dataset.view)) return;
-    const changingView = viewTarget.dataset.view !== activeView;
+    const destination = currentRoute(viewTarget.dataset.view);
+    if (!validViews.has(destination)) return;
+    const changingView = destination !== activeView;
     if (changingView && frontWorkspace && !frontWorkspace.canLeave()) return;
-    if (viewTarget.dataset.view !== activeView && romWorkspace && !romWorkspace.canLeave()) return;
-    if (viewTarget.dataset.view !== activeView && trendWorkspace && !trendWorkspace.canLeave()) return;
+    if (changingView && recordsWorkspace && !recordsWorkspace.canLeave()) return;
     const navigate = () => {
       if (viewTarget.dataset.easyExit === 'true') {
         easyMode = false;
         try { window.localStorage.removeItem(easyModeStorageKey); } catch { /* optional preference */ }
       }
-      activeView = viewTarget.dataset.view;
+      activeView = destination;
       if (activeView === 'easy') { easyMode = true; try { window.localStorage.setItem(easyModeStorageKey, 'true'); } catch { /* optional preference */ } }
       const nextUrl = new URL(window.location.href);
       nextUrl.searchParams.set("view", activeView);
@@ -441,8 +456,10 @@ app.addEventListener("click", (event) => {
       renderView();
       app.querySelector('.navigation-loading')?.remove();
       const section = viewTarget.dataset.recordSection;
-      if (activeView === 'records' && ['walking', 'joint'].includes(section)) app.querySelector(`#${section}-records`)?.scrollIntoView({ block: 'start' });
+      if (activeView === 'records' && (section || viewTarget.dataset.view === 'trends')) recordsWorkspace?.select(({walking:'sensors',joint:'front'})[section] || section || 'sensors');
       else if (changingView) { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); const heading = app.querySelector('main h1'); heading?.setAttribute('tabindex', '-1'); heading?.focus({ preventScroll: true }); }
+      openNavigationShortcut(app, activeView, viewTarget.dataset);
+      if (['overview', 'easy'].includes(activeView)) void refreshAnkleSummary();
     };
     if (changingView) {
       // Fast screen changes should feel instant. Only show feedback if a future
@@ -564,6 +581,29 @@ async function refreshEsp32State(force = false) {
   }
 }
 
+async function refreshAnkleSummary() {
+  if (showOnboarding || summaryAnkleRequestInFlight || !['overview', 'easy'].includes(activeView) || state.dataSource !== 'esp32') return;
+  summaryAnkleRequestInFlight = true;
+  const ankleRequest = async () => { try {
+    const response = await fetch('/api/ankle-daily', { cache: 'no-store', signal: AbortSignal.timeout(3000) });
+    const data = await response.json();
+    if (!response.ok || data.version !== 1 || !data.feet || data.scope !== 'foot-inclination-quiet-only') throw Error('범위 서버 연결 확인');
+    state = { ...state, dailyAnkle: { data, receivedAt: Date.now(), error: null } };
+  } catch {
+    state = { ...state, dailyAnkle: { ...state.dailyAnkle, error: '범위 서버 연결 확인' } };
+  } };
+  const feedbackRequest = async () => { try {
+    const response = await fetch('/api/sensor-feedback', { cache: 'no-store', signal: AbortSignal.timeout(3000) });
+    const data = await response.json();
+    if (!response.ok || data.version !== 1 || !Array.isArray(data.entries)) throw Error('관찰 서버 연결 확인');
+    state = { ...state, sensorFeedback: { data, receivedAt: Date.now(), error: null } };
+  } catch { state = { ...state, sensorFeedback: { ...state.sensorFeedback, error: '관찰 서버 연결 확인' } }; } };
+  try { await Promise.allSettled([ankleRequest(), feedbackRequest()]); } finally {
+    summaryAnkleRequestInFlight = false;
+    if (['overview', 'easy'].includes(activeView)) renderView();
+  }
+}
+
 async function refreshAiState(force = false) {
   if (showOnboarding || aiRequestInFlight || state.fogControlPending) return;
   aiRequestInFlight = true;
@@ -616,6 +656,8 @@ if (isEditorMode) {
   window.setInterval(refreshEsp32State, usesBilateralSta() ? 250 : 750);
   void refreshAiState();
   window.setInterval(refreshAiState, 750);
+  void refreshAnkleSummary();
+  window.setInterval(refreshAnkleSummary, 750);
   // Short, in-memory observation only. Background time, pauses and stale data
   // must never be counted as symptom-free time or a continuing FoG episode.
   document.addEventListener('visibilitychange', () => {observationMonitor.interrupt();if(document.hidden)fogNotifications.silence();});

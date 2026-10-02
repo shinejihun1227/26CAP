@@ -17,7 +17,7 @@ COLUMNS = ['timestamp_ms', *AXES, *IDENTITY, 'label']
 USB_AXES = ['ax_g', 'ay_g', 'az_g', 'gx_dps', 'gy_dps', 'gz_dps']
 MAX_FILE_BYTES = 8 * 1024 * 1024
 MAX_ROWS = 60001
-MAX_GAP_MS = 2000.0  # same tolerance as server.MAX_GAP_S (real WiFi poll gaps)
+MAX_GAP_MS = 5000.0  # same tolerance as server.MAX_GAP_S (gaps up to 5 s are interpolated)
 MIN_HZ = 8.0         # real two-board hotspot throughput is ~10-25 Hz
 
 

@@ -23,8 +23,8 @@ test('Korean cue prefers a natural Korean voice and uses a calm speaking pace', 
     assert.equal(utterance.text, '보행동결 신호가 감지되었습니다. 안전한 곳에 잠시 멈춰 주세요.');
     assert.equal(utterance.lang, 'ko-KR');
     assert.equal(utterance.voice, naturalVoice);
-    assert.equal(utterance.rate, 0.86);
-    assert.equal(utterance.pitch, 1.04);
+    assert.equal(utterance.rate, 0.97);
+    assert.equal(utterance.pitch, 1);
     assert.equal(utterance.volume, 1);
   } finally {
     if (previousWindow === undefined) delete globalThis.window;

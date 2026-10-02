@@ -42,6 +42,25 @@ test('FoG cue commands bind to the live device and boot and require compatible f
   assert.equal(commands.length,2);
 });
 
+test('cue levels go only to capable boards and raw-sample observation hooks still run', async t => {
+  const commands=[], samples=[]; let sequence=0, supportsLevel=true;
+  const hub=createInsoleHub({pollIntervalMs:10,onSample:(side,p)=>samples.push([side,p.frame]),fetchImpl:async url=> {
+    if(new URL(url).pathname==='/api/state') return new Response(JSON.stringify(frame('left',++sequence,{cue_api_version:1,cue_level_supported:supportsLevel})));
+    commands.push(new URL(url));return new Response(JSON.stringify({accepted:true,cue_api_version:1}));
+  }});
+  t.after(()=>hub.stop());hub.register({side:'left',url:'http://192.168.0.12'});
+  await until(()=>hub.snapshot().feet.left.connected);
+  const value={active:true,device_id:'c3-left',boot_id:'boot-1',level:30,laser:false};
+  await hub.command('left','fog-cue',value);
+  assert.equal(commands[0].searchParams.get('level'),'30');assert.equal(commands[0].searchParams.get('laser'),'0');
+  await assert.rejects(hub.command('left','fog-cue',{...value,level:128}),/invalid_cue_level/);
+  await assert.rejects(hub.command('left','fog-cue',{...value,laser:1}),/invalid_cue_laser/);
+  supportsLevel=false;await until(()=>hub.snapshot().feet.left.state.cue_level_supported===false);
+  await hub.command('left','fog-cue',{...value,level:70,laser:true});
+  assert.equal(commands[1].searchParams.has('level'),false);assert.equal(commands[1].searchParams.has('laser'),false);
+  assert.ok(samples.length>=2);assert.ok(samples.every(([side])=>side==='left'));
+});
+
 test('bilateral normalizer keeps two independent pressure, thermal and IMU values', () => {
   const s = normalizeBilateralState(both(), structuredClone(initialState));
   assert.deepEqual(s.bilateralPressure.left, [10, 20, 30, 40]); assert.deepEqual(s.bilateralPressure.right, [80, 60, 40, 20]);

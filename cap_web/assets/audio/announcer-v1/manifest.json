@@ -1,0 +1,44 @@
+{
+  "voice": "ko-KR-InJoonNeural",
+  "rate": "-3%",
+  "pitch": "+0Hz",
+  "generator": "edge-tts 7.2.8",
+  "messages": [
+    {
+      "id": "fog",
+      "text": "보행동결, 포그가 발생하였습니다. 잠시 멈추고 안전을 확인해 주세요.",
+      "file": "fog.mp3",
+      "sha256": "a489634ec6fff6485599ac05d470a2d27705700e071c2281c87a5a8efd3b5bac"
+    },
+    {
+      "id": "fog-test",
+      "text": "음성 알림 테스트입니다. 보행동결, 포그가 발생하였습니다. 잠시 멈추고 안전을 확인해 주세요.",
+      "file": "fog-test.mp3",
+      "sha256": "b4e584e63d3e838f7e523bb0c6db11c60c2a10a6d4ecdbe51cb6ddb3bf1b172e"
+    },
+    {
+      "id": "voice-test",
+      "text": "현재 보행 상태를 확인하고 다음 걸음을 준비해 주세요.",
+      "file": "voice-test.mp3",
+      "sha256": "7a92be1d61b47acab399c0d4f3e60398974c789a36650a3d56d464389c61741f"
+    },
+    {
+      "id": "laser",
+      "text": "레이저 기준점을 따라 천천히 발을 내딛어 주세요.",
+      "file": "laser.mp3",
+      "sha256": "7bd1ab7ce76bb71c014b2403f6ff6498aa291a5d656c73a11e894ec677986395"
+    },
+    {
+      "id": "vibration",
+      "text": "진동 안내를 확인하고 천천히 걸어주세요.",
+      "file": "vibration.mp3",
+      "sha256": "d959b25d5b4a5555ee7ab1cd4fa1cd95fc9e719aa8a66e8d1f991d71c3ebf85a"
+    },
+    {
+      "id": "all-outputs-test",
+      "text": "안내 테스트입니다. 레이저 기준점을 따라 천천히 발을 내딛어 주세요.",
+      "file": "all-outputs-test.mp3",
+      "sha256": "31d50a6bb0d43bf137d95dfc99112ef08e852ca5ecbc55c11728554d9cef4b3d"
+    }
+  ]
+}

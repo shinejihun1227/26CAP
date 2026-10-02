@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>온습도 표시 검증 · 가상 데이터</title>
+<style>body{margin:0;padding:24px;background:#f1f5f6}.fixture-controls{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 16px;font:16px/1.5 sans-serif;color:#193e4b}.fixture-controls strong{width:100%}.fixture-controls select{padding:8px}#fixture{max-width:1200px;margin:auto}</style></head>
+<body><header class="fixture-controls"><strong>표시 검증용 가상 데이터 · 실제 측정값이 아닙니다.</strong>
+<label>왼발 수신 센서 <select id="left-count"><option value="1">1개</option><option value="2">2개</option><option value="0">0개</option></select></label>
+<label>오른발 수신 센서 <select id="right-count"><option value="2">2개</option><option value="1">1개</option><option value="0">0개</option></select></label></header><main id="fixture"></main>
+<script type="module">
+import { initialState } from '../../src/data/dashboard-data.js';
+import { normalizeBilateralState } from '../../src/services/esp32-api.js';
+import { renderBilateralHeatmap } from '../../src/components/bilateral-heatmap.js';
+const source = new DOMParser().parseFromString(await (await fetch('/index.html')).text(), 'text/html');
+await Promise.all([...source.querySelectorAll('link[rel=stylesheet]')].map(link => new Promise(resolve => {
+  const style=document.createElement('link');style.rel='stylesheet';style.href=link.getAttribute('href');style.onload=style.onerror=resolve;document.head.append(style);
+})));
+let mode='temperature';
+function foot(side,count){return {connected:true,age_ms:0,state:{foot_side:side,frame:1,
+  sensor_profile:'two-shared',pressure_layout:'stepon-pressure-2-shared-v1',
+  pressure_count:4,pressure_physical_count:2,pressure_sensor_map:[0,0,1,1],pressure_channels:[0,0,1,1],pressure:[0,0,0,0],
+  thermal_physical_count:2,thermal_sensor_map:[0,0,1,1],thermal_transport:'dual-i2c',shtc3_channels:[],
+  temperature:side==='left'?[30,30,32,32]:[31,31,33,33],humidity:[50,50,60,60],shtc3_ready:[count>0,count>0,count>1,count>1],
+  accel:{x:0,y:0,z:1},gyro:{x:0,y:0,z:0}}};}
+function render(){const state=normalizeBilateralState({service:'stepon-bilateral-v1',feet:{left:foot('left',Number(document.querySelector('#left-count').value)),right:foot('right',Number(document.querySelector('#right-count').value))}},structuredClone(initialState));state.heatmapMode=mode;document.querySelector('#fixture').innerHTML=renderBilateralHeatmap(state);}
+document.addEventListener('change',render);
+document.addEventListener('click',event=>{const button=event.target.closest('[data-heatmap-mode]');if(button){mode=button.dataset.heatmapMode;render();}});
+render();
+</script></body></html>

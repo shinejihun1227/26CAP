@@ -6,7 +6,7 @@ const mobileNavLabels = {
   overview: "요약",
   easy: "쉬운 화면",
   live: "실시간",
-  safety: "분석",
+  safety: "압력·온습도",
   reports: "리포트",
   trends: "변화 추이",
   devices: "기기",

@@ -28,8 +28,9 @@ export function readObservationFeet(state, now = Date.now()) {
     const peakIndex = pressure?.indexOf(maximum) ?? -1;
     return [side, { connected: Boolean(connected), temperature: mean(temperatures.map(p => p.temp)), humidity: mean(humidities.map(p => p.humidity)),
       pressure: pressure ? mean(pressure) : null, channels: pressure, temperatures, humidities,
+      thermalTotal: raw?.thermal_physical_count === 2 ? 2 : 4,
       temperatureKey: temperatures.map(p => p.site).sort().join(','), humidityKey: humidities.map(p => p.site).sort().join(','),
-      pressureKey: JSON.stringify([raw?.pressure_layout, raw?.pressure_channels]),
+      pressureKey: JSON.stringify([raw?.pressure_layout, raw?.pressure_channels, raw?.pressure_calibration?.id ?? null]),
       peak: total > 0 && raw?.sensor_profile !== 'two-shared' ? { site: PRESSURE_SITES[peakIndex], share: maximum / total * 100 } : null,
       frame: connected ? `${raw?.device_id ?? ''}:${raw?.boot_id ?? ''}:${raw?.frame ?? ''}` : null }];
   }));

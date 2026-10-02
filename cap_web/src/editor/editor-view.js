@@ -21,12 +21,10 @@ const GRID_COLUMNS = 12;
 const DEFAULT_KICKERS = { hero: "TODAY'S GAIT STATUS", pressure: "PRESSURE INSIGHT", chart: "WEEKLY RHYTHM", sensor: "SENSOR HEALTH", notice: "TODAY'S INSIGHT", text: "CUSTOM BLOCK" };
 
 const SCREEN_DEFS = [
-  { id: "records", label: "데이터 관리", short: "Data", description: "세트·보관·내보내기" },
+  { id: "records", label: "데이터 관리", short: "Data", description: "FOG·발 움직임·정면 보행·센서 기록" },
   { id: "overview", label: "오늘 요약", short: "Today", description: "처음 들어왔을 때 보는 핵심 상태" },
   { id: "live", label: "실시간 측정", short: "Live", description: "센서 흐름과 현재 신호" },
-  { id: "safety", label: "분석 센터", short: "Analysis", description: "FoG·압력·온습도 판단 근거" },
-  { id: "reports", label: "보행 리포트", short: "Reports", description: "일간·주간 보행 기록" },
-  { id: "trends", label: "변화 추이", short: "Trends", description: "같은 조건의 개인 기록과 날짜별 비교" },
+  { id: "safety", label: "압력·온습도", short: "Sensors", description: "양발 센서값과 기록 연결" },
   { id: "devices", label: "기기 관리", short: "Devices", description: "ESP32와 센서 연결 상태" },
   { id: "mediapipe", label: "정면 보행", short: "MediaPipe", description: "정면 관절점·골반 높이·몸통 기울기" },
   { id: "ankle", label: "발 움직임", short: "BMI270", description: "양발 기울기 기준·하루 이탈 기록" },

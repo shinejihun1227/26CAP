@@ -48,7 +48,7 @@ export function validateFrame(p, side, deviceId) {
   if (p.imu_ready && (!vector(p.accel) || !vector(p.gyro))) throw new Error('invalid_imu');
   return p;
 }
-export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, staleMs = 2000, now = Date.now, fetchImpl = fetch, allowLoopback = false, onSample = () => {} } = {}) {
+export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, staleMs = 2000, now = Date.now, fetchImpl = fetch, allowLoopback = false, onSample = () => {}, presentFrame = (_side, raw) => raw } = {}) {
   const devices = new Map();
   const streamId = randomUUID();
   const sampleHistory = [];
@@ -129,7 +129,7 @@ export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, s
         base_url: d?.url ?? '', device_id: d?.deviceId ?? null, received_at_ms: d?.receivedAt ?? null, advanced_at_ms: d?.advancedAt ?? null,
         age_ms: d?.advancedAt === null || !d ? null : Math.max(0, now() - d.advancedAt),
         received_hz: connected ? d.receivedHz : 0, missed_frames: d?.missed ?? 0, restarts: d?.restarts ?? 0,
-        last_error: d?.error ?? null, state: connected ? d.payload : null }];
+        last_error: d?.error ?? null, state: connected ? presentFrame(side, d.payload) : null }];
     }));
     return { service: HUB_SERVICE, frame: revision, server_time_ms: now(), poll_target_hz: 1000 / pollIntervalMs, connected: SIDES.some((s) => feet[s].connected), bilateral_available: SIDES.every((s) => feet[s].connected), clock_basis: 'pc_receive_time_not_hardware_synchronized', feet };
   }
@@ -141,6 +141,17 @@ export function createInsoleHub({ pollIntervalMs = 1000 / 64, timeoutMs = 600, s
       if (typeof value?.active !== 'boolean' || value.device_id !== d.payload.device_id || value.boot_id !== d.payload.boot_id) throw new Error('cue_device_identity_mismatch');
       if (d.payload.cue_api_version !== 1) throw new Error('upload_fog_cue_firmware');
       const query = new URLSearchParams({ active: value.active ? '1' : '0', device_id: value.device_id, boot_id: value.boot_id });
+      // Older boards cannot split weak vibration from laser output.
+      if (d.payload.cue_level_supported === true) {
+        if (value.level !== undefined) {
+          if (!Number.isInteger(value.level) || value.level < 0 || value.level > 127) throw new Error('invalid_cue_level');
+          query.set('level', String(value.level));
+        }
+        if (value.laser !== undefined) {
+          if (typeof value.laser !== 'boolean') throw new Error('invalid_cue_laser');
+          query.set('laser', value.laser ? '1' : '0');
+        }
+      }
       return readJson(`${d.url}/api/fog-cue?${query}`);
     }
     const paths = { laser: `/api/laser?on=${value === true ? 1 : 0}`, vibrate: '/api/vibrate?effect=47', 'auto-cue': `/api/auto-cue?enabled=${value === true ? 1 : 0}` };
@@ -193,13 +204,13 @@ export function createInsoleHandler(hub) {
     } catch (error) { reply(res, 400, { error: error.message }); }
   };
 }
-export async function forwardInsoleRequest(req, res) {
+export async function forwardInsoleRequest(req, res, { timeoutMs = 1800 } = {}) {
   try {
     const url = new URL(req.url, 'http://localhost');
     const pathname = url.pathname + url.search;
-    if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return reply(res, 403, { error: 'cross_origin_write_denied' });
+    if (req.headers['sec-fetch-site'] === 'cross-site' || (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host)) return reply(res, 403, { error: 'cross_origin_write_denied' });
     const body = req.method === 'POST' ? JSON.stringify(await jsonBody(req)) : undefined;
-    const response = await fetch(`http://127.0.0.1:8000${pathname}`, { method: req.method, headers: { 'content-type': 'application/json' }, body, signal: AbortSignal.timeout(1800) });
+    const response = await fetch(`http://127.0.0.1:8000${pathname}`, { method: req.method, headers: { 'content-type': 'application/json' }, body, signal: AbortSignal.timeout(timeoutMs) });
     reply(res, response.status, await response.json());
   } catch { reply(res, 503, { error: 'start_port_8000_first' }); }
 }

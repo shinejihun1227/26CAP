@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>압력 보정 표시 검증</title>
+<style>body{margin:0;padding:24px;background:#f1f5f6}main,header{max-width:1140px;margin:auto}header{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding-bottom:16px;color:#294f5b;font:15px/1.5 sans-serif}header strong{width:100%}select{padding:8px} @media(max-width:600px){body{padding:12px}}</style></head>
+<body><header><strong>압력 보정 표시 예시 · 가상 데이터이며 실제 측정값이 아닙니다.</strong><label>센서 구성 <select id="profile"><option value="four">발당 4개</option><option value="two">발당 2개</option></select></label><label>보정 상태 <select id="reference"><option value="ready">보행 최고값 저장 후</option><option value="needed">보정 전</option></select></label></header><main></main>
+<script type="module">
+import { initialState } from '../../src/data/dashboard-data.js';
+import { normalizeBilateralState } from '../../src/services/esp32-api.js';
+import { renderBilateralHeatmap } from '../../src/components/bilateral-heatmap.js';
+const source=new DOMParser().parseFromString(await(await fetch('/index.html')).text(),'text/html');
+await Promise.all([...source.querySelectorAll('link[rel=stylesheet]')].map(link=>new Promise(resolve=>{
+  const style=document.createElement('link');style.rel='stylesheet';style.href=link.getAttribute('href');style.onload=style.onerror=resolve;document.head.append(style);
+})));
+function render(){
+  const shared=document.querySelector('#profile').value==='two',ready=document.querySelector('#reference').value==='ready';
+  const foot=side=>({connected:true,age_ms:0,state:{foot_side:side,frame:1,device_id:'fixture-'+side,pressure_ready:true,
+    sensor_profile:shared?'two-shared':'four-independent',pressure_layout:shared?'stepon-pressure-2-shared-v1':'stepon-pressure-4-v1',
+    pressure_count:4,pressure_physical_count:shared?2:4,pressure_sensor_map:shared?[0,0,1,1]:[0,1,2,3],pressure_channels:shared?[0,0,1,1]:[0,2,4,6],
+    pressure:ready?(shared?[65,65,90,90]:side==='left'?[65,42,55,90]:[70,48,52,85]):[16,24,32,44],
+    pressure_calibration:{status:ready?'ready':'needed',id:ready?'a'.repeat(32):null},
+    thermal_physical_count:shared?2:4,thermal_sensor_map:shared?[0,0,1,1]:[0,1,2,3],thermal_transport:shared?'dual-i2c':'tca',
+    shtc3_channels:shared?[]:[3,4,5,6],temperature:[30,30,30,30],humidity:[50,50,50,50],shtc3_ready:[true,true,true,true]}});
+  const state=normalizeBilateralState({service:'stepon-bilateral-v1',feet:{left:foot('left'),right:foot('right')}},structuredClone(initialState));
+  state.heatmapMode='pressure';document.querySelector('main').innerHTML=renderBilateralHeatmap(state);
+}
+document.addEventListener('change',render);render();
+</script></body></html>

@@ -4,7 +4,9 @@ import http from 'node:http';
 import { createInsoleHub, createInsoleHandler } from '../server/insole-hub.mjs';
 import { createAiHandler } from '../server/ai-proxy.mjs';
 import { normalizeAiState, markAiUnavailable } from '../src/services/ai-api.js';
-import { aiPresentation, renderAiStatusCard } from '../src/components/ai-status-card.js';
+import { aiPresentation, renderAiStatusCard, renderFogCue } from '../src/components/ai-status-card.js';
+import { isLiveFog } from '../src/services/fog-notifications.js';
+import { summaryFog } from '../src/data/today-summary.js';
 import { renderAlgorithmSummary, renderSystemPipeline } from '../src/components/algorithm-summary.js';
 import { initialState } from '../src/data/dashboard-data.js';
 
@@ -16,6 +18,33 @@ test('web displays the effective model score and preserves raw score as evidence
   const ai=normalizeAiState(valid);
   assert.equal(ai.score,0.4); assert.equal(ai.rawScore,0.8); assert.equal(ai.ready,true);
   assert.equal(aiPresentation({ai, aiEnabled:true, dataSource:'esp32', connected:true}).score,0.4);
+});
+test('new pressure decisions reach the popup without inventing AI points and respect suppression',()=>{
+  const payload={...valid,detector_loaded:false,decision_score:null,fog_score:null,selected_foot:null,
+    state:'confirmed',status:'confirmed',ai_state:null,decision_source:'pressure',last_window_at_ms:Date.now(),
+    reasons:['forefoot_load'],pressure:{state:'confirmed',reasons:['forefoot_load']}};
+  const ai=normalizeAiState(payload);
+  const state={ai,aiEnabled:true,dataSource:'esp32',connected:true};
+  assert.equal(ai.ready,true);assert.equal(ai.score,null);assert.equal(ai.aiState,null);
+  assert.equal(isLiveFog(state),true);
+  const summary=summaryFog(state);assert.equal(summary.value,null);assert.equal(summary.label,'신호 감지');
+  assert.match(summary.reason,/앞발/);
+  for(const extra of [{detection:{enabled:false},status:'detection_paused'}, {suppression:{active:true},status:'dismissed'}]) {
+    const stopped=normalizeAiState({...payload,...extra});
+    assert.equal(stopped.ready,false);assert.equal(isLiveFog({...state,ai:stopped}),false);
+    assert.equal(aiPresentation({...state,ai:stopped}).status,extra.status);
+  }
+  const offline=markAiUnavailable(ai,new Error('offline'));
+  assert.deepEqual(offline.reasons,[]);assert.equal(offline.pressure,null);
+});
+test('warning output is described as vibration only, with combined evidence separate from scores',()=>{
+  const ai=normalizeAiState({...valid,decision_source:'ai_and_pressure',reasons:['ai_warning','forefoot_load'],
+    pressure:{state:'confirmed',reasons:['forefoot_load']},state:'confirmed',status:'confirmed',ai_state:'warning',
+    cue:{enabled:true,feet:{left:{requested:true,acknowledged:true,laser:false}}}});
+  const state={ai,aiEnabled:true,dataSource:'esp32',connected:true};
+  assert.equal(ai.score,0.4);assert.equal(ai.aiState,'warning');
+  assert.match(renderFogCue(state),/왼발 약한 진동 명령 전달 중/);
+  assert.match(renderAiStatusCard(state),/앞발에 하중이 지속됨/);
 });
 test('20 Hz model input is separate from the ESP32 read target in the web pipeline',()=>{
   const ai=normalizeAiState(valid);

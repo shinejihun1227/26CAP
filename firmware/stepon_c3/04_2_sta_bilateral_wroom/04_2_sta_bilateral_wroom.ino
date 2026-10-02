@@ -30,19 +30,47 @@ uint32_t laserOffAt = 0;
 portMUX_TYPE cueLock = portMUX_INITIALIZER_UNLOCKED;
 bool fogCueRequested = false;
 uint32_t fogCueUntil = 0;
+uint8_t fogCueLevel = FOG_VIBRATION_LEVEL;  // WARNING sends a weaker level
+bool fogCueLaser = true;                     // WARNING sends laser=0
 volatile bool sustainedVibration = false;
-bool fogCueActive(uint32_t now) {
+uint8_t appliedVibrationLevel = 0;
+// Triple-stomp gesture: counted here at 64 Hz, confirmed and acted on by the PC.
+volatile uint32_t tapGestureCount = 0, tapGestureAtMs = 0;
+uint32_t tapTimes[TAP_REQUIRED] = {};
+uint8_t tapFill = 0;
+bool tapAbove = false;
+struct FogCue { bool active; uint8_t level; bool laser; };
+FogCue fogCue(uint32_t now) {
   portENTER_CRITICAL(&cueLock);
   if (fogCueRequested && int32_t(fogCueUntil - now) <= 0) fogCueRequested = false;
-  const bool active = fogCueRequested;
+  const FogCue cue = {fogCueRequested, fogCueLevel, fogCueLaser};
   portEXIT_CRITICAL(&cueLock);
-  return active && WiFi.status() == WL_CONNECTED;
+  return {cue.active && WiFi.status() == WL_CONNECTED, cue.level, cue.laser};
 }
-void updateFogCue(bool enabled) {
+void updateFogCue(bool enabled, uint8_t level = FOG_VIBRATION_LEVEL, bool laser = true) {
   portENTER_CRITICAL(&cueLock);
   fogCueRequested = enabled;
+  fogCueLevel = level;
+  fogCueLaser = laser;
   fogCueUntil = millis() + FOG_CUE_LEASE_MS;
   portEXIT_CRITICAL(&cueLock);
+}
+void detectTap(const StaSensors::Frame &f) {
+  if (!f.imuReady) { tapAbove = false; return; }
+  const float g = sqrtf(f.accel[0] * f.accel[0] + f.accel[1] * f.accel[1] + f.accel[2] * f.accel[2]);
+  const bool above = g >= TAP_THRESHOLD_G;
+  if (above && !tapAbove) {  // rising edge = one stomp
+    const uint32_t t = f.atMs;
+    const uint32_t gap = tapFill ? t - tapTimes[tapFill - 1] : 0;
+    if (tapFill && gap < TAP_MIN_GAP_MS) { tapAbove = above; return; }  // rebound of the same stomp
+    if (tapFill && (gap > TAP_MAX_GAP_MS || t - tapTimes[0] > TAP_WINDOW_MS)) tapFill = 0;
+    tapTimes[tapFill++] = t;
+    if (tapFill >= TAP_REQUIRED) {
+      if (t - tapTimes[0] <= TAP_WINDOW_MS) { tapGestureCount++; tapGestureAtMs = t; }
+      tapFill = 0;
+    }
+  }
+  tapAbove = above;
 }
 
 void sendJson(int code, const String &body) {
@@ -76,7 +104,8 @@ String stateJson() {
   const bool sensorFresh = f.sequence > 0 && uint32_t(millis() - f.atMs) < 1000;
   String s; s.reserve(2100);
   s = "{\"device\":\"StepOn-WROOM\",\"firmware\":\"04_2_sta_bilateral_wroom\",\"wifi_mode\":\"STA\",\"device_id\":\"" + deviceId + "\",\"boot_id\":\"" + bootId + "\",\"foot_side\":\"" + FOOT_SIDE + "\",\"bilateral_available\":false";
-  s += ",\"cue_api_version\":1,\"frame\":" + String(f.sequence) + ",\"millis\":" + String(f.atMs) + ",\"uptime_ms\":" + String(millis());
+  s += ",\"cue_api_version\":1,\"cue_level_supported\":true,\"tap_api_version\":1,\"tap_gesture_count\":" + String(tapGestureCount) + ",\"tap_gesture_at_ms\":" + String(tapGestureAtMs);
+  s += ",\"frame\":" + String(f.sequence) + ",\"millis\":" + String(f.atMs) + ",\"uptime_ms\":" + String(millis());
   s += ",\"sample_hz\":64,\"actual_sample_hz\":" + String(sensorFresh ? f.actualHz : 0, 1) + ",\"aux_sample_hz\":20,\"missed_deadlines\":" + String(f.missedDeadlines);
   s += ",\"rssi\":" + String(WiFi.RSSI()) + ",\"free_heap\":" + String(ESP.getFreeHeap());
 #if STEPON_SENSOR_PROFILE == STEPON_SENSOR_PROFILE_4
@@ -99,7 +128,7 @@ String stateJson() {
   for (uint8_t i = 0; i < 4; ++i) { if (i) s += ','; s += f.thermalReady[i] && uint32_t(millis() - f.thermalAtMs[i]) < 1000 ? "true" : "false"; }
   s += "],\"tca_ready\":" + String(f.tcaReady ? "true" : "false") + ",\"drv2605_ready\":" + String(f.drvReady && sensorFresh ? "true" : "false") + ",\"imu_ready\":" + String(f.imuReady && sensorFresh ? "true" : "false");
   s += ",\"accel\":{\"x\":" + String(f.accel[0], 4) + ",\"y\":" + String(f.accel[1], 4) + ",\"z\":" + String(f.accel[2], 4) + "},\"gyro\":{\"x\":" + String(f.gyro[0], 4) + ",\"y\":" + String(f.gyro[1], 4) + ",\"z\":" + String(f.gyro[2], 4) + "}";
-  s += ",\"derived\":{\"fog_candidate\":" + String(candidate(f) && sensorFresh ? "true" : "false") + "},\"output\":{\"laser\":" + String(laserOn ? "true" : "false") + ",\"vibration\":" + String(sustainedVibration || (lastVibrationAt && uint32_t(millis() - lastVibrationAt) < 400) ? "true" : "false") + ",\"auto_cue\":" + String(autoCue ? "true" : "false") + "}}";
+  s += ",\"derived\":{\"fog_candidate\":" + String(candidate(f) && sensorFresh ? "true" : "false") + "},\"output\":{\"laser\":" + String(laserOn ? "true" : "false") + ",\"vibration\":" + String(sustainedVibration || (lastVibrationAt && uint32_t(millis() - lastVibrationAt) < 400) ? "true" : "false") + ",\"vibration_level\":" + String(sustainedVibration ? appliedVibrationLevel : 0) + ",\"auto_cue\":" + String(autoCue ? "true" : "false") + "}}";
   return s;
 }
 void sensorTask(void *) {
@@ -112,31 +141,40 @@ void sensorTask(void *) {
       const uint32_t intervals = uint32_t(nowUs - lastImu) / IMU_INTERVAL_US;
       f.missedDeadlines += intervals - 1; lastImu += intervals * IMU_INTERVAL_US;
       StaSensors::readImu(f); rateCount++;
+      detectTap(f);
     }
     if (uint32_t(nowMs - lastAux) >= AUX_INTERVAL_MS) { lastAux = nowMs; StaSensors::readPressure(f); }
     StaSensors::thermalTick(f);
     uint8_t effect = 0;
-    const bool hold = fogCueActive(nowMs) && f.imuReady && uint32_t(nowMs - f.atMs) < 1000;
+    const FogCue cue = fogCue(nowMs);
+    const bool hold = cue.active && f.imuReady && uint32_t(nowMs - f.atMs) < 1000;
     // This task enforces expiry even while HTTP handling is slow or blocked.
     portENTER_CRITICAL(&cueLock);
     if (manualLaserRequested && int32_t(laserOffAt - nowMs) <= 0) manualLaserRequested = false;
     const bool manualLaser = manualLaserRequested;
     portEXIT_CRITICAL(&cueLock);
-    const bool wantedLaser = ENABLE_LASER_OUTPUT && WiFi.status() == WL_CONNECTED && ((hold && f.drvReady) || manualLaser);
+    // CONFIRMED: vibration + laser. WARNING: weaker vibration only (laser=0).
+    const bool wantedLaser = ENABLE_LASER_OUTPUT && WiFi.status() == WL_CONNECTED && ((hold && cue.laser && f.drvReady) || manualLaser);
     if (wantedLaser != laserOn) { digitalWrite(LASER_PIN, wantedLaser ? HIGH : LOW); laserOn = wantedLaser; }
     if (hold != sustainedVibration) {
       if (f.drvReady) {
         StaSensors::driver.stop();
         if (hold) {
           StaSensors::driver.setMode(DRV2605_MODE_REALTIME);
-          StaSensors::driver.setRealtimeValue(FOG_VIBRATION_LEVEL);
+          StaSensors::driver.setRealtimeValue(cue.level);
+          appliedVibrationLevel = cue.level;
         } else {
           StaSensors::driver.setRealtimeValue(0);
           StaSensors::driver.setMode(DRV2605_MODE_INTTRIG);
           lastVibrationAt = 0;
+          appliedVibrationLevel = 0;
         }
       }
       sustainedVibration = hold && f.drvReady;
+    } else if (hold && f.drvReady && cue.level != appliedVibrationLevel) {
+      // WARNING <-> CONFIRMED while already vibrating: change strength in place.
+      StaSensors::driver.setRealtimeValue(cue.level);
+      appliedVibrationLevel = cue.level;
     }
     uint8_t requested = 0;
     if (xQueueReceive(vibrationQueue, &requested, 0) == pdTRUE) effect = requested;
@@ -149,7 +187,6 @@ void sensorTask(void *) {
 void registrationTask(void *) {
   int lastCode = 0;
   while (true) {
-    uint32_t nextDelayMs = 5000; // Retry quickly until registration succeeds.
     if (WiFi.status() == WL_CONNECTED) {
       const String pc = strlen(PC_HOST) ? String(PC_HOST) : WiFi.gatewayIP().toString();
       WiFiClient client; HTTPClient http;
@@ -158,10 +195,13 @@ void registrationTask(void *) {
       http.addHeader("Content-Type", "application/json");
       const int code = http.POST("{\"firmware\":\"04_2_sta_bilateral_wroom\",\"foot_side\":\"" + String(FOOT_SIDE) + "\",\"device_id\":\"" + deviceId + "\"}");
       if (code != lastCode) Serial.printf("[PC] registration HTTP=%d host=%s:%u (200=registered; check run.bat/firewall if failed)\n", code, pc.c_str(), PC_PORT);
-      if (code >= 200 && code < 300) nextDelayMs = 200000; // Reduce periodic registration traffic after success.
       lastCode = code; http.end();
+    } else {
+      lastCode = 0;
     }
-    vTaskDelay(pdMS_TO_TICKS(nextDelayMs));
+    // Retry quickly until the hub accepts us, then re-announce rarely: each blocking
+    // POST stalls the hub's /api/state polling long enough to break 25 s calibration.
+    vTaskDelay(pdMS_TO_TICKS(lastCode == 200 ? 200000 : 5000));
   }
 }
 void setup() {
@@ -212,13 +252,30 @@ void setup() {
       sendJson(400, "{\"error\":\"active_must_be_0_or_1\"}"); return;
     }
     const bool enabled = server.arg("active") == "1";
+    // Optional since cue_level_supported: level=0..127 (default CONFIRMED strength), laser=0|1 (default 1).
+    long level = FOG_VIBRATION_LEVEL;
+    if (server.hasArg("level")) {
+      const String raw = server.arg("level");
+      bool digitsOnly = raw.length() > 0;
+      for (unsigned int i = 0; i < raw.length(); ++i) {
+        if (raw[i] < '0' || raw[i] > '9') digitsOnly = false;
+      }
+      level = raw.toInt();
+      if (!digitsOnly || raw.length() > 3 || level < 0 || level > FOG_VIBRATION_LEVEL_MAX) {
+        sendJson(400, "{\"error\":\"level_must_be_0_to_127\"}"); return;
+      }
+    }
+    if (server.hasArg("laser") && server.arg("laser") != "0" && server.arg("laser") != "1") {
+      sendJson(400, "{\"error\":\"laser_must_be_0_or_1\"}"); return;
+    }
+    const bool laser = !server.hasArg("laser") || server.arg("laser") == "1";
     const auto f = copyFrame();
     if (enabled && (!f.imuReady || !f.drvReady || !ENABLE_LASER_OUTPUT || uint32_t(millis() - f.atMs) >= 1000)) {
       updateFogCue(false);
       sendJson(409, "{\"error\":\"cue_hardware_not_ready\"}"); return;
     }
-    updateFogCue(enabled);
-    sendJson(200, "{\"accepted\":true,\"cue_api_version\":1,\"lease_ms\":1500}");
+    updateFogCue(enabled, uint8_t(level), laser);
+    sendJson(200, "{\"accepted\":true,\"cue_api_version\":1,\"cue_level_supported\":true,\"lease_ms\":1500,\"level\":" + String(level) + ",\"laser\":" + String(laser ? "true" : "false") + "}");
   });
   server.onNotFound([] { sendJson(404, "{\"error\":\"not_found\"}"); });
   server.begin();

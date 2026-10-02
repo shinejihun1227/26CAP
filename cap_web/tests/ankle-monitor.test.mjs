@@ -85,7 +85,9 @@ test('session storage restores only current valid plans and tolerates malformed 
 test('easy pages replace dense dashboards with preparation and status actions', () => {
   const s={...structuredClone(initialState),easyMode:true};
   const home=renderEasyContent(s), live=renderEasyLiveContent(s);
-  assert.match(home,/양발 BMI 보정/); assert.match(home,/오늘 기록 확인/);
+  assert.match(home,/오늘 요약/); assert.match(home,/보행동결 FoG 점수/);
+  assert.match(home,/data-view="devices" data-open-disclosure="device-baselines"/);
+  assert.match(home,/data-view="ankle"/); assert.match(home,/압력 중심/);
   assert.doesNotMatch(home,/판정 점수|열지도|cadence|undefined|NaN/);
   assert.match(live,/AI 보행동결/); assert.match(live,/data-view="ankle"/);
   assert.equal(renderOverview(s,{embedded:true}),home);

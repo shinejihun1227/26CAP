@@ -35,6 +35,13 @@ export function sanitizeSensorSample(input, now = Date.now()) {
   }
   if (c.aiFoot != null && !['left', 'right'].includes(c.aiFoot)) fail('AI 분석 발이 올바르지 않습니다.');
   condition.aiFoot = c.aiFoot ?? null;
+  if (c.pressureCalibrations !== undefined) {
+    condition.pressureCalibrations = Object.fromEntries(['left', 'right'].map(side => {
+      const id = c.pressureCalibrations?.[side];
+      if (id != null && !/^[a-f0-9]{32}$/.test(id)) fail('압력 보정 식별자가 올바르지 않습니다.');
+      return [side, id ?? null];
+    }));
+  }
   if (c.algorithm === REHAB_ALGORITHM_ID) {
     if (c.pressureLayout !== PRESSURE_LAYOUT_ID || !validPressureChannels(c.pressureChannels)) fail('4개 압력센서 배치와 채널을 확인하세요.');
     condition.pressureLayout = PRESSURE_LAYOUT_ID;

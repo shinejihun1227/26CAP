@@ -78,6 +78,11 @@ export function markAiUnavailable(previous, error) {
     deviceConnected: false,
     feet: {},
     cue: null,
+    pressure: null,
+    suppression: null,
+    reasons: [],
+    aiState: null,
+    decisionSource: null,
     status: "unavailable",
     lastError: error?.message ?? "AI 브리지 연결 실패",
   };
@@ -85,7 +90,11 @@ export function markAiUnavailable(previous, error) {
 
 export function normalizeAiState(payload, previous = {}) {
   if (payload?.service !== 'stepon-ai-bridge') throw new Error('AI 응답 형식이 올바르지 않습니다.');
-  const ready = Boolean(payload.detection?.enabled !== false && payload.detector_loaded && payload.device_connected && payload.window_ready && ['normal', 'warning', 'confirmed'].includes(payload.state));
+  const pressureReady = ['pressure', 'ai_and_pressure'].includes(payload.decision_source)
+    && ['warning', 'confirmed'].includes(payload.pressure?.state) && payload.pressure?.reasons?.length > 0;
+  const ready = Boolean(payload.detection?.enabled !== false && !payload.suppression?.active
+    && (payload.detector_loaded || pressureReady) && payload.device_connected && payload.window_ready
+    && ['normal', 'warning', 'confirmed'].includes(payload.state));
   const numeric = (value) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
   const rawScore = numeric(payload.fog_score);
   const score = numeric(payload.api_version >= 2 ? payload.decision_score : payload.fog_score);
@@ -96,6 +105,11 @@ export function normalizeAiState(payload, previous = {}) {
     ready,
     status: String(payload?.status ?? "unavailable"),
     state: ready ? payload.state : null,
+    aiState: ready ? payload.ai_state ?? (pressureReady ? null : payload.state) : null,
+    decisionSource: ready ? payload.decision_source ?? 'ai' : null,
+    reasons: ready && Array.isArray(payload.reasons) ? payload.reasons : [],
+    pressure: payload.pressure ?? null,
+    suppression: payload.suppression ?? null,
     score: ready ? score : null,
     rawScore: ready ? rawScore : null,
     selectedFoot: payload.selected_foot ?? null,

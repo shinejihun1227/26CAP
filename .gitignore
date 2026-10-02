@@ -26,12 +26,10 @@ __pycache__/
 recordings/
 *.calibration.json
 
-# Never commit per-device Wi-Fi credentials
-firmware/**/wifi_secrets.h
+# Publication excludes local measurements, credentials and generated output.
+**/wifi_secrets.h
 .env
 .env.*
-
-# Publication excludes local measurements and generated output.
 !.env.example
 *.csv
 !cap_web/data/imu-template.csv
@@ -45,4 +43,3 @@ tmp/
 *.zip
 /.codex_*.tmp
 /.codex_*_patch.ps1
-

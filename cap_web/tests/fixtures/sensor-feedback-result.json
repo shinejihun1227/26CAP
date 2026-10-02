@@ -1,0 +1,146 @@
+{
+  "exampleOnly": true,
+  "data": {
+    "version": 1,
+    "model": "qwen2.5:3b",
+    "observedAt": 1790873329760,
+    "entries": [
+      {
+        "kind": "rom",
+        "side": "left",
+        "evidence": null
+      },
+      {
+        "kind": "rom",
+        "side": "right",
+        "evidence": {
+          "id": "example-rom-right",
+          "kind": "rom",
+          "side": "right",
+          "at": 1790873324560,
+          "endedAt": 1790873326560,
+          "peak": 34.2,
+          "rangeMax": 25,
+          "threshold": 30,
+          "sensorX": -24.2,
+          "sensorY": 24.2,
+          "direction": "X− 방향",
+          "seconds": 2
+        }
+      },
+      {
+        "kind": "cop",
+        "side": "left",
+        "evidence": {
+          "id": "9891f574-89c1-44b2-ada0-414e8e161714",
+          "kind": "cop",
+          "side": "left",
+          "at": 1790873326660,
+          "direction": "front",
+          "endedAt": 1790873329760,
+          "seconds": 3.1,
+          "peakPercent": 90
+        }
+      },
+      {
+        "kind": "cop",
+        "side": "right",
+        "evidence": {
+          "id": "f25591d8-b0f0-4d93-a829-362f9d626330",
+          "kind": "cop",
+          "side": "right",
+          "at": 1790873326660,
+          "direction": "rear",
+          "endedAt": 1790873329760,
+          "seconds": 3.1,
+          "peakPercent": 90
+        }
+      }
+    ],
+    "pressureState": {
+      "left": "observed",
+      "right": "observed"
+    }
+  },
+  "requests": {
+    "rom-right": {
+      "eventId": "example-rom-right",
+      "result": {
+        "status": 200,
+        "eventId": "example-rom-right",
+        "kind": "rom",
+        "side": "right",
+        "evidence": {
+          "id": "example-rom-right",
+          "kind": "rom",
+          "side": "right",
+          "at": 1790873324560,
+          "endedAt": 1790873326560,
+          "peak": 34.2,
+          "rangeMax": 25,
+          "threshold": 30,
+          "sensorX": -24.2,
+          "sensorY": 24.2,
+          "direction": "X− 방향",
+          "seconds": 2
+        },
+        "model": "qwen2.5:3b",
+        "generatedAt": 1790873329760,
+        "actionIds": [
+          "walk_supportive_shoes",
+          "check_attachment"
+        ]
+      }
+    },
+    "cop-left": {
+      "eventId": "9891f574-89c1-44b2-ada0-414e8e161714",
+      "result": {
+        "status": 200,
+        "eventId": "9891f574-89c1-44b2-ada0-414e8e161714",
+        "kind": "cop",
+        "side": "left",
+        "evidence": {
+          "id": "9891f574-89c1-44b2-ada0-414e8e161714",
+          "kind": "cop",
+          "side": "left",
+          "at": 1790873326660,
+          "direction": "front",
+          "endedAt": 1790873329760,
+          "seconds": 3.1,
+          "peakPercent": 90
+        },
+        "model": "qwen2.5:3b",
+        "generatedAt": 1790873329760,
+        "actionIds": [
+          "walk_front_pressure",
+          "check_front"
+        ]
+      }
+    },
+    "cop-right": {
+      "eventId": "f25591d8-b0f0-4d93-a829-362f9d626330",
+      "result": {
+        "status": 200,
+        "eventId": "f25591d8-b0f0-4d93-a829-362f9d626330",
+        "kind": "cop",
+        "side": "right",
+        "evidence": {
+          "id": "f25591d8-b0f0-4d93-a829-362f9d626330",
+          "kind": "cop",
+          "side": "right",
+          "at": 1790873326660,
+          "direction": "rear",
+          "endedAt": 1790873329760,
+          "seconds": 3.1,
+          "peakPercent": 90
+        },
+        "model": "qwen2.5:3b",
+        "generatedAt": 1790873329760,
+        "actionIds": [
+          "walk_rear_pressure",
+          "check_rear"
+        ]
+      }
+    }
+  }
+}

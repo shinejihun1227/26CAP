@@ -5,7 +5,7 @@ export const navItems = [
   { id: "live", label: "FoG", korean: "AI 보행동결", icon: "activity" },
   { id: "ankle", label: "BMI270", korean: "발 움직임", icon: "shoe" },
   { id: "mediapipe", label: "MediaPipe", korean: "정면 보행", icon: "camera" },
-  { id: "trends", label: "Changes", korean: "변화 보기", icon: "chart" },
+  { id: "safety", label: "Sensors", korean: "압력·온습도", icon: "chart" },
   { id: "devices", label: "Devices", korean: "기기 설정", icon: "device", group: "manage" },
   { id: "records", label: "Data", korean: "데이터 관리", icon: "report", group: "manage" },
 ];

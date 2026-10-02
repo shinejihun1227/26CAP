@@ -1,0 +1,220 @@
+/* Shared presentation colors. Status names and sensor thresholds stay in the
+   controllers; color is always accompanied by the existing status text. */
+:root {
+  --care-ink:#193e4b;
+  --care-muted:#506873;
+  --care-canvas:#f1f5f6;
+  --care-line:#cfdee2;
+  --care-teal:#3f6d70;
+  --care-teal-hover:#30575c;
+  --care-teal-soft:#edf5f3;
+  --care-blue:#496b89;
+  --care-blue-soft:#edf2f7;
+  --care-slate:#456775;
+  --care-slate-soft:#edf3f5;
+  --care-ok:#356658;
+  --care-ok-soft:#edf5f1;
+  --care-ok-line:#bfd6ca;
+  --care-watch:#855752;
+  --care-watch-soft:#f5efee;
+  --care-watch-line:#decac7;
+  --care-alert:#973e4d;
+  --care-alert-soft:#f8e9eb;
+  --care-alert-line:#dab1b8;
+  --canvas:var(--care-canvas);
+  --canvas-deep:#e5eef0;
+  --ink:var(--care-ink);
+  --ink-soft:#365560;
+  --muted:var(--care-muted);
+  --muted-light:#5c727c;
+  --line:var(--care-line);
+  --surface-soft:#f3f7f8;
+  --user-accent:var(--care-teal);
+  /* Compatibility aliases for the existing shared components. */
+  --mint:var(--care-ok); --mint-soft:var(--care-ok-soft);
+  --sky:var(--care-blue); --sky-soft:var(--care-blue-soft);
+  --lavender:var(--care-slate); --lavender-soft:var(--care-slate-soft);
+  --orange:var(--care-watch); --orange-soft:var(--care-watch-soft);
+  --coral:var(--care-alert); --coral-soft:var(--care-alert-soft);
+}
+
+/* Common controls: filled action, quiet secondary, clear selected state. */
+:is(.content-area,.mobile-main) :is(.primary-button,.rom-primary,.clarity-primary-button,.front-primary),
+.home-feet button,.purpose-connect,.motion-local-ai button,.easy-main-action,
+.trends-workspace [data-trend-action=start] {
+  background:var(--care-teal); border-color:var(--care-teal); color:#fff;
+}
+:is(.content-area,.mobile-main) :is(.primary-button,.rom-primary,.front-primary):hover:not(:disabled),
+.home-feet button:hover:not(:disabled),.motion-local-ai button:hover:not(:disabled) {
+  background:var(--care-teal-hover); border-color:var(--care-teal-hover);
+}
+:is(.content-area,.mobile-main) :is(.outline-button,.control-button,.simple-secondary) {
+  background:#fff; border-color:#aac3ca; color:#325a63;
+}
+:is(.content-area,.mobile-main) :is(.outline-button,.control-button,.simple-secondary):hover:not(:disabled) {
+  background:var(--care-slate-soft); border-color:var(--care-slate);
+}
+:is(.content-area,.mobile-main) :is(.panel-kicker,.eyebrow,.simple-eyebrow,.trends-kicker),
+.purpose-heading>span,.ankle-intro>div>span,.ankle-section-title>div>span {
+  color:var(--care-teal);
+}
+:is(.content-area,.mobile-main) :is(.panel-description,.algorithm-disclaimer,.medical-disclaimer,
+  .rehab-source,.rehab-metric span,.rehab-metric small,.ai-score-block span,.thermal-head,
+  .thermal-row,.thermal-row small,.thermal-overview span,.feature-row,.threshold-line,
+  .output-control small,.cue-test-row>span,.hardware-note) { color:var(--care-muted); }
+:is(.content-area,.mobile-main) :is(input[type=checkbox],input[type=radio],progress) { accent-color:var(--care-teal); }
+:is(button,a,input,select,summary):focus-visible { outline-color:#376f8a; }
+:is(.content-area,.mobile-main) button:disabled {
+  opacity:1; background:#e8edef; border-color:#d2dde0; color:#596c76; box-shadow:none;
+}
+
+/* Shared status badges, including mobile and expanded model details. */
+:is(.algorithm-pill.pill-mint,.overview-badge.tone-mint,.algorithm-summary-status.tone-mint,
+  .mobile-stage-pill.tone-mint,.rehab-status-pill.is-ready,.mobile-ok-badge) {
+  color:var(--care-ok); background:var(--care-ok-soft); border-color:var(--care-ok-line);
+}
+:is(.algorithm-pill.pill-orange,.overview-badge.tone-orange,.algorithm-summary-status.tone-orange,
+  .mobile-stage-pill.tone-orange,.rehab-status-pill) {
+  color:var(--care-watch); background:var(--care-watch-soft); border-color:var(--care-watch-line);
+}
+.rehab-status-pill.is-ready { color:var(--care-ok); background:var(--care-ok-soft); border-color:var(--care-ok-line); }
+:is(.algorithm-pill.pill-coral,.overview-badge.tone-coral,.algorithm-summary-status.tone-coral,
+  .mobile-stage-pill.tone-coral) {
+  color:var(--care-alert); background:var(--care-alert-soft); border-color:var(--care-alert-line);
+}
+:is(.algorithm-pill.pill-lavender,.overview-badge.tone-lavender,.algorithm-summary-status.tone-lavender,
+  .mobile-stage-pill.tone-lavender,.research-badge) {
+  color:var(--care-slate); background:var(--care-slate-soft); border-color:var(--care-line);
+}
+:is(.algorithm-pill.pill-sky,.overview-badge.tone-sky,.algorithm-summary-status.tone-sky) {
+  color:var(--care-blue); background:var(--care-blue-soft); border-color:#c9d7e6;
+}
+.scope-banner,.safety-notice,.rom-workspace .rom-notice {
+  background:var(--care-slate-soft); border-color:var(--care-line); color:#3c5a66;
+}
+.safety-notice b,.safety-notice>span { color:var(--care-slate); }
+.safety-notice>span { background:#dde9ed; }
+.fog-detection-control { color:var(--care-ok); background:var(--care-ok-soft); border-color:var(--care-ok-line); }
+.fog-detection-control.is-stopped { color:var(--care-slate); background:var(--care-slate-soft); border-color:#b4c7cf; }
+.fog-detection-control.is-stopped span { color:var(--care-muted); }
+.fog-detection-control.is-stopped button { background:var(--care-teal); border-color:var(--care-teal); }
+.fog-alert-card { background:#fff; border-color:#b76471; }
+.fog-alert-icon,.fog-alert-card ol { background:var(--care-alert-soft); }
+.fog-alert-icon,.fog-alert-card p { color:var(--care-alert); }
+.fog-alert-card button { background:var(--care-teal); }
+
+/* FoG and device pages use a slate header and white reading surfaces. */
+.easy-heading>span { color:var(--care-slate); background:#e4edf1; }
+.easy-fog-status,.ai-status-panel {
+  background:linear-gradient(155deg,var(--care-slate-soft),#fff 280px);
+  border-color:var(--care-line); border-top:4px solid var(--care-slate);
+}
+.easy-fog-status.is-alert { background:var(--care-alert-soft); border-color:var(--care-alert-line); border-top-color:var(--care-alert); }
+.easy-fog-status.is-alert>b { color:var(--care-alert); }
+.easy-secondary-actions button { color:var(--care-slate); border-color:#c4d5dc; background:var(--care-slate-soft); }
+.easy-secondary-actions button:hover { background:#e3ecef; }
+.ai-decision-details { background:var(--care-slate-soft); color:var(--care-ink); }
+.ai-foot-result { border-color:#c5d7de; background:#fff; }
+.ai-foot-result>b { color:var(--care-slate); }
+.ai-status-panel .ai-status-copy p,.ai-foot-result small,.insole-address,.insole-card dt,.insole-health,.insole-vector { color:var(--care-muted); }
+.ai-score-track i,.threshold-line i { background:linear-gradient(90deg,#598d7b,#b08a85,#a65061); }
+.insole-card { background:#f9fbfc; border-color:#cedde2; border-top-color:#7b939e; }
+.insole-hub-heading { padding:16px; border:1px solid var(--care-line); border-radius:14px; background:var(--care-slate-soft); }
+.insole-card.is-online { background:#f5faf7; border-top-color:var(--care-ok); }
+.insole-card.is-online header span { color:var(--care-ok); background:#e2eee7; }
+.hardware-list em.is-warning,.delta-mid { color:var(--care-watch); }
+.hardware-list em.is-ready { color:var(--care-ok); }
+.insole-error { color:var(--care-alert); }
+.rehab-feedback { color:var(--care-ok); background:var(--care-ok-soft); border-color:var(--care-ok-line); }
+.rehab-feedback.is-alert { color:var(--care-alert); background:var(--care-alert-soft); border-color:var(--care-alert-line); }
+.rehab-feedback small { color:var(--care-muted); }
+
+/* Foot range: quiet blue separates calibration and recorded readings. */
+.daily-ankle .purpose-heading>span { color:var(--care-blue); }
+.daily-preparation article { background:linear-gradient(155deg,var(--care-blue-soft),#fff 300px); border-color:#cedbe6; border-top:4px solid var(--care-blue); }
+.daily-preparation .purpose-section-head h2 { color:var(--care-blue); }
+.daily-steps button { color:#fff; background:var(--care-blue); border-color:var(--care-blue); }
+.daily-steps button:hover:not(:disabled) { background:#395771; }
+.daily-steps span { color:var(--care-blue); background:#fff; }
+.daily-preparation .daily-capture-guide { color:#3f5c73; background:#e7eef5; }
+.daily-reading { padding:16px; border:1px solid #d4e0e9; border-radius:12px; background:#f5f8fb; color:#456477; }
+.daily-reading strong { color:var(--care-blue); }
+.daily-quality { color:var(--care-ok); background:var(--care-ok-soft); }
+.daily-preparation article.is-outside { border-color:var(--care-alert-line); border-top-color:var(--care-alert); }
+.daily-event summary { background:var(--care-watch-soft); color:#644744; }
+.daily-event-detail { background:#f7f9fa; }
+.sensor-direction span { color:var(--care-alert); }
+.ankle-foot-status.is-outside { background:var(--care-alert-soft); border-color:var(--care-alert-line); }
+.ankle-foot-status.is-outside h3 { color:var(--care-alert); }
+.ankle-camera-only[aria-pressed=true] { color:var(--care-slate); }
+
+/* Camera workflow: numbered steps and measurements retain a clear hierarchy. */
+.front-camera { border-color:#c8dbdc; }
+.front-stage [data-front-empty],.ankle-capture .rom-video-empty { background:#edf4f3; }
+.front-instructions article { background:#f4f8f7; border-color:#cbded9; }
+.front-instructions .front-step { background:var(--care-teal); }
+.front-instructions strong { color:var(--care-ok); }
+.front-camera [data-front-runtime] { background:var(--care-slate-soft); color:var(--care-slate); }
+.front-feedback { background:var(--care-ok-soft); border-color:var(--care-ok-line); }
+.front-values strong { color:var(--care-teal); }
+.front-feedback.is-changed { background:var(--care-watch-soft); border-color:var(--care-watch-line); }
+.front-feedback.is-changed h2 { color:var(--care-watch); }
+.front-legend span { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:6px; background:#f1f5f6; color:#3c5965; }
+.front-legend i { width:16px; height:0; border-top:3px solid #3c8271; }
+.front-legend .front-key-review { border-top-style:dashed; border-top-color:#a6675d; }
+.front-legend .front-key-pelvis { border-top-color:#4288a4; }
+.motion-local-ai { background:var(--care-teal-soft); border-color:#c6dcda; }
+.motion-local-ai>div:first-child b,.motion-local-ai-result { color:#325a63; }
+.motion-local-ai-result { background:#fff; }
+.rom-workspace .rom-record-box .rom-quality { border-left-color:#839daa; color:var(--care-muted); }
+.rom-workspace .rom-record-box .rom-quality.is-ready { border-left-color:var(--care-ok); color:var(--care-ok); }
+.rom-workspace .rom-notice.is-error,.rom-workspace.is-measurement>.rom-notice.is-error,.trends-notice.is-error {
+  background:var(--care-alert-soft); color:var(--care-alert); border-color:var(--care-alert-line);
+}
+
+/* Data categories: sage for walking sensors, blue for camera records. */
+.records-category--walking { background:linear-gradient(130deg,#fff,var(--care-ok-soft)); border-color:#c9ddd3; }
+.records-category--joint { background:linear-gradient(130deg,#fff,var(--care-blue-soft)); border-color:#cbd9e5; }
+.records-category-icon,.records-domain-number { color:var(--care-ok); background:#e2eee7; }
+.records-category--joint .records-category-icon,.records-domain--joint .records-domain-number { color:var(--care-blue); background:#e2ebf3; }
+.records-category--joint :is(small,strong) { color:var(--care-blue); }
+.records-domain--walking { border-top-color:#578173!important; }
+.records-domain--joint { border-top-color:var(--care-blue)!important; }
+.joint-count { background:var(--care-blue-soft); color:var(--care-blue); }
+.sensor-count { background:var(--care-ok-soft); color:var(--care-ok); }
+.dot-joint { background:var(--care-blue); }.dot-sensor { background:var(--care-ok); }
+.trends-toolbar { background:var(--care-slate-soft); border-color:var(--care-line); }
+.trends-workspace th { background:#eaf0f3; color:#3e5968; }
+.trends-workspace tbody tr:nth-child(even) { background:#f7f9fa; }
+.trends-summary .trends-kicker { color:#c4dedb; }
+.trends-workspace .calendar-day.is-selected { background:var(--care-teal-soft); border-color:var(--care-teal); color:var(--care-teal); }
+.observation-mode-tabs button.is-selected { background:var(--care-teal-soft); color:var(--care-teal); border-color:#709b98; box-shadow:inset 0 0 0 1px #c7dad7; }
+.observation-stat.is-status { background:var(--care-ok-soft); border-color:var(--care-ok-line); }
+
+/* Quiet decoration rather than additional status colors. */
+.metric-lavender .metric-icon,.motion-lavender .motion-stat-icon,.clarity-event-icon.event-lavender,
+.motion-sand .motion-stat-icon,.easy-yellow i { color:var(--care-slate); background:#e7eff2; }
+.app-feature-ankle .app-feature-symbol { color:var(--care-blue); background:var(--care-blue-soft); }
+.app-feature-ankle .app-feature-symbol>span { background:var(--care-blue); }
+.app-feature-front .app-feature-symbol { color:var(--care-teal); background:var(--care-teal-soft); }
+.app-feature-front .app-feature-symbol>span { background:var(--care-teal); }
+.mobile-tabbar button.is-active { background:var(--care-teal-soft); color:var(--care-teal); }
+.mobile-tabbar .mobile-tab.is-active .icon { color:var(--care-teal); }
+.clarity-live-hero .clarity-live-badge i,.device-hero .live-badge:not(.is-disconnected) i { background:#89cbb9; }
+
+/* The separate CSV collection page shares the same controls and reading colors. */
+.data-workspace { background:var(--care-canvas); color:var(--care-ink); }
+.data-workspace :is(p,.note,.file-label span,.movement-card small,footer) { color:var(--care-muted); }
+.data-workspace button { background:var(--care-teal); }
+.data-workspace :is(button.secondary,.movement-card) { color:var(--care-slate); background:#fff; border-color:var(--care-line); }
+.data-workspace button:disabled { opacity:1; color:#596c76; background:#e8edef; border-color:#d2dde0; }
+.data-workspace .steps li,.data-workspace .capture-box { background:var(--care-slate-soft); }
+.data-workspace .calibration-step { background:var(--care-ok-soft); border-color:var(--care-ok-line); }
+.data-workspace .movement-card[aria-pressed=true] { background:var(--care-teal-soft); border-color:#709b98; box-shadow:inset 3px 0 var(--care-teal); }
+.data-workspace .score-card { background:var(--care-blue-soft); }
+.data-workspace .score-card strong { color:var(--care-blue); }
+.data-workspace #error { color:var(--care-alert); background:var(--care-alert-soft); border-color:var(--care-alert-line); }
+.data-workspace :is(details,th,td,.history-item) { border-color:var(--care-line); }
+.data-workspace pre { background:var(--care-slate-soft); color:var(--care-ink); }
+.data-workspace th { background:#eaf0f3; color:#3e5968; }
+.data-workspace progress { accent-color:var(--care-teal); }

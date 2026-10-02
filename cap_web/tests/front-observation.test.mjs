@@ -11,24 +11,28 @@ test('front measurement requires one confidently detected frontal person',()=>{
   assert.equal(analyzeFront([pose()],640,480).valid,true);
   assert.equal(analyzeFront([],640,480).valid,false);
   assert.equal(analyzeFront([pose(),pose()],640,480).valid,false);
-  const p=pose();p[27].visibility=.4;assert.equal(analyzeFront([p],640,480).valid,false);
-  p[27].visibility=1;p[27].y=1.1;assert.equal(analyzeFront([p],640,480).valid,false);
+  const p=pose();p[27].visibility=.4;assert.equal(analyzeFront([p],640,480).valid,true);
+  assert.deepEqual(analyzeFront([p],640,480).supportMissing,['왼쪽 발목']);
+  p[27].visibility=1;p[27].y=1.1;assert.equal(analyzeFront([p],640,480).valid,true);
+  p[23].visibility=.4;assert.equal(analyzeFront([p],640,480).valid,false);
+  assert.deepEqual(analyzeFront([p],640,480).missing,['왼쪽 골반']);
   const narrow=pose();for(const i of [11,12,23,24])narrow[i].x=.5;assert.equal(analyzeFront([narrow],640,480).valid,false);
 });
 test('baseline removes initial image tilt and rejects short or unstable captures',()=>{
-  const samples=Array.from({length:30},(_,i)=>({at:i*100,valid:true,pelvis:3,trunk:2}));
+  const samples=Array.from({length:31},(_,i)=>({at:i*100,valid:true,pelvis:3,trunk:2}));
   const baseline=frontBaseline(samples);assert.deepEqual(baseline,{pelvis:3,trunk:2});
   assert.equal(frontChange({valid:true,pelvis:7,trunk:9},baseline).changed,false);
   assert.equal(frontChange({valid:true,pelvis:9,trunk:2},baseline).changed,true);
   assert.equal(frontChange({valid:false},baseline),null);
   assert.equal(frontBaseline(samples.slice(0,10)),null);
-  assert.equal(frontBaseline([...samples,{at:3000,valid:true,pelvis:15,trunk:2}]),null);
+  assert.equal(frontBaseline(samples.map((s,i)=>i===15?{...s,pelvis:15}:s)),null);
 });
 test('uncertain poses still draw dashed landmarks and empty detections clear the overlay',()=>{
   const calls=[],ctx=new Proxy({}, {get:(_,key)=>(...args)=>calls.push([key,...args]),set:()=>true});
   const p=pose();p[27].visibility=.4;
   drawFrontPose(ctx,[p],640,480,{valid:false});
   assert.ok(calls.some(c=>c[0]==='setLineDash'&&c[1].length===2));
+  assert.ok(calls.some(c=>c[0]==='setLineDash'&&c[1].length===0), 'confident edges stay solid despite an uncertain ankle');
   assert.ok(calls.some(c=>c[0]==='arc'&&c[1]===p[27].x*640));
   calls.length=0;drawFrontPose(ctx,[],640,480);assert.deepEqual(calls,[['clearRect',0,0,640,480]]);
 });

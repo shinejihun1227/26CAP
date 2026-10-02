@@ -2,6 +2,7 @@ import { comparisonKey, METRICS, VIEWS, quantile, round } from '../mediapipe/rom
 import { PRESSURE_LAYOUT_ID, PRESSURE_CHANNELS, REHAB_ALGORITHM_ID, validPressure, pressureContractMatches, pressureChannelsFor } from '../data/sensor-config.js';
 
 export const TREND_PROTOCOL = 'stepon-daily-observations-v1';
+export const FOOT_SENSOR_METRIC_IDS = ['pressure','forefoot','heel','lateral','loadDifference','temperature','humidity'];
 export const SENSOR_METRICS = {
   fog: { label: 'AI FoG 판정 표본 비율', unit: '%', min: 0, max: 100, note: 'AI confirmed 판정 비율 · 발병 확률/발생 횟수가 아님' },
   loadDifference: { label: '좌우 하중 비율 차이', unit: '%p', min: 0, max: 100, note: '양발 압력 데이터가 있을 때만 계산' },
@@ -95,6 +96,8 @@ export function buildSensorSample(state, participant, setup, now = Date.now()) {
   const condition = { protocol: TREND_PROTOCOL, setup, side, activeFoot: state.rehab?.config?.activeFoot ?? side, device: String(state.device?.name ?? 'ESP32'), bilateral: Boolean(hw.bilateralAvailable), thermalChannels: channels,
     algorithm: REHAB_ALGORITHM_ID, sensorProfile: hw.sensorProfile ?? 'four-independent', pressureLayout: hw.pressureLayout ?? PRESSURE_LAYOUT_ID, pressureChannels: [...(pressureChannelsFor(raw) ?? PRESSURE_CHANNELS)], rehabConfig: state.rehab?.config ?? {}, baseline: state.rehab?.calibration?.pressureLayout === (hw.pressureLayout ?? PRESSURE_LAYOUT_ID) ? state.rehab.calibration.baseline ?? null : null,
     aiFoot: ai.selectedFoot ?? null, aiSession: ai.calibration?.id ?? null, aiArtifact: ai.artifactId ?? null,
+    pressureCalibrations: Object.fromEntries(['left', 'right'].map(s => [s,
+      (hw.transport === 'sta' ? hw.feet?.[s]?.state : s === side ? raw : null)?.pressure_calibration?.id ?? null])),
     aiModel: ai.model ?? null, aiRate: ai.sampleRateHz ?? null, aiWindow: ai.windowSec ?? null, aiHop: ai.hopSec ?? null,
     aiCalibration: Object.fromEntries(['vertical_confidence', 'forward_confidence', 'yaw_enabled', 'yaw_confidence'].filter((key) => finite(ai.calibration?.[key]) || typeof ai.calibration?.[key] === 'boolean').map((key) => [key, ai.calibration[key]])) };
   return { participant, source: 'esp32', condition, at: new Date(now).toISOString(), frame: String(raw.frame ?? state.tick ?? ''), values };

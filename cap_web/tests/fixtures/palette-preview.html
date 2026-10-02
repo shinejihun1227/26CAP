@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StepOn 배색 · 개발 검증 예시</title></head>
+<body><div id="fixture"></div><script type="module">
+import { todayState } from './today-state.mjs';
+import { renderSidebar } from '../../src/components/sidebar.js';
+import { renderLiveView } from '../../src/views/live-view.js';
+import { renderAnkleDailyView } from '../../src/views/ankle-daily-view.js';
+import { renderFrontView } from '../../src/views/front-view.js';
+import { renderDevicesView } from '../../src/views/devices-view.js';
+import { renderRecordsView } from '../../src/views/records-view.js';
+import { renderSafetyView } from '../../src/views/safety-view.js';
+import { renderMobileApp } from '../../src/mobile/mobile-app.js';
+const source=new DOMParser().parseFromString(await (await fetch('/index.html')).text(),'text/html');
+await Promise.all([...source.querySelectorAll('link[rel=stylesheet]')].map(link=>new Promise(resolve=>{
+  const style=document.createElement('link');style.rel='stylesheet';style.href=link.getAttribute('href');style.onload=style.onerror=resolve;document.head.append(style);
+})));
+const query=new URLSearchParams(location.search),state=todayState();
+state.easyMode=query.get('easy')==='1';
+const views={live:renderLiveView,ankle:renderAnkleDailyView,mediapipe:renderFrontView,devices:renderDevicesView,records:renderRecordsView,safety:renderSafetyView};
+const view=Object.hasOwn(views,query.get('view'))?query.get('view'):'ankle';
+document.querySelector('#fixture').innerHTML=`<nav style="position:sticky;top:0;z-index:9999;padding:10px 16px;background:#e6eef1;color:#395968;font:600 13px sans-serif">개발 예시 · 실제 센서값 아님 · 기기 명령 없음　${Object.keys(views).map(key=>`<a style="color:inherit;margin-right:12px" href="?view=${key}${query.has('mobile')?'&mobile=1':''}">${key}</a>`).join('')}</nav>${query.has('mobile')?renderMobileApp(state,view):`<div class="app-frame ${state.easyMode?'is-easy-mode':''}">${renderSidebar(view,state)}${views[view](state)}</div>`}`;
+// Render-only fixture: no controllers, camera permission, calibration or network mutations.
+</script></body></html>

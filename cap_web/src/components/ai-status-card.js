@@ -1,6 +1,8 @@
 import { escapeHtml } from "../utils/text.js";
+import { pressureCalibrationText } from './pressure-calibration-status.js';
 
 const STATUS_META = {
+  dismissed: { label: '알림 잠시 쉬는 중', tone: 'lavender', detail: '연속 발 구름이 인식되어 5초 동안 감지 알림을 쉬어요.' },
   detection_unconfirmed: { label: '이 화면 알림 중지', tone: 'orange', detail: 'PC 감지 중지는 아직 확인되지 않았어요. 연결을 확인하고 위쪽에서 중지를 다시 요청하세요.' },
   detection_paused: { label: 'FoG 감지 중지', tone: 'lavender', detail: '감지·경고 알림·자동 출력이 중지됐어요. 위쪽의 감지 재개를 눌러 다시 시작하세요.' },
   normal: { label: "지속 신호 미확인", tone: "mint", detail: "현재 연속 판정 조건을 충족한 보행동결 신호가 없어요." },
@@ -26,8 +28,9 @@ export function renderFogCue(state) {
   const cue = state.ai?.available ? state.ai.cue : null;
   const active = Object.entries(cue?.feet ?? {}).filter(([, v]) => v.requested && v.acknowledged).map(([s]) => s === 'left' ? '왼발' : '오른발');
   const error = Object.values(cue?.feet ?? {}).find(v => v.error)?.error;
-  const label = !cue ? 'AI 연결 후 확인할 수 있어요' : state.ai.detectionEnabled === false ? '감지 중지 모드 · 자동 출력 중지됨' : !cue.enabled ? '자동 출력 중지됨' : active.length ? `${active.join(' · ')} 진동·레이저 유지 명령 전달 중` : 'FoG 감지 시 자동 출력 대기';
-  return `<div class="fog-cue-panel"><h3>FoG 감지 안내</h3><p data-live-copy><b>${escapeHtml(label)}</b></p><p>각 발의 AI가 신호 감지 상태일 때 진동과 레이저를 유지하고, 감지가 해제되면 자동으로 꺼요. 연결이 끊기면 마지막 명령 후 최대 1.5초 안에 꺼져요.</p><div class="device-actions"><button class="outline-button" data-action="fog-cue-stop" ${!cue ? 'disabled' : ''}>진동·레이저 자동 출력 중지</button><button class="outline-button" data-action="fog-cue-enable" ${!cue || cue.enabled ? 'disabled' : ''}>자동 출력 다시 켜기</button></div>${error ? `<p role="status">${escapeHtml(error)}</p>` : ''}<small>PC AI가 제어해요. 웹을 닫아도 동작하며, CSV 수집 중에는 자동 출력을 쉬어요. CSV 분석은 실제 출력을 켜지 않아요.</small></div>`;
+  const hasLaser = Object.values(cue?.feet ?? {}).some(v => v.requested && v.acknowledged && v.laser !== false);
+  const label = !cue ? 'AI 연결 후 확인할 수 있어요' : state.ai.detectionEnabled === false ? '감지 중지 모드 · 자동 출력 중지됨' : state.ai.suppression?.active ? '알림 잠시 쉬는 중 · 5초 후 다시 확인' : !cue.enabled ? '자동 출력 중지됨' : active.length ? `${active.join(' · ')} ${hasLaser ? '진동·레이저' : '약한 진동'} 명령 전달 중` : 'FoG 감지 시 자동 출력 대기';
+  return `<div class="fog-cue-panel"><h3>FoG 감지 안내</h3><p data-live-copy><b>${escapeHtml(label)}</b></p><p>양발의 AI와 압력 보조 판단을 함께 확인해 양쪽 신발에 알립니다. 주의는 약한 진동, 신호 감지는 강한 진동과 레이저로 안내해요. 약한 진동은 지원 펌웨어에서만 동작합니다.</p><div class="device-actions"><button class="outline-button" data-action="fog-cue-stop" ${!cue ? 'disabled' : ''}>진동·레이저 자동 출력 중지</button><button class="outline-button" data-action="fog-cue-enable" ${!cue || cue.enabled ? 'disabled' : ''}>자동 출력 다시 켜기</button></div>${error ? `<p role="status">${escapeHtml(error)}</p>` : ''}<small>보정·CSV 수집 중에는 출력을 쉬어요. 연결이 끊기면 마지막 명령 후 최대 1.5초 안에 꺼집니다. CSV 분석은 실제 출력을 켜지 않아요.</small></div>`;
 }
 
 function displayScore(score) {
@@ -42,7 +45,7 @@ export function aiPresentation(state) {
   const offline = state.dataSource === 'esp32' && (!state.connected || ai.deviceConnected === false);
   const expired = Number.isFinite(ai.lastWindowAtMs) && Date.now() - ai.lastWindowAtMs > 2500;
   const status = state.fogControlError || (!ai.available && (state.fogLocalStop || ai.detectionEnabled === false)) ? 'detection_unconfirmed' : state.fogLocalStop || ai.detectionEnabled === false ? 'detection_paused' : disabled ? 'disabled' : state.paused ? 'paused' : !ai.available ? 'unavailable'
-    : ['calibration_missing', 'calibration_failed', 'calibrating', 'invalid_data', 'unavailable'].includes(ai.status) ? ai.status
+    : ['calibration_missing', 'calibration_failed', 'calibrating', 'invalid_data', 'unavailable', 'dismissed'].includes(ai.status) ? ai.status
     : offline || expired ? 'device_offline' : !ai.ready ? 'warming_up' : ai.status;
   const meta = getAiStatusMeta(status);
   const hasScore = ['normal', 'warning', 'confirmed'].includes(status) && ai.available && ai.ready
@@ -52,6 +55,14 @@ export function aiPresentation(state) {
 }
 
 const REASONS = {
+  ai_warning: 'AI 주의 신호',
+  ai_confirmed: 'AI 연속 신호 감지',
+  forefoot_load: '앞발에 하중이 지속됨',
+  post_walk_tremor: '보행 후 압력 흔들림과 AI 주의 신호',
+  shuffle: '개인 기준보다 짧은 걸음 간격',
+  start_hesitation: '발을 디딘 상태에서 하중이 반복 이동',
+  rhythm_irregular: '걸음 간격의 불규칙한 변화',
+  below_confirmed_tier: '강한 신호의 연속 조건 추가 확인 중',
   sustained_model_and_motion: '연속 모델 신호와 보행 움직임 조건 충족',
   below_entry_or_debouncing: '진입 기준 미달 또는 연속 신호 확인 중',
   yaw_suppressed: '큰 회전 움직임으로 해당 창의 판정 점수 억제',
@@ -62,6 +73,11 @@ const REASONS = {
   no_footlift: '발 들림 조건 추가 확인 필요',
 };
 
+export function aiReasonText(ai) {
+  return (ai.reasons ?? []).map(reason => REASONS[reason]).filter(Boolean).join(' · ')
+    || REASONS[ai.diagnostics?.reason] || '유효한 모델 결과 대기';
+}
+
 export function renderAiDetails(state) {
   const { ai, disabled, score } = aiPresentation(state);
   if (disabled || state.dataSource !== 'esp32') return '';
@@ -71,14 +87,22 @@ export function renderAiDetails(state) {
     const running = ['countdown', 'recording'].includes(capture.status);
     const label = side === 'left' ? '왼발' : '오른발';
     const status = getAiStatusMeta(foot.status);
+    const personal = foot.personal_threshold;
+    const baseline = foot.pressure_baseline;
+    const pressureNote = running && capture.status === 'recording' && capture.elapsed_sec >= 5
+      ? '센서별 압력 최고값 수집 중'
+      : pressureCalibrationText(foot.pressure_normalization);
+    const calibrationNote = foot.personal_status === 'scoring_walk' ? '개인 보행 기준 계산 중'
+      : personal ? `개인 진입 기준 ${displayScore(personal.enter)}점 · 강한 신호 기준 ${displayScore(personal.confirmed)}점`
+      : '새 개인 보행 기준: 양발 보정 후 적용';
     const progress = capture.status === 'countdown' ? `${Math.ceil(capture.countdown_sec ?? 3)}초 뒤 시작 · 가만히 서 주세요`
       : capture.status === 'recording' ? `${capture.elapsed_sec ?? 0} / 25초 · ${(capture.elapsed_sec ?? 0) < 5 ? '가만히 서 주세요' : '평소처럼 걸어 주세요'}`
       : capture.status === 'complete' ? '보정 저장 완료 · 새 분석 창 수집'
       : capture.status === 'failed' ? `보정 실패 · ${capture.error ?? '수신 상태 확인'}` : status.label;
-    return `<div class="ai-foot-result"><b>${label} · ${escapeHtml(progress)}</b><span>${foot.ready && !state.paused && state.connected && ai.available && (!Number.isFinite(foot.last_window_at_ms) || Date.now() - foot.last_window_at_ms <= 2500) ? `${displayScore(foot.decision_score)}점` : '—'} · PC 수신 ${Number.isFinite(foot.received_hz) ? foot.received_hz : 0}Hz → 모델 ${ai.sampleRateHz ?? 20}Hz</span><small>${escapeHtml(foot.last_error ?? (foot.ready ? REASONS[foot.diagnostics?.reason] ?? '' : '센서 연결과 개인 보정이 필요합니다.'))}</small><button type="button" class="outline-button" data-action="${running ? 'ai-calibration-cancel' : 'ai-calibrate'}" data-ai-side="${side}" ${!ai.available || !foot.device_connected || state.paused ? 'disabled' : ''}>${running ? '보정 취소' : `${label} 개인 IMU 보정`}</button></div>`;
+    return `<div class="ai-foot-result"><b>${label} · ${escapeHtml(progress)}</b><span>${foot.ready && !state.paused && state.connected && ai.available && (!Number.isFinite(foot.last_window_at_ms) || Date.now() - foot.last_window_at_ms <= 2500) ? `${displayScore(foot.decision_score)}점` : '—'} · PC 수신 ${Number.isFinite(foot.received_hz) ? foot.received_hz : 0}Hz → 모델 ${ai.sampleRateHz ?? 20}Hz</span><small>${escapeHtml(foot.last_error ?? (foot.ready ? REASONS[foot.diagnostics?.reason] ?? '' : '센서 연결과 개인 보정이 필요합니다.'))}</small><small>${escapeHtml(calibrationNote)} · ${baseline?.front_ok ? '압력 기준 저장됨' : '압력 기준 미설정'}</small><small>압력 표시: ${escapeHtml(pressureNote)}</small><button type="button" class="outline-button" data-action="${running ? 'ai-calibration-cancel' : 'ai-calibrate'}" data-ai-side="${side}" ${!ai.available || !foot.device_connected || state.paused ? 'disabled' : ''}>${running ? '보정 취소' : `${label} BMI·압력 보정`}</button></div>`;
   }).join('');
   const diagnostics = score === null ? {} : ai.diagnostics ?? {};
-  return `<div class="ai-decision-details"><p><b>최종 판단: ${escapeHtml(REASONS[diagnostics.reason] ?? '유효한 모델 결과 대기')}</b></p><p>RF ${displayScore(diagnostics.rf_score)} · CNN ${displayScore(diagnostics.cnn_score)} · 원래 모델 점수 ${displayScore(score === null ? null : ai.rawScore)} · 판정 점수 ${displayScore(score)}</p><p>분석 가능한 발 ${Number(ai.coverage ?? 0)} / 2${ai.selectedFoot ? ` · 최종 판단 기준 ${ai.selectedFoot === 'left' ? '왼발' : '오른발'}` : ''}. 양발 각각 분석 후 더 높은 상태를 표시합니다.</p><div class="ai-foot-results">${rows}</div><p>보정: 3초 준비 → 5초 정지 → 20초 일반 보행. 원시 CSV와 보정값은 이 PC에 저장됩니다. 센서를 다시 부착하거나 착용자가 바뀌면 다시 보정하세요.</p>${ai.actionError ? `<p role="alert">${escapeHtml(ai.actionError)}</p>` : ''}<small>압력·온습도·카메라 값은 각각의 관찰 지표입니다. 현재 모델 점수에 임의로 합산하지 않습니다.</small></div>`;
+  return `<div class="ai-decision-details"><p><b>최종 판단: ${escapeHtml(ai.suppression?.active ? '알림 잠시 쉬는 중' : aiReasonText(ai))}</b></p><p>RF ${displayScore(diagnostics.rf_score)} · CNN ${displayScore(diagnostics.cnn_score)} · 원래 모델 점수 ${displayScore(score === null ? null : ai.rawScore)} · 판정 점수 ${displayScore(score)}</p><p>분석 가능한 발 ${Number(ai.coverage ?? 0)} / 2${ai.selectedFoot ? ` · 최종 판단 기준 ${ai.selectedFoot === 'left' ? '왼발' : '오른발'}` : ''}. 양발 AI와 개인 압력 규칙 중 더 높은 상태를 표시합니다.</p><div class="ai-foot-results">${rows}</div><p>3초 준비 → 5초 정지 → 20초 일반 보행. 보행 중 센서별 압력 최고값도 함께 저장하며, 이후 그 값을 100%로 표시합니다. 원시 CSV와 보정값은 이 PC에 저장됩니다. 센서를 다시 부착하거나 착용자가 바뀌면 다시 보정하세요.</p>${ai.actionError ? `<p role="alert">${escapeHtml(ai.actionError)}</p>` : ''}<small>RF·CNN 점수는 IMU로 계산합니다. 개인 기준이 있는 압력 규칙은 별도로 최종 알림 상태를 보완하며 모델 점수에 더하지 않습니다. 온습도·카메라는 별도 관찰 지표입니다.</small></div>`;
 }
 
 export function renderAiStatusCard(state, { compact = false } = {}) {

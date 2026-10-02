@@ -1,7 +1,8 @@
 import { escapeHtml as e } from '../utils/text.js';
+import { RANGE_SECONDS } from './foot-direction.js';
 export function mountDailyAnkle(root) {
   const $=s=>root.querySelector(s), abort=new AbortController(), actionQueue=[]; let alive=true,pending=false,lastMarkup='',payload=null;
-  const labels={idle:'기준 필요',neutral:'3초 정지 중', 'neutral-ready':'기준 자세 완료',range:'15초 기록 중',ready:'오늘 기준 저장됨',failed:'다시 기록'};
+  const labels={idle:'기준 필요',neutral:'3초 정지 중', 'neutral-ready':'기준 자세 완료',range:`${RANGE_SECONDS}초 기록 중`,ready:'오늘 기준 저장됨',failed:'다시 기록'};
   const states={offline:'센서 연결 확인',moving:'움직이는 중 · 비교 대기',unavailable:'BMI 데이터 대기',quiet:'센서 준비됨',within:'기록한 기울기 안',checking:'기울기 확인 중',outside:'기준보다 많이 기울었어요'};
   async function refresh(body) {
     if(!alive)return;
@@ -11,7 +12,16 @@ export function mountDailyAnkle(root) {
     finally{pending=false;if(actionQueue.length&&alive)void refresh(actionQueue.shift());}
   }
   function render(data) {
-    for(const side of ['left','right']) {const box=$(`[data-daily-side=${side}]`), f=data.feet[side],busy=['neutral','range'].includes(f.phase);box.querySelector('[data-daily-phase]').textContent=labels[f.phase]||'확인 중';box.querySelector('[data-daily-message]').textContent=f.message;box.querySelector('[data-daily-action=neutral]').disabled=busy||['offline','unavailable'].includes(f.state);box.querySelector('[data-daily-action=range]').disabled=busy||!['neutral-ready','ready','failed'].includes(f.phase)||['offline','unavailable'].includes(f.state);box.querySelector('[data-daily-progress]').max=f.phase==='neutral'?3:15;box.querySelector('[data-daily-progress]').value=busy?f.elapsed:0;box.querySelector('[data-daily-reading]').innerHTML=`<b>${e(states[f.state]||'비교 대기')}</b><strong>${f.current?`${f.current.tilt.toFixed(1)}°`:'—'}</strong><span>${f.plan?`오늘 기준 0–${f.plan.max}° · 표시 여유 ${f.plan.margin}°`:'기울기 기준 기록 전'}</span>`;box.classList.toggle('is-outside',f.state==='outside');}
+    for(const side of ['left','right']) {const box=$(`[data-daily-side=${side}]`), f=data.feet[side],busy=['neutral','range'].includes(f.phase);box.querySelector('[data-daily-phase]').textContent=labels[f.phase]||'확인 중';box.querySelector('[data-daily-message]').textContent=f.message;box.querySelector('[data-daily-action=neutral]').disabled=busy||['offline','unavailable'].includes(f.state);box.querySelector('[data-daily-action=range]').disabled=busy||!['neutral-ready','ready','failed'].includes(f.phase)||['offline','unavailable'].includes(f.state);box.querySelector('[data-daily-progress]').max=f.durationSeconds||(f.phase==='neutral'?3:RANGE_SECONDS);box.querySelector('[data-daily-progress]').value=busy?f.elapsed:0;box.querySelector('[data-daily-reading]').innerHTML=`<b>${e(states[f.state]||'비교 대기')}</b><strong>${f.current?`${f.current.tilt.toFixed(1)}°`:'—'}</strong><span>${f.plan?`오늘 기준 0–${f.plan.max}° · 표시 여유 ${f.plan.margin}°`:'기울기 기준 기록 전'}</span>${f.current?.direction?`<b>${e(f.current.direction.label)}</b>`:''}`;box.classList.toggle('is-outside',f.state==='outside');}
+    for(const side of ['left','right']) {
+      const box=$(`[data-daily-side=${side}]`), quality=data.feet[side].rangeQuality, status=box.querySelector('[data-daily-quality]');
+      status.hidden=!quality;
+      if(quality) {
+        status.querySelector('[data-daily-samples]').textContent=`유효 센서값 ${quality.accepted}개 / 최소 ${quality.minimumSamples}개`;
+        status.querySelector('[data-daily-span]').textContent=`측정 구간 ${quality.spanSeconds.toFixed(1)}초 / 최소 ${quality.minimumSpanSeconds}초`;
+        status.querySelector('[data-daily-direction]').textContent=data.feet[side].directionReady?'발끝 방향 확인 완료':data.feet[side].captureStage==='direction'?'발끝을 들고 방향 확인 중':'방향 미확인 · 범위 크기만 기록';
+      }
+    }
     $('[data-daily-count]').textContent=`${data.events.length}회`;
     $('[data-daily-coverage]').textContent=['left','right'].map(side=>{const f=data.feet[side];return `${side==='left'?'왼발':'오른발'} 비교 ${Math.floor(f.comparedSeconds/60)}분 ${f.comparedSeconds%60}초 / 준비 이후 ${Math.floor(f.monitoringSeconds/60)}분`;}).join(' · ');
     const markup=data.events.length?data.events.map(event=>`<details class="daily-event"><summary><b>${new Date(event.at).toLocaleTimeString('ko-KR')}</b><span>${event.side==='left'?'왼발':'오른발'} · ${event.peak}°</span><small>기준선 ${event.threshold}° 초과</small></summary><div class="daily-event-detail"><div class="sensor-direction" role="img" aria-label="센서 축 X ${event.sensorX}도, Y ${event.sensorY}도"><span style="transform:rotate(${Math.atan2(event.sensorX,-event.sensorY)*180/Math.PI}deg)">↑</span><b>센서 방향</b></div><div><b>센서 X ${event.sensorX>0?'+':''}${event.sensorX}° · Y ${event.sensorY>0?'+':''}${event.sensorY}°</b><p>약 ${Math.max(1,Math.round((event.endedAt-event.at)/1000))}초 관찰 · 기준 기록 ${new Date(event.baselineAt).toLocaleTimeString('ko-KR')}</p><p>장착 축 기준 변화입니다. 발 안쪽·바깥쪽 꺾임이나 실제 자세를 재구성한 그림은 아닙니다.</p></div></div></details>`).join(''):'<div class="daily-empty"><b>아직 기록된 이탈이 없어요.</b><p>양발 기준을 기록하면 연결된 동안 관찰합니다. 비교 대기 시간은 이탈 여부를 알 수 없어요.</p></div>';

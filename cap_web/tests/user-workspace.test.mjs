@@ -9,7 +9,7 @@ import { renderMobileApp } from '../src/mobile/mobile-app.js';
 import { renderSetViews } from '../src/mediapipe/set-view.js';
 
 test('the compact everyday navigation separates tasks from settings and data management', () => {
-  assert.deepEqual(navItems.filter(i => i.group !== 'manage').map(i => i.id), ['overview', 'live', 'ankle', 'mediapipe', 'trends']);
+  assert.deepEqual(navItems.filter(i => i.group !== 'manage').map(i => i.id), ['overview', 'live', 'ankle', 'mediapipe', 'safety']);
   assert.equal(navItems.find(i => i.id === 'mediapipe').korean, '정면 보행');
   assert.deepEqual(navItems.filter(i => i.group === 'manage').map(i => i.id), ['devices', 'records']);
   const jointHtml = renderMediaPipeContent();
@@ -29,19 +29,14 @@ test('measurement preserves save and recording controls while moving sets and hi
   assert.match(html, /data-view="records"/);
 });
 
-test('records has one controller of each kind, grouping tools, and no camera start surface', () => {
+test('records separates current data types and keeps old joints in an archive without camera controls', () => {
   const html = renderRecordsContent();
-  assert.equal((html.match(/data-rom-root/g) ?? []).length, 1);
-  assert.equal((html.match(/data-trends-root/g) ?? []).length, 1);
-  assert.match(html, /data-rom-mode="manage"/);
-  assert.match(html, /data-trends-mode="manage"/);
-  assert.match(html, /보행 센서 데이터/);
-  assert.match(html, /압력 분포 · 온도 · 습도/);
-  assert.match(html, /관절 측정 데이터/);
-  assert.ok(html.indexOf('id="walking-records"') < html.indexOf('id="joint-records"'));
+  assert.equal((html.match(/data-records-root/g) ?? []).length, 1);
+  assert.equal((html.match(/role="tab"/g) ?? []).length, 4);
+  for (const id of ['fog','ankle','front','sensors']) assert.match(html, new RegExp(`data-record-tab="${id}"`));
+  assert.doesNotMatch(html, /data-rom-root|data-rom-action|<video|data-trends-root/);
+  assert.match(html, /<details class="records-archive" data-record-archive>/);
   assert.match(renderTrendsContent({ manage: true }), /압력·온습도 센서 기록/);
-  assert.match(html, /aria-label="웹캠 관절 분석" hidden/);
-  for (const action of ['set-create', 'set-json', 'set-csv', 'clear']) assert.equal(html.split(`data-rom-action="${action}"`).length, 2);
   assert.doesNotMatch(renderSetViews(null, [], { capture: false }), /set-capture/);
 });
 
@@ -51,13 +46,13 @@ test('comparison has no visible recorder or export, management retains them', ()
   assert.doesNotMatch(renderTrendsContent({ manage: true }), /<div hidden><div class="trends-recorder"/);
 });
 
-test('mobile shares all measurement pages and has only four bottom tabs', () => {
+test('mobile makes the five current destinations reachable', () => {
   for (const view of navItems.map(i => i.id)) {
     const html = renderMobileApp(structuredClone(initialState), view);
     assert.match(html, /data-action="mobile-fog-sound"/);
     assert.match(html, /휴대폰 소리 알림/);
     const tabs = html.match(/<nav class="mobile-tabbar"[\s\S]*?<\/nav>/)?.[0];
-    assert.equal((tabs.match(/data-view=/g) ?? []).length, 4);
+    assert.equal((tabs.match(/data-view=/g) ?? []).length, 5);
     assert.equal((html.match(/<main[ >]/g) ?? []).length, 1);
     assert.doesNotMatch(html, /undefined|NaN/);
   }

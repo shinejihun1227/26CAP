@@ -27,7 +27,10 @@ test('each supported wiring sends a single-sensor input to exactly one matching 
     assert.deepEqual(state.hardware.pressureChannels, channels);
     const html = renderBilateralHeatmap(state);
     assert.equal((html.match(/data-pressure-state="active"/g) ?? []).length, 1);
-    assert.match(html, new RegExp(`data-sensor-side="left" data-sensor-index="${pressed}" data-pressure-state="active"`));
+    const activeSpot = (html.match(/<span\b[^>]*>/g) ?? []).find(tag => tag.includes('data-pressure-state="active"'));
+    assert.ok(activeSpot, 'the pressed sensor has an active marker');
+    assert.match(activeSpot, /data-sensor-side="left"/);
+    assert.match(activeSpot, new RegExp(`data-sensor-index="${pressed}"`));
     assert.match(html, new RegExp(`MUX CH${channels[pressed]}`));
   }
 });

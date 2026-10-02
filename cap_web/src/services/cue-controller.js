@@ -1,11 +1,14 @@
-export function speakCue(message) {
+import { createAnnouncementPlayer } from './announcement-player.js';
+export { cueMessages } from './announcement-catalog.js';
+
+function speakBrowserCue(message) {
   if (typeof window === "undefined" || !window.speechSynthesis || typeof window.SpeechSynthesisUtterance !== "function") return false;
   const speech = window.speechSynthesis;
   speech.cancel();
   const utterance = new window.SpeechSynthesisUtterance(message);
   utterance.lang = "ko-KR";
-  utterance.rate = 0.86;
-  utterance.pitch = 1.04;
+  utterance.rate = 0.97;
+  utterance.pitch = 1;
   utterance.volume = 1;
   const koreanVoices = speech.getVoices?.().filter((voice) => /^ko([-_]KR)?$/i.test(voice.lang)) ?? [];
   utterance.voice = koreanVoices.find((voice) => /natural|neural|online/i.test(voice.name))
@@ -16,11 +19,13 @@ export function speakCue(message) {
   return true;
 }
 
-export const cueMessages = {
-  laser: "레이저 기준점을 따라 천천히 발을 내딛어 주세요.",
-  vibration: "진동 안내를 확인하고 천천히 걸어주세요.",
-  voice: "현재 보행 상태를 확인하고 다음 걸음을 준비해 주세요.",
-};
+const announcements = createAnnouncementPlayer({
+  fallback: speakBrowserCue,
+  cancelFallback: () => globalThis.window?.speechSynthesis?.cancel(),
+});
+
+export function speakCue(message) { return announcements.speak(message); }
+export function cancelCue() { announcements.cancel(); }
 
 export function outputTestError(error, side) {
   const foot = side === 'right' ? '오른발' : '왼발';

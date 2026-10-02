@@ -27,8 +27,8 @@ export function renderComparison(days, date, mode, { unit = '°', sensor = false
     <p class="trends-change-note">${c.delta === null ? '같은 조건의 유효 기록이 양쪽 날짜에 있어야 비교할 수 있습니다.' : `관찰값이 ${changeText(c.delta, deltaUnit)}했습니다. 측정 조건과 몸 상태를 함께 확인하세요.`}</p><p class="trends-help">${e(limited)} ${e(note)}</p>
     ${renderDailyChart(days, date, unit)}<div class="trends-table-wrap"><table><caption class="trends-help">${e(label)} · 날짜별 원자료 요약</caption><thead><tr><th>날짜</th><th>관찰값</th><th>${sensor ? '유효 표본' : '품질 통과'}</th><th>${sensor ? '해당 지표 없음' : '품질 제외'}</th></tr></thead><tbody>${days.filter((d) => d.day <= date).slice(-30).reverse().map((d) => `<tr><td>${e(d.day)}</td><td>${n(d.value, unit)}</td><td>${d.count}</td><td>${d.excluded}</td></tr>`).join('') || '<tr><td colspan="4">저장 기록 없음</td></tr>'}</tbody></table></div>`;
 }
-export function renderSensorSummary(rows, makeDays, date, mode) {
-  return `<div class="trends-table-wrap"><table><caption class="trends-help">선택한 센서 조건의 전체 알고리즘 지표</caption><thead><tr><th>지표</th><th>선택 날짜</th><th>이전 기준</th><th>수치 변화</th></tr></thead><tbody>${Object.entries(SENSOR_METRICS).map(([key, spec]) => {
+export function renderSensorSummary(rows, makeDays, date, mode, metrics = SENSOR_METRICS) {
+  return `<div class="trends-table-wrap"><table><caption class="trends-help">선택한 조건의 관찰 지표</caption><thead><tr><th>지표</th><th>선택 날짜</th><th>이전 기준</th><th>수치 변화</th></tr></thead><tbody>${Object.entries(metrics).map(([key, spec]) => {
     const c = compareDays(makeDays(key), date, mode);
     return `<tr><td><button class="trends-day-button" data-trend-action="metric" data-metric="${key}">${e(spec.label)}</button></td><td>${n(c.today?.value, spec.unit)}</td><td>${n(c.reference, spec.unit)}</td><td>${changeText(c.delta, spec.unit === '%' ? '%p' : spec.unit)}</td></tr>`;
   }).join('')}</tbody></table></div>`;

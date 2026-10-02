@@ -18,10 +18,11 @@ export function renderInsoleConnections(state, { configure = false } = {}) {
     <div class="insole-hub-grid">${['left', 'right'].map((side) => {
       const foot = state.hardware?.feet?.[side] ?? {}, online = foot.connected === true;
       const p = online ? foot.state : null;
-      const thermal = p?.shtc3_ready?.filter(Boolean).length ?? 0;
+      const thermalTotal = foot.state?.thermal_physical_count === 2 ? 2 : 4;
+      const thermal = new Set((p?.shtc3_ready ?? []).flatMap((ready, index) => ready ? [p.thermal_sensor_map?.[index] ?? index] : [])).size;
       return `<article class="panel insole-card ${online ? 'is-online' : 'is-offline'}" data-insole-card="${side}"><div data-insole-readings><header><h3>${label[side]} ESP32</h3><span role="status">${statusText[foot.status] ?? '자동 등록 대기'}</span></header><p class="insole-address">${esc(foot.base_url || '아직 IP가 등록되지 않았습니다')}<br><small>${esc(foot.device_id || '장치 ID 대기')}${String(foot.device_id).startsWith('SIMULATED-') ? ' · 가상 검증 데이터 (실센서 아님)' : ''}</small></p>
         <dl><div><dt>ESP32 IMU 읽기 / 목표</dt><dd>${value(p?.actual_sample_hz)} / 64 Hz</dd></div><div><dt>PC 실제 수신</dt><dd>${value(foot.received_hz ?? 0)} Hz</dd></div><div><dt>마지막 새 프레임</dt><dd>${foot.age_ms == null ? '--' : `${value(foot.age_ms / 1000)}초 전`}</dd></div><div><dt>누락 프레임 / 재부팅</dt><dd>${foot.missed_frames ?? 0} / ${foot.restarts ?? 0}</dd></div></dl>
-        <p class="insole-health">압력 ADC ${p?.pressure_ready ? '4채널' : '--'} · SHTC3 ${thermal}/4 · BMI270 ${p?.imu_ready ? '정상' : '대기'}</p>
+        <p class="insole-health">압력 ADC ${p?.pressure_ready ? '4채널' : '--'} · SHTC3 실측 ${thermal}/${thermalTotal} · BMI270 ${p?.imu_ready ? '정상' : '대기'}</p>
         <p class="insole-vector">가속도(g) ${vector(p?.imu_ready ? p.accel : null)}<br>각속도(°/s) ${vector(p?.imu_ready ? p.gyro : null)}</p>
         ${foot.last_error ? `<p class="insole-error">${esc(connectionError(foot.last_error, side))}</p>` : ''}</div>
         ${configure ? `<details data-insole-controls><summary>IP 직접 등록 / 기기 교체</summary><form data-insole-form="${side}"><label>${label[side]} ESP32 주소<input name="url" type="url" required placeholder="http://192.168.x.x" value="${esc(foot.base_url || '')}" autocomplete="off"></label><button type="submit" class="outline-button">주소 등록</button></form><button type="button" class="text-button" data-action="forget-${side}">이 발의 등록 해제</button><small>보드 교체 시 등록을 해제하세요. 켜진 보드는 약 5초마다 다시 자동 등록합니다.</small></details>` : ''}</article>`;

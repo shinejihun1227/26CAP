@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>StepOn 시작 화면 · 레이아웃 검증</title></head>
+<body><div id="fixture"></div><script type="module">
+import { renderWelcomeScreen } from '../../src/components/welcome-screen.js';
+const source = new DOMParser().parseFromString(await (await fetch('/index.html')).text(), 'text/html');
+await Promise.all([...source.querySelectorAll('link[rel=stylesheet]')].map(link => new Promise(resolve => {
+  const style=document.createElement('link');style.rel='stylesheet';style.href=link.getAttribute('href');style.onload=style.onerror=resolve;document.head.append(style);
+})));
+document.querySelector('#fixture').innerHTML=renderWelcomeScreen({profile:{configured:false}});
+document.querySelector('form').addEventListener('submit',event=>event.preventDefault());
+</script></body></html>

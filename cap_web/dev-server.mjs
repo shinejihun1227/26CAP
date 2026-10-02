@@ -8,12 +8,21 @@ import { createInsoleHub, createInsoleHandler, forwardInsoleRequest } from "./se
 import { createAiHandler } from "./server/ai-proxy.mjs";
 import { createLocalMotionAiHandler } from "./server/local-motion-ai.mjs";
 import { createAnkleDaily, createAnkleDailyHandler } from './server/ankle-daily.mjs';
+import { serveAudioFile } from './server/audio-file.mjs';
+import { createSensorFeedback, createSensorFeedbackHandler } from './server/sensor-feedback.mjs';
+import { createPressureNormalization } from './server/pressure-normalization.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const port = Number(process.argv[2] || 8000);
 const host = process.argv[3] || "127.0.0.1";
 const ankleDaily = createAnkleDaily({ directory: process.env.STEPON_ANKLE_DATA_DIR || path.resolve(root, '..', '.stepon-data', 'ankle-daily') });
-const insoleHub = port === 8001 ? null : createInsoleHub({ onSample: ankleDaily.observe });
+const sensorFeedback = createSensorFeedback({ ankleDaily });
+const pressureNormalization = createPressureNormalization(process.env.STEPON_AI_DATA_DIR || path.resolve(root, '..', '.stepon-data', 'ai'));
+await pressureNormalization.refresh();
+if (port !== 8001) setInterval(() => void pressureNormalization.refresh(), 1000).unref();
+const insoleHub = port === 8001 ? null : createInsoleHub({ presentFrame: pressureNormalization.apply,
+  onSample: (side, raw) => { ankleDaily.observe(side, raw); sensorFeedback.observe(side, pressureNormalization.apply(side, raw)); } });
+const handleSensorFeedback = insoleHub ? createSensorFeedbackHandler(sensorFeedback) : (req, res) => forwardInsoleRequest(req, res, { timeoutMs: 65000 });
 const handleAnkle = insoleHub ? createAnkleDailyHandler(ankleDaily, insoleHub) : forwardInsoleRequest;
 if (insoleHub) setInterval(ankleDaily.tick, 250).unref();
 const handleInsoles = insoleHub ? createInsoleHandler(insoleHub) : forwardInsoleRequest;
@@ -36,6 +45,7 @@ const mimeTypes = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml",
+  ".mp3": "audio/mpeg",
 };
 
 function resolveFile(requestUrl) {
@@ -80,6 +90,7 @@ function readSharedEditorState(callback) {
 const server = http.createServer((request, response) => {
   const pathname = new URL(request.url || "/", `http://${host}`).pathname;
   if (pathname === '/api/ankle-daily') { void handleAnkle(request, response); return; }
+  if (pathname === '/api/sensor-feedback') { void handleSensorFeedback(request, response); return; }
   if (pathname.startsWith('/api/ai/')) { void handleAi(request, response); return; }
   if (pathname === "/api/rom/feedback") { void handleLocalMotionAi(request, response); return; }
   if (pathname.startsWith('/api/insoles/')) { void handleInsoles(request, response); return; }
@@ -125,6 +136,10 @@ const server = http.createServer((request, response) => {
     if (error || !stats.isFile()) {
       response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
       response.end("Not found");
+      return;
+    }
+    if (path.extname(target).toLowerCase() === '.mp3') {
+      serveAudioFile(request, response, target, stats.size);
       return;
     }
     response.writeHead(200, { "content-type": mimeTypes[path.extname(target).toLowerCase()] || "application/octet-stream", "cache-control": "no-cache" });

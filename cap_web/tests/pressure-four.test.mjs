@@ -141,7 +141,8 @@ test('two-sensor heatmap derives only display values with small differences and 
   assert.match(html, /원본 기반 파생 표시/);
   const thermalHtml = renderBilateralHeatmap({ ...s, heatmapMode: 'temperature' });
   assert.match(thermalHtml, /독립 측정값이 아닙니다/);
-  assert.match(thermalHtml, /0\.1°C 또는 0\.1%p 이내/);
+  assert.match(thermalHtml, /±0\.15°C \/ ±0\.6%p/);
+  assert.equal((thermalHtml.match(/data-value-source="estimated"/g) ?? []).length, 2);
 });
 
 test('trend conditions distinguish old layout and refuse mixed identities', () => {

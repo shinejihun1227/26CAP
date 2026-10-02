@@ -127,12 +127,12 @@ class IntegrationTests(unittest.TestCase):
     def test_long_gap_discards_entire_temporal_history_and_requires_new_window(self):
         r = self.runtime(); self.fill(r)
         self.assertTrue(r.snapshot()['ready'])
-        r.ingest(frame(500))  # ~3.1 s gap, beyond MAX_GAP_S
+        r.ingest(frame(750))  # ~7 s gap, beyond MAX_GAP_S (5 s)
         self.assertFalse(r.snapshot()['ready'])
         self.assertIsNone(r.snapshot()['fog_score'])
-        self.fill(r, start=501, stop=700)
+        self.fill(r, start=751, stop=950)
         self.assertFalse(r.snapshot()['ready'])
-        self.fill(r, start=700, stop=780)
+        self.fill(r, start=950, stop=1030)
         self.assertTrue(r.snapshot()['ready'])
 
     def test_short_poll_gap_is_interpolated_without_reset(self):
@@ -141,6 +141,8 @@ class IntegrationTests(unittest.TestCase):
         r.ingest(frame(400))  # ~1.6 s WiFi poll gap
         self.assertEqual(r.resets, resets)
         self.assertTrue(r.snapshot()['ready'])
+        r.ingest(frame(650))  # ~3.9 s gap: still interpolated (limit 5 s)
+        self.assertEqual(r.resets, resets)
 
     def test_out_of_order_sample_is_dropped_without_reset(self):
         r = self.runtime(); self.fill(r)
@@ -157,11 +159,18 @@ class IntegrationTests(unittest.TestCase):
 
     def test_invalid_imu_is_not_zero_filled_and_wrong_foot_is_rejected(self):
         for bad in [{'accel':{'x':None,'y':0,'z':1}}, {'accel':{'x':float('nan'),'y':0,'z':1}},
-                    {'gyro':{}}, {'imu_ready':False}, {'foot_side':'left'}]:
+                    {'gyro':{}}, {'foot_side':'left'}]:
             r = self.runtime(); self.fill(r)
             self.assertFalse(r.ingest(frame(301, **bad)))
             self.assertIsNone(r.snapshot()['decision_score'])
         with self.assertRaises(ValueError): vector({'x':True,'y':0,'z':1})
+
+    def test_momentary_imu_dropout_is_skipped_without_reset(self):
+        r = self.runtime(); self.fill(r)
+        resets = r.resets
+        self.assertFalse(r.ingest(frame(301, imu_ready=False)))
+        self.assertEqual(r.resets, resets)
+        self.assertTrue(r.snapshot()['ready'])
 
     def test_input_below_min_rate_is_not_scored(self):
         r = self.runtime(); self.fill(r, stop=100, step=200)
@@ -237,22 +246,60 @@ class IntegrationTests(unittest.TestCase):
         # Synthetic stand+walk validates the workflow only. Saved inside temporary test directory.
         for i in range(1, 1603):
             p=frame(i)
+            p.update(pressure_ready=True, sensor_profile='four-independent',
+                     pressure_channels=[0, 2, 4, 6], pressure_sensor_map=[0, 1, 2, 3],
+                     pressure_raw=[4095]*4 if i <= 320 else [500, 1000, 1500, 2000])
             if i<=320: p['accel']={'x':0.001*math.sin(i),'y':0.001*math.cos(i),'z':1}
             r.ingest(p)
         self.assertEqual(r.capture['status'],'complete', r.capture)
         self.assertTrue(r.capture_path.is_file())
         self.assertEqual(json.loads(r.calibration_path.read_text())['device_id'],'test-right')
+        pressure = json.loads(r.calibration_path.read_text())['pressure_normalization']
+        self.assertEqual(pressure['status'], 'ready')
+        self.assertEqual(pressure['max_raw'], [500, 1000, 1500, 2000])
+        self.assertEqual(r.snapshot()['pressure_normalization']['id'], pressure['id'])
         self.assertIsNotNone(r.detector)
         self.assertFalse(r.snapshot()['ready'])
 
     def test_epoch_timestamp_is_available_for_existing_web_trend_records(self):
+        bridge=BridgeState(data_dir=self.temp.name)
         r=self.runtime(); self.fill(r)
         snap=r.snapshot()
         self.assertLess(abs(time.time()*1000-snap['last_window_at_ms']), 2500)
-        bridge=BridgeState(data_dir=self.temp.name); bridge.feet={'right':r}
+        bridge.feet={'right':r}
         snap=bridge.snapshot()
         self.assertEqual(len(snap['artifact_id']),64)
         self.assertIsNotNone(snap['last_window_at_ms'])
+
+    def test_confirmed_tier_needs_four_strong_windows_and_resets_after_a_dip(self):
+        r = self.runtime()
+        detector = r.detector
+        self.assertEqual(detector.confirmed_threshold, 0.4)
+        self.assertEqual(detector.confirmed_n_consecutive, 4)
+        probability = np.zeros((1, 3))
+        probability[0, detector.i_fog] = 0.5
+        sample = {'R_raw_acc': np.array([0.2, 0, 1.0]), 'R_raw_gyro': np.zeros(3)}
+        def window(count):
+            result = None
+            for _ in range(count):
+                result = detector.push_sample(sample) or result
+            return result
+        with patch('fog_validation.ml.live_detector.predict_proba_baseline', return_value=probability), \
+             patch('fog_validation.ml.live_detector.predict_proba_cnn', return_value=probability), \
+             patch('fog_validation.ml.live_detector.is_active_walking', return_value=True), \
+             patch('fog_validation.ml.live_detector.is_confirmed_grade_motion', return_value=True):
+            window(80)
+            self.assertEqual(window(10), 'warning')
+            self.assertEqual(window(10), 'warning')
+            self.assertEqual(window(10), 'confirmed')
+            probability[0, detector.i_fog] = 0.35
+            self.assertEqual(window(10), 'warning')
+            self.assertEqual(detector.last_diagnostics['strong_streak'], 0)
+            probability[0, detector.i_fog] = 0.5
+            self.assertEqual(window(10), 'warning')
+            self.assertEqual(window(10), 'warning')
+            self.assertEqual(window(10), 'warning')
+            self.assertEqual(window(10), 'confirmed')
 
     def test_csv_replay_uses_real_models_and_outputs_window_evidence(self):
         from web.ai_bridge.analyze_csv import analyze
@@ -273,7 +320,7 @@ class IntegrationTests(unittest.TestCase):
     def test_resampler_never_interpolates_a_long_gap(self):
         r=TimeResampler(); out=[]
         r.push(0,np.ones(3),np.zeros(3),lambda *v:out.append(v))
-        with self.assertRaises(ValueError): r.push(3,np.ones(3),np.zeros(3),lambda *v:out.append(v))
+        with self.assertRaises(ValueError): r.push(6,np.ones(3),np.zeros(3),lambda *v:out.append(v))
         self.assertEqual(len(out),1)
 
 

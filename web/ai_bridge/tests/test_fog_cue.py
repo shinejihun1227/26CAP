@@ -6,50 +6,51 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 from web.ai_bridge.fog_cue import FogCueController, wants_cue
 
+CONFIRMED = {'state': 'confirmed', 'level': 70, 'laser': True, 'suppressed': False}
+WARNING = {'state': 'warning', 'level': 30, 'laser': False, 'suppressed': False}
+OFF = {'state': None, 'level': 0, 'laser': False, 'suppressed': False}
+
+
 class CueTests(unittest.TestCase):
     def foot(self, **extra):
-        return dict(ready=True, device_connected=True, state='confirmed', last_window_at_ms=time.time()*1000,
-                    device_id='test-device', boot_id='test-boot', **extra)
+        return {'ready': True, 'device_connected': True, 'device_id': 'test-device', 'boot_id': 'test-boot',
+                'cue_level_supported': True, **extra}
 
-    def test_only_fresh_confirmed_live_decision_activates(self):
+    def test_confirmed_is_strong_with_laser_and_warning_is_weak_without(self):
         foot = self.foot()
-        self.assertTrue(wants_cue(foot))
-        for change in ({'state':'warning'}, {'state':'normal'}, {'ready':False}, {'device_connected':False},
-                       {'last_window_at_ms':time.time()*1000-2001}, {'boot_id':None}):
-            self.assertFalse(wants_cue({**foot, **change}))
-        self.assertFalse(wants_cue(foot, enabled=False))
-        self.assertFalse(wants_cue(foot, collecting=True))
+        self.assertEqual(wants_cue(foot, CONFIRMED), (True, 70, True))
+        self.assertEqual(wants_cue(foot, WARNING), (True, 30, False))
+        self.assertEqual(wants_cue(foot, OFF), (False, 0, False))
+        for change in ({'device_connected': False}, {'boot_id': None}):
+            self.assertFalse(wants_cue({**foot, **change}, CONFIRMED)[0])
+        self.assertFalse(wants_cue(foot, CONFIRMED, enabled=False)[0])
+        self.assertFalse(wants_cue(foot, CONFIRMED, collecting=True)[0])
+
+    def test_old_firmware_keeps_warning_silent(self):
+        foot = self.foot(cue_level_supported=False)
+        self.assertEqual(wants_cue(foot, WARNING), (False, 0, False))
+        self.assertTrue(wants_cue(foot, CONFIRMED)[0])
 
     def test_renew_until_clear_and_stop_during_collection_disable_and_restart(self):
         with tempfile.TemporaryDirectory() as folder:
             snapshot = self.foot()
-            bridge = SimpleNamespace(lock=threading.RLock(), feet={'left':SimpleNamespace(snapshot=lambda:snapshot)},
-                                     datasets=SimpleNamespace(capture=None))
+            plan = dict(CONFIRMED)
+            bridge = SimpleNamespace(lock=threading.RLock(), feet={'left': SimpleNamespace(snapshot=lambda: snapshot)},
+                                     datasets=SimpleNamespace(capture=None), cue_plan=lambda: plan)
             controller = FogCueController(bridge, folder)
-            controller.send = Mock(return_value={'cue_api_version':1, 'accepted':True})
+            controller.send = Mock(return_value={'cue_api_version': 1, 'accepted': True})
             controller.tick('left'); controller.tick('left')
             self.assertTrue(all(call.args[2] for call in controller.send.call_args_list))
-            snapshot['state']='normal'; controller.tick('left')
+            self.assertEqual(controller.send.call_args.args[3:], (70, True))
+            plan.update(WARNING); controller.tick('left')
+            self.assertEqual(controller.send.call_args.args[2:], (True, 30, False))
+            plan.update(OFF); controller.tick('left')
             self.assertFalse(controller.send.call_args.args[2])
-            snapshot['state']='confirmed'; bridge.datasets.capture={'status':'recording'}; controller.tick('left')
+            plan.update(CONFIRMED); bridge.datasets.capture = {'status': 'recording'}; controller.tick('left')
             self.assertFalse(controller.send.call_args.args[2])
-            bridge.datasets.capture=None; controller.set_enabled(False); controller.tick('left')
+            bridge.datasets.capture = None; controller.set_enabled(False); controller.tick('left')
             self.assertFalse(controller.send.call_args.args[2])
             self.assertFalse(FogCueController(bridge, folder).enabled)
-            controller.set_enabled(True); controller.send.side_effect=OSError('offline'); controller.tick('left')
+            controller.set_enabled(True); controller.send.side_effect = OSError('offline'); controller.tick('left')
             self.assertFalse(controller.snapshot()['feet']['left']['acknowledged'])
-            self.assertEqual(controller.snapshot()['feet']['left']['status'],'error')
-
-    def test_global_detection_pause_sends_off_even_with_confirmed_runtime(self):
-        with tempfile.TemporaryDirectory() as folder:
-            bridge = SimpleNamespace(lock=threading.RLock(), detection_enabled=False,
-                                     feet={'left':SimpleNamespace(snapshot=lambda:self.foot())},
-                                     datasets=SimpleNamespace(capture=None))
-            controller = FogCueController(bridge, folder)
-            controller.send = Mock(return_value={'cue_api_version':1, 'accepted':True})
-            controller.tick('left')
-            self.assertFalse(controller.send.call_args.args[2])
-            self.assertTrue(controller.enabled)  # Preserve the user's separate hardware preference.
-            bridge.detection_enabled=True
-            controller.tick('left')
-            self.assertTrue(controller.send.call_args.args[2])
+            self.assertEqual(controller.snapshot()['feet']['left']['status'], 'error')

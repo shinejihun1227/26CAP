@@ -222,6 +222,14 @@ class LiveFogDetector:
             n_consecutive=sm_cfg["n_consecutive"],
         )
 
+        # Two-tier output: CONFIRMED (laser) needs a stronger, sustained score on top of
+        # every existing gate; otherwise the Active decision stays WARNING. Absent from
+        # older deploy_config.json files -> tier disabled, behaviour unchanged.
+        tier_cfg = deploy_config.get("confirmed_tier") or {}
+        self.confirmed_threshold = tier_cfg.get("threshold")
+        self.confirmed_n_consecutive = int(tier_cfg.get("n_consecutive", 1))
+        self._strong_streak = 0
+
         self.yaw_gate_enabled = calibration.gyro_yaw_idx is not None
         if self.yaw_gate_enabled:
             self.yaw_gate_threshold_dps = deploy_config["yaw_gate"]["threshold_dps"]
@@ -240,6 +248,7 @@ class LiveFogDetector:
         self.footlift_tracker = PressureFootLiftTracker()
         self.pretransition_tracker = PreTransitionPressureTracker()
         self._was_active = False
+        self._strong_streak = 0
         self.last_fog_score = None
         self.last_diagnostics = {}
 
@@ -411,6 +420,11 @@ class LiveFogDetector:
 
         was_active = self._was_active
         self.last_diagnostics["decision_score"] = fog_score
+        if self.confirmed_threshold is not None:
+            self._strong_streak = self._strong_streak + 1 if fog_score >= self.confirmed_threshold else 0
+            self.last_diagnostics.update(confirmed_threshold=self.confirmed_threshold,
+                                         confirmed_n_consecutive=self.confirmed_n_consecutive,
+                                         strong_streak=self._strong_streak)
         active = self.state_machine.update(fog_score)
         self.last_diagnostics["active"] = bool(active)
         self._was_active = active
@@ -458,4 +472,6 @@ class LiveFogDetector:
         if footlift_window is not None:
             if had_genuine_footlift(footlift_window, self.pressure_peak_force_reference) is False:
                 return self._decision(STATE_WARNING, "no_footlift")
+        if self.confirmed_threshold is not None and self._strong_streak < self.confirmed_n_consecutive:
+            return self._decision(STATE_WARNING, "below_confirmed_tier")
         return self._decision(STATE_CONFIRMED, "sustained_model_and_motion")

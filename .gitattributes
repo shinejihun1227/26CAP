@@ -6,7 +6,10 @@
 *.ps1 text eol=crlf
 
 # Preserve the deployment config byte-for-byte with its bundled weights.
-ai_engine/data/processed/ml/model_artifact/deploy_config.json -text
+ai_engine/data/processed/ml/model_artifact/deploy_config.json -text -whitespace
+
+# Preserve upstream license text as distributed with the font.
+cap_web/assets/fonts/Pretendard-LICENSE.txt -whitespace
 
 # Vendored MediaPipe bytes are covered by a SHA-256 manifest.
 cap_web/vendor/** -text -diff -whitespace

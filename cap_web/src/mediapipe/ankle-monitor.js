@@ -11,6 +11,17 @@ export function inclination(a, b) {
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== 3 || b.length !== 3 || ![...a, ...b].every(finite) || !norm(a) || !norm(b)) return null;
   return Math.acos(Math.max(-1, Math.min(1, a.reduce((s, x, i) => s + x * b[i], 0) / norm(a) / norm(b)))) * 180 / Math.PI;
 }
+// Shortest gravity-vector rotation in sensor coordinates. This does not measure
+// yaw about gravity or a shank-to-foot anatomical joint angle.
+export function tiltRotationVector(a, b) {
+  const angle = inclination(a, b);
+  if (angle === null) return null;
+  if (angle < .000001) return [0, 0, 0];
+  const cross = [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+  const size = norm(cross);
+  if (size < .000001) return null;
+  return cross.map(value => value / size * angle);
+}
 export function readAnkleSensor(state, side, now = Date.now()) {
   if (state?.dataSource !== 'esp32' || state.connected !== true || state.paused) return { ok: false, code: 'offline', label: '센서 연결 필요' };
   const foot = state.hardware?.feet?.[side], raw = foot?.state;

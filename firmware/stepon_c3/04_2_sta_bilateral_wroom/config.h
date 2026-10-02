@@ -3,7 +3,7 @@
 #define STEPON_SENSOR_PROFILE_4 4
 #ifndef STEPON_SENSOR_PROFILE
 // Choose 2 or 4. Both feet use the same profile; upload each board with its FOOT_SIDE setting.
-#define STEPON_SENSOR_PROFILE STEPON_SENSOR_PROFILE_2
+#define STEPON_SENSOR_PROFILE STEPON_SENSOR_PROFILE_4
 #endif
 static_assert(STEPON_SENSOR_PROFILE == STEPON_SENSOR_PROFILE_2 || STEPON_SENSOR_PROFILE == STEPON_SENSOR_PROFILE_4,
               "STEPON_SENSOR_PROFILE must be 2 or 4");
@@ -38,6 +38,13 @@ constexpr uint8_t LASER_PIN = 27; // Base resistor -> 2N2222 base (existing lase
 constexpr bool ENABLE_LASER_OUTPUT = true; // GPIO27 -> transistor driver, never power a laser directly from GPIO.
 constexpr uint32_t FOG_CUE_LEASE_MS = 1500;
 constexpr uint8_t FOG_VIBRATION_LEVEL = 70; // DRV2605 real-time amplitude (0..127).
+constexpr uint8_t FOG_VIBRATION_LEVEL_MAX = 127;
+// Triple-stomp candidate; the PC checks it before suppressing both feet for 5 s.
+constexpr float TAP_THRESHOLD_G = 2.2f;
+constexpr uint32_t TAP_MIN_GAP_MS = 200;
+constexpr uint32_t TAP_MAX_GAP_MS = 900;
+constexpr uint32_t TAP_WINDOW_MS = 2000;
+constexpr uint8_t TAP_REQUIRED = 3;
 #if defined(BOARD_HAS_DUAL_ANTENNA)
 constexpr bool isAntennaPin(uint8_t pin) { return pin == ANT1 || pin == ANT2; }
 static_assert(!(isAntennaPin(I2C_SDA) || isAntennaPin(I2C_SCL) ||

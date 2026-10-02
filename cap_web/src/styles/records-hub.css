@@ -1,0 +1,70 @@
+.records-hub {display:grid;gap:22px;min-width:0;color:var(--ink,#193e4b)}
+.records-hub-heading,.records-panel-heading {display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.records-hub h1 {margin:5px 0 8px;font-size:32px;letter-spacing:-.04em}
+.records-hub p {line-height:1.7;color:#506873;word-break:keep-all;overflow-wrap:anywhere}
+.records-hub-heading p {margin:0;font-size:17px}
+.records-local-badge {border:1px solid #c9dcd9;background:#edf5f3;padding:10px 15px;border-radius:30px;font-size:14px;white-space:nowrap}
+.records-tabs {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.records-tabs [role=tab] {display:grid;justify-items:start;gap:8px;text-align:left;padding:18px;border:1px solid #cddde1;border-radius:15px;background:#fff;color:#193e4b;min-width:0;cursor:pointer}
+.records-tab-icon {width:36px;height:36px;border-radius:10px;background:#edf3f5;display:grid;place-items:center;color:#456775}
+.records-tab-icon svg {width:21px;height:21px}
+.records-tabs b {font-size:18px;line-height:1.4;word-break:keep-all}
+.records-tabs small {font-size:13px;line-height:1.5;color:#506873;word-break:keep-all}
+.records-tabs [aria-selected=true] {border-color:#3f6d70;background:#edf5f3;box-shadow:inset 0 -4px #3f6d70}
+.records-tabs [aria-selected=true] .records-tab-icon {background:#3f6d70;color:#fff}
+.records-hub button:focus-visible,.records-hub a:focus-visible {outline:3px solid #4c878d;outline-offset:3px}
+.records-panel {padding:24px;border:1px solid #d3e1e5;background:#fff;border-radius:18px;min-width:0}
+.records-panel-heading {align-items:flex-start;margin-bottom:20px}
+.records-panel h2 {font-size:23px;line-height:1.4;margin:0 0 8px;letter-spacing:-.03em}
+.records-panel-heading p {margin:0;font-size:14px}
+.records-actions {display:flex;gap:8px;flex-wrap:wrap}
+.records-hub .records-actions button,.records-hub .records-actions a,.records-archive button,.records-empty button,.records-explainer button {border:1px solid #c2d6dc;border-radius:9px;background:#fff;padding:10px 14px;color:#305b64;font-size:14px;line-height:1.5;text-decoration:none;cursor:pointer;min-height:44px;word-break:keep-all}
+.records-actions a {background:#3f6d70!important;border-color:#3f6d70!important;color:white!important}
+.records-explainer {margin:0 0 20px;border-radius:12px;padding:16px;background:#f0f5f7;color:#456775;font-size:15px;line-height:1.75;word-break:keep-all}
+.records-explainer button {display:block;margin-top:12px}
+.records-empty {padding:32px 20px;border:1px dashed #c8d9dd;background:#f8fafb;border-radius:12px;text-align:center}
+.records-empty b {font-size:20px;line-height:1.5}
+.records-empty p {max-width:620px;margin:10px auto 0;font-size:15px}
+.records-error {color:#973e4d;background:#f8eeee}
+.records-table-wrap {overflow-x:auto;border:1px solid #d5e1e5;border-radius:12px;max-width:100%}
+.records-hub table {border-collapse:collapse;width:100%;font-size:15px;text-align:left}
+.records-hub th {background:#edf3f5;color:#456775;font-weight:600;white-space:nowrap}
+.records-hub th,.records-hub td {padding:15px 16px;border-bottom:1px solid #e1eaed;line-height:1.5}
+.records-hub tbody tr:last-child td {border:0}
+.records-hub td small {display:block;margin-top:5px;font-size:12px;color:#607985;overflow-wrap:anywhere}
+.records-hub td a {color:#305b64;font-weight:600;white-space:nowrap}
+.records-state {display:inline-block;padding:5px 9px;border-radius:6px;background:#edf5f1;color:#356658;white-space:nowrap;font-size:13px}
+.records-state.is-review {background:#f5efee;color:#855752}
+.records-foot-cards {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.records-foot-cards article {background:#edf2f7;border:1px solid #d2dfe9;border-radius:12px;padding:18px;display:grid;gap:9px}
+.records-foot-cards strong {font-size:25px;color:#496b89;word-break:keep-all}
+.records-foot-cards small {font-size:13px;color:#506873;line-height:1.6}
+.records-archive {padding:18px 22px;border:1px solid #d3e1e5;border-radius:12px;background:#f8fafb}
+.records-archive summary {font-size:14px;color:#506873;cursor:pointer}
+.records-panel .trends-heading {margin-top:0}
+.records-panel .trends-heading h2 {font-size:23px}
+.records-panel .trends-help {font-size:14px}
+.sensor-workspace {display:grid;gap:20px;min-width:0}
+.sensor-workspace .sensor-page-heading {display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.sensor-page-heading h1 {font-size:30px;margin:4px 0 10px}
+.sensor-page-heading p {color:#506873;margin:0;line-height:1.7}
+.sensor-page-heading button {padding:12px 16px;border:1px solid #c2d6dc;border-radius:10px;background:#fff;color:#305b64;min-height:44px}
+.sensor-page-notes {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.sensor-page-notes article {border:1px solid #d3e1e5;border-radius:14px;padding:18px;background:#fff}
+.sensor-page-notes h2 {font-size:18px;margin:0 0 8px}
+.sensor-page-notes p {font-size:15px;line-height:1.7;color:#506873;margin:0;word-break:keep-all}
+.observation-mode-tabs[hidden] {display:none!important}
+.simple-mobile .mobile-tabbar {grid-template-columns:repeat(5,minmax(0,1fr))}
+.simple-mobile .mobile-tabbar .mobile-tab {color:#456775;min-height:58px}
+.simple-mobile .mobile-tabbar .mobile-tab.is-active {color:#245c61;background:#edf5f3}
+.simple-mobile .mobile-tabbar .mobile-tab span {font-size:12px;font-weight:600;word-break:keep-all}
+@media (max-width:1100px) {.records-tabs {grid-template-columns:repeat(2,minmax(0,1fr))}.records-tab-icon {display:none}}
+@media (max-width:600px) {
+ .records-hub {gap:14px}.records-hub h1 {font-size:28px}.records-local-badge {display:none}
+ .records-tabs {gap:8px}.records-tabs [role=tab] {padding:14px 12px;gap:5px}.records-tabs b {font-size:17px}.records-tabs small {font-size:12px}
+ .records-panel {padding:16px 12px}.records-panel-heading {gap:12px}.records-panel h2 {font-size:21px}
+ .records-actions {width:100%}.records-actions>* {flex:1;text-align:center}.records-explainer {padding:13px;font-size:14px}
+ .records-foot-cards article {padding:14px 12px}.records-foot-cards strong {font-size:21px}.records-hub th,.records-hub td {padding:12px;white-space:nowrap}
+ .records-empty {padding:26px 14px}.records-empty b {font-size:18px}.records-archive {padding:16px}.sensor-page-notes {grid-template-columns:1fr}
+ .simple-mobile .mobile-tabbar {grid-template-columns:repeat(5,minmax(0,1fr))}
+}

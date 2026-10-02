@@ -1,4 +1,9 @@
-"""Live-only FoG output leases. CSV replay never starts this worker."""
+"""Live-only FoG output leases. CSV replay never starts this worker.
+
+One combined decision (AI + pressure rules, see BridgeState.cue_plan) drives BOTH
+insoles: CONFIRMED = strong vibration + laser, WARNING = weak vibration only.
+A triple stomp (BridgeState.dismiss) silences both feet for 5 s.
+"""
 import json
 import threading
 import time
@@ -7,12 +12,14 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
-def wants_cue(foot, enabled=True, collecting=False, now_ms=None):
-    now_ms = time.time() * 1000 if now_ms is None else now_ms
-    timestamp = foot.get('last_window_at_ms')
-    return bool(enabled and not collecting and foot.get('ready') and foot.get('device_connected')
-                and foot.get('state') == 'confirmed' and isinstance(timestamp, (int, float))
-                and 0 <= now_ms - timestamp <= 2000 and foot.get('device_id') and foot.get('boot_id'))
+def wants_cue(foot, plan, enabled=True, collecting=False):
+    """Should this foot output now? -> (active, level, laser)."""
+    if not (enabled and not collecting and plan.get('state') and foot.get('device_connected')
+            and foot.get('device_id') and foot.get('boot_id')):
+        return False, 0, False
+    if plan['state'] == 'warning' and not foot.get('cue_level_supported'):
+        return False, 0, False  # old firmware can only do full strength + laser; keep WARNING silent there
+    return True, int(plan['level']), bool(plan['laser'])
 
 
 class FogCueController:
@@ -33,7 +40,8 @@ class FogCueController:
 
     def snapshot(self):
         with self.lock:
-            return {'enabled': self.enabled, 'mode': 'while_confirmed', 'lease_ms': 1500,
+            return {'enabled': self.enabled, 'mode': 'both_feet_combined_decision', 'lease_ms': 1500,
+                    'levels': {'confirmed': 70, 'warning': 30},
                     'feet': {side: dict(value) for side, value in self.feet.items()}}
 
     def set_enabled(self, enabled):
@@ -46,10 +54,12 @@ class FogCueController:
             pending.replace(self.path)
             self.enabled = enabled
 
-    def send(self, side, foot, active):
+    def send(self, side, foot, active, level=70, laser=True):
         value = {'active': active, 'device_id': foot.get('device_id'), 'boot_id': foot.get('boot_id')}
+        if foot.get('cue_level_supported'):
+            value.update(level=level, laser=laser)
         if self.bridge.esp32_url:
-            query = urlencode({**value, 'active': int(active)})
+            query = urlencode({**value, 'active': int(active), **({'laser': int(laser)} if 'laser' in value else {})})
             request = Request(f'{self.bridge.esp32_url}/api/fog-cue?{query}')
         else:
             body = json.dumps({'side': side, 'action': 'fog-cue', 'value': value}).encode()
@@ -64,20 +74,23 @@ class FogCueController:
     def tick(self, side):
         with self.bridge.lock:
             foot = self.bridge.feet[side].snapshot()
+            plan = self.bridge.cue_plan()
             capture = self.bridge.datasets.capture or {}
             collecting = capture.get('status') in ('countdown', 'recording')
-            detection_enabled = getattr(self.bridge, 'detection_enabled', True)
         with self.lock:
-            active = wants_cue(foot, self.enabled and detection_enabled, collecting)
+            active, level, laser = wants_cue(foot, plan, self.enabled and getattr(self.bridge, 'detection_enabled', True), collecting)
         if not foot.get('device_connected'):
             with self.lock:
                 self.feet[side] = {'requested': False, 'acknowledged': False, 'status': 'offline', 'error': None}
             return
         try:
-            # Renew every 400ms while confirmed; off commands also clear old leases
-            # after service restart, calibration, cancellation or a normal result.
-            self.send(side, foot, active)
-            result = {'requested': active, 'acknowledged': True, 'status': 'active' if active else 'off', 'error': None}
+            # Renew every 400ms while a cue is wanted; off commands also clear old leases
+            # after service restart, calibration, dismissal, cancellation or a normal result.
+            self.send(side, foot, active, level, laser)
+            result = {'requested': active, 'acknowledged': True, 'status': 'active' if active else 'off',
+                      'level': level if active else 0, 'laser': laser if active else False,
+                      'cue_state': plan['state'] if active else None, 'suppressed': plan.get('suppressed', False),
+                      'error': None}
         except Exception as exc:
             result = {'requested': active, 'acknowledged': False, 'status': 'error',
                       'error': f'출력 연결을 확인하세요. 최신 펌웨어가 필요할 수 있어요. ({exc})'}

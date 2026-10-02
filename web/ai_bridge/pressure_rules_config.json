@@ -1,0 +1,55 @@
+{
+  "_help": "압력 규칙 설정. 규칙을 끄려면 enabled를 false로. 수정 후 start-ai.ps1 -Restart. swap_front_heel: 앞(GPIO34)/뒤꿈치(GPIO35) 선이 바뀐 발만 true.",
+  "enabled": true,
+  "swap_front_heel": {
+    "left": false,
+    "right": false
+  },
+  "min_baseline_raw": 150,
+  "contact_on": 0.5,
+  "contact_off": 0.15,
+  "min_off_sec": 0.1,
+  "rules": {
+    "forefoot_load": {
+      "enabled": true,
+      "front_min": 0.5,
+      "heel_max": 0.6,
+      "hold_sec": 2.0
+    },
+    "post_walk_tremor": {
+      "enabled": true,
+      "window_sec": 2.0,
+      "planted_min": 0.3,
+      "jitter_min": 0.08,
+      "walked_within_sec": 8.0,
+      "min_recent_steps": 2,
+      "no_step_sec": 1.0
+    },
+    "shuffle": {
+      "enabled": true,
+      "ratio": 0.6,
+      "strides": 3,
+      "recent_step_sec": 1.5,
+      "bilateral_within_sec": 2.0
+    },
+    "start_hesitation": {
+      "enabled": true,
+      "window_sec": 3.0,
+      "reversal_step": 0.12,
+      "min_reversals": 2,
+      "min_range": 0.25,
+      "planted_min": 0.3,
+      "no_step_sec": 2.0,
+      "hold_sec": 1.0
+    },
+    "rhythm_irregular": {
+      "enabled": true,
+      "strides": 5,
+      "cv_min": 0.35,
+      "cv_baseline_factor": 2.0,
+      "confirm_updates": 3,
+      "recent_step_sec": 1.5,
+      "bilateral_within_sec": 2.0
+    }
+  }
+}

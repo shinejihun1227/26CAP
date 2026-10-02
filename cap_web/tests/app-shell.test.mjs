@@ -1,23 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { renderMobileApp } from '../src/mobile/mobile-app.js';
 import { initialState } from '../src/data/dashboard-data.js';
+import { renderSidebar } from '../src/components/sidebar.js';
 
 test('easy mode can be turned off from mobile navigation', () => {
   const html = renderMobileApp({ ...structuredClone(initialState), easyMode: true }, 'mediapipe');
   assert.match(html, /data-view="overview" data-easy-exit="true"[^>]*>일반 화면으로/);
 });
 
-test('navigation shells are replaced on route changes so button meaning, label and active state stay together', () => {
-  const shell = readFileSync(new URL('../src/utils/app-shell.js', import.meta.url), 'utf8');
-  assert.match(shell, /nav\.replaceWith\(newNavs\[navIndex\]\)/);
-  assert.match(shell, /current\.className = next\.className/);
+test('navigation labels, destinations and active state agree across summary, range and setup screens', () => {
+  for(const [view,label] of [['overview','오늘 요약'],['ankle','발 움직임'],['devices','기기 설정']]) {
+    const html=renderSidebar(view,{...structuredClone(initialState),easyMode:true});
+    const active=[...html.matchAll(/<button[^>]*data-view="([^"]+)"[^>]*aria-current="page"[^>]*>([\s\S]*?)<\/button>/g)];
+    assert.equal(active.length,1);assert.equal(active[0][1],view);assert.ok(active[0][2].includes(label));
+  }
 });
 
 test('frontal camera observes alignment without weekly medical target angles', () => {
   const html = renderMobileApp({ ...structuredClone(initialState), easyMode: true }, 'mediapipe');
   assert.doesNotMatch(html, /rom-weekly-targets|data-rom-week=/);
-  assert.match(html, /3초 기준 자세/);
+  assert.match(html, /2초 기준 자세/);
+  assert.match(html, /10초 관찰 시작/);
   assert.match(html, /골반선 변화/);
 });

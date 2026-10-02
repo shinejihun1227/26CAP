@@ -281,7 +281,8 @@ export function normalizeBilateralState(payload, previous) {
   const thermal = Object.fromEntries(sides.map((s) => [s, normalized[s]?.thermal[s] ?? emptyThermal()]));
   const imuBySide = Object.fromEntries(sides.map((s) => [s, feet[s].state?.imu_ready && feet[s].connected ? normalized[s]?.imu ?? null : null]));
   const available = sides.filter((s) => feet[s].connected);
-  const bothPressure = sides.every((s) => pressure[s].every((v) => typeof v === 'number' && Number.isFinite(v)));
+  const samePressureBasis = (feet.left.state?.pressure_calibration?.status === 'ready') === (feet.right.state?.pressure_calibration?.status === 'ready');
+  const bothPressure = samePressureBasis && sides.every((s) => pressure[s].every((v) => typeof v === 'number' && Number.isFinite(v)));
   const total = (values) => values.reduce((a, b) => a + b, 0);
   const left = bothPressure ? total(pressure.left) : 0, right = bothPressure ? total(pressure.right) : 0;
   const rawActive = feet[active].connected ? feet[active].state : {};

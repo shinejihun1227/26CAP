@@ -20,7 +20,7 @@ export function renderMobileApp(state, activeView) {
   const content = pages[activeView] ? pages[activeView](state, { embedded: true })
     : activeView === 'mediapipe' ? renderFrontContent() : activeView === 'records' ? renderRecordsContent()
     : activeView === 'reports' ? renderReportsContent(state) : renderTrendsContent();
-  const labels = { overview: '처음', easy: '처음', live: '보행동결', ankle: '발 움직임', mediapipe: '정면 보행', trends: '기록' };
+  const labels = { overview: '오늘 요약', easy: '오늘 요약', live: '보행동결', ankle: '발 움직임', mediapipe: '정면 보행', safety: '압력·온습도', trends: '기록' };
   const mobileItems = navItems.filter(item => item.group !== 'manage' && item.id !== 'trends');
   return `<div class="mobile-app simple-mobile ${state.easyMode ? 'is-easy-mode' : ''}"><header class="simple-mobile-header"><b>STEPON</b><span>${escapeHtml(connection.label)}</span><button data-action="profile" aria-label="프로필 수정">${icon('user')}</button></header>
     <section class="mobile-fog-audio ${state.fogSoundEnabled ? 'is-enabled' : ''}" aria-label="휴대폰 소리 알림 및 FoG 음성 안내"><span aria-hidden="true">${icon('bell')}</span><div><b>${state.fogSoundEnabled ? 'FoG 소리·음성 알림 켜짐' : 'FoG 소리·음성 알림'}</b><small>${state.fogSoundEnabled ? 'FoG 신호가 확정되면 이 화면에서 알림음과 안내 멘트가 나옵니다.' : '처음 한 번 눌러 테스트음과 안내 멘트를 확인하세요.'}</small></div><button type="button" data-action="mobile-fog-sound" aria-pressed="${Boolean(state.fogSoundEnabled)}">${state.fogSoundEnabled ? '끄기' : '소리 켜기 · 테스트'}</button></section>

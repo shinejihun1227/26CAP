@@ -98,7 +98,7 @@ function healthContent(state, history, metric, from, now) {
     : pairedDifference(feet, metric);
   const unit = metric === 'humidity' ? '%p' : metric === 'pressure' ? '점' : '°C';
   const diffText = finite(difference.value) ? Math.abs(difference.value) < .05 ? '양발 값이 비슷해요' : `${difference.value > 0 ? '오른발' : '왼발'}이 ${number(Math.abs(difference.value))}${unit} 높게 측정돼요` : '양발의 비교 가능한 센서값이 필요해요';
-  const cardNote = side => metric === 'pressure' ? '유효 압력 4채널 평균' : `유효 ${feet[side][metric === 'temperature' ? 'temperatures' : 'humidities'].length}/4채널 평균`;
+  const cardNote = side => metric === 'pressure' ? '유효 압력 4채널 평균' : `실측 ${feet[side][metric === 'temperature' ? 'temperatures' : 'humidities'].length}/${feet[side].thermalTotal}센서 평균 · 추정 제외`;
   const rows = ['left', 'right'].map(side => `<li><i class="observation-side-dot is-${side}"></i><div><b>${sideName(side)} ${spec.label} 변화</b><span>${changeNote(history.points ?? [], metric, side, feet[side], from)}</span></div></li>`).join('');
   const peaks = ['left', 'right'].map(side => `<li><i class="observation-side-dot is-${side}"></i><div><b>${sideName(side)} 압력 분포</b><span>${feet[side].peak ? `${e(feet[side].peak.site)} 비중이 가장 커요 · ${number(feet[side].peak.share, 0)}%` : feet[side].pressure === 0 ? '현재 압력 신호 0 · 접촉 여부 확인' : '유효 압력값 수신 대기'}</span></div></li>`).join('');
   return `<div class="observation-metric-tabs" role="group" aria-label="발 건강 관찰 지표">${Object.entries(METRICS).map(([key, value]) => choice('metric', key, metric, value.label)).join('')}</div>
@@ -107,13 +107,13 @@ function healthContent(state, history, metric, from, now) {
     <aside class="observation-recent"><header><h3>최근 관찰 요약</h3><span>현재 수신 기준</span></header><ul>${rows}${peaks}</ul><p class="observation-plot-note">같은 신발·센서 위치·활동 조건에서 비교해 주세요. 센서값만으로 당뇨발·염증 여부를 판단하지 않습니다.</p></aside></div>`;
 }
 
-export function renderObservationPanel(state, now = Date.now()) {
+export function renderObservationPanel(state, now = Date.now(), fixedMode = null) {
   const history = state.observation ?? { points: [], events: [], windows: [] }, ui = state.observationUi ?? {};
-  const mode = ui.mode === 'health' ? 'health' : 'fog', metric = METRICS[ui.metric] ? ui.metric : 'temperature';
+  const mode = fixedMode || (ui.mode === 'health' ? 'health' : 'fog'), metric = METRICS[ui.metric] ? ui.metric : 'temperature';
   const minutes = [5, 15, 30].includes(Number(ui.minutes)) ? Number(ui.minutes) : 5;
   const from = now - minutes * 60000;
-  return `<section class="observation-panel" aria-labelledby="observation-heading"><header class="observation-heading"><div><span class="eyebrow">WALKING & FOOT CARE</span><h2 id="observation-heading">상태 관찰</h2><p>보행동결 신호와 발 상태를 나누어 살펴보세요.</p></div><div class="observation-mode-tabs" role="group" aria-label="상태 관찰 종류">${choice('mode', 'fog', mode, `${icon('activity')}<span>FoG 모니터링<small>보행동결 신호</small></span>`)}${choice('mode', 'health', mode, `${icon('shoe')}<span>발 건강 모니터링<small>온도 · 습도 · 압력</small></span>`)}</div></header>
+  return `<section class="observation-panel" aria-labelledby="observation-heading"><header class="observation-heading"><div><span class="eyebrow">WALKING & FOOT CARE</span><h2 id="observation-heading">${fixedMode === "fog" ? "FoG 모니터링" : fixedMode === "health" ? "센서값 변화" : "상태 관찰"}</h2><p>${fixedMode ? "이번 접속 중 수신한 기록의 흐름을 확인해요." : "보행동결 신호와 발 상태를 나누어 살펴보세요."}</p></div><div class="observation-mode-tabs" ${fixedMode ? "hidden" : ""} role="group" aria-label="상태 관찰 종류">${choice('mode', 'fog', mode, `${icon('activity')}<span>FoG 모니터링<small>보행동결 신호</small></span>`)}${choice('mode', 'health', mode, `${icon('shoe')}<span>발 건강 모니터링<small>온도 · 습도 · 압력</small></span>`)}</div></header>
     <div class="observation-toolbar"><span>${state.dataSource !== 'esp32' ? '실제 깔창 연결 후 관찰할 수 있어요' : state.paused ? '일시정지 · 이전 관찰 기록 표시' : '이번 웹 접속 중 관찰한 데이터'} · 새로고침 시 초기화</span><div role="group" aria-label="관찰 시간 범위">${[5, 15, 30].map(n => choice('minutes', String(n), minutes, `최근 ${n}분`)).join('')}</div></div>
     <div class="observation-content" data-observation-mode="${mode}">${mode === 'fog' ? fogContent(state, history, from, now) : healthContent(state, history, metric, from, now)}</div>
-    <footer><span>최대 30분 · 미수신 구간은 비워 둡니다 · 영구 저장 아님</span><button class="observation-link" data-view="records" data-record-section="walking">일별 기록 저장하기 →</button></footer></section>`;
+    <footer><span>최대 30분 · 미수신 구간은 비워 둡니다 · 영구 저장 아님</span><button class="observation-link" data-view="records" data-record-section="${fixedMode === 'fog' ? 'fog' : 'sensors'}">${fixedMode === 'fog' ? 'FOG 분석 자료' : '센서 기록 저장'} →</button></footer></section>`;
 }
