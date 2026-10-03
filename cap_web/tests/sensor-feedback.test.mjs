@@ -6,7 +6,7 @@ import { renderSensorFeedback } from '../src/components/sensor-feedback.js';
 import { pressureCenter } from '../src/data/pressure-center.js';
 import { todayState } from './fixtures/today-state.mjs';
 import { requestLatestSensorFeedback } from '../src/services/sensor-feedback-api.js';
-import { actionGroups, feedbackBasis } from '../src/data/sensor-feedback.js';
+import { actionGroups, feedbackBasis, recordedFootDirection, evidenceText, romEvidenceDetail } from '../src/data/sensor-feedback.js';
 
 const start = new Date('2026-10-01T10:00:00+09:00').getTime();
 function fixture(options = {}) {
@@ -18,18 +18,19 @@ function fixture(options = {}) {
   const observe = (front = 90, side = 'left', more) => { t += 100; service.observe(side, raw(front, side, more)); };
   const sustain = (front = 90, side = 'left') => { for (let i = 0; i < 32; i++) observe(front, side); };
   const evidence = (kind = 'cop', side = 'left') => service.snapshot().entries.find(e => e.kind === kind && e.side === side).evidence;
-  const addRom = () => { rom = [{ id: 'rom-1', side: 'right', at: t - 2000, endedAt: t, peak: 38, threshold: 30, sensorX: -32, sensorY: 12 }]; };
+  const addRom = (extra={}) => { rom = [{ id: 'rom-1', side: 'right', at: t - 2000, endedAt: t, peak: 38, threshold: 30, sensorX: -32, sensorY: 12, ...extra }]; };
   return { service, raw, observe, sustain, evidence, addRom, time: () => t, advance: n => t += n };
 }
 const selection = e => ({ kind: e.kind, side: e.side, eventId: e.id });
-test('pressure events never accumulate across a change in walking reference',()=>{
+test('pressure events never accumulate across a change in standing reference',()=>{
   const f=fixture();
-  for(let i=0;i<25;i++)f.observe(90,'left',{pressure_calibration:{id:'old'}});
-  for(let i=0;i<20;i++)f.observe(90,'left',{pressure_calibration:{id:'new'}});
+  for(let i=0;i<25;i++)f.observe(90,'left',{pressure_calibration:{id:'old',status:'ready',method:'standing-50-v1'}});
+  for(let i=0;i<20;i++)f.observe(90,'left',{pressure_calibration:{id:'new',status:'ready',method:'standing-50-v1'}});
   assert.equal(f.evidence(),null);
-  for(let i=0;i<12;i++)f.observe(90,'left',{pressure_calibration:{id:'new'}});
+  for(let i=0;i<12;i++)f.observe(90,'left',{pressure_calibration:{id:'new',status:'ready',method:'standing-50-v1'}});
   assert.equal(f.evidence().pressureCalibrationId,'new');
-  assert.equal(f.evidence().pressureBasis,'walk-max-v1');
+  assert.equal(f.evidence().pressureBasis,'standing-50-v1');
+  assert.match(feedbackBasis(f.evidence()),/센서별 50점/);
 });
 const successful = ids => ({ ok: true, json: async () => ({ message: { content: JSON.stringify({ walkingAction: ids[0], checkAction: ids[1] }) } }) });
 
@@ -181,10 +182,56 @@ test('pressure direction selects distinct walking guidance and excludes the oppo
  }
 });
 
-test('anatomical direction and personalized gait correction never appear as ROM choices',()=>{
+test('uncalibrated sensor axes never become anatomical direction or personalized correction',()=>{
  for(const [x,y] of [[30,0],[-30,0],[0,30],[0,-30]]) {
   const evidence={kind:'rom',sensorX:x,sensorY:y,rangeMax:25};
   assert.deepEqual(actionGroups(evidence),actionGroups({kind:'rom',sensorX:0,sensorY:0}));
   assert.match(feedbackBasis(evidence),/부상 위험도는 알 수 없어/);
  }
+});
+
+const savedDirection=(code,forward,left)=>({source:'toe-up',code,forward,left,referenceAt:start-10000});
+test('recorded raised edge produces foot-specific cautions for both feet and every direction',async()=>{
+ for(const [side,code,forward,left,edge,label] of [
+  ['left','left',0,42,'outer','바깥쪽'],['left','right',0,-42,'inner','안쪽'],
+  ['right','left',0,42,'inner','안쪽'],['right','right',0,-42,'outer','바깥쪽'],
+  ['left','front',42,0,'toe','발끝'],['right','rear',-42,0,'heel','뒤꿈치'],
+ ]) {
+  let sent;
+  const f=fixture({fetchImpl:async(_,opts)=>{sent=JSON.parse(opts.body);return successful([`walk_${edge}_raised`,'check_attachment']);}});
+  f.addRom({side,peak:42,threshold:35,footDirection:savedDirection(code,forward,left)});
+  const evidence=f.evidence('rom',side);
+  assert.equal(recordedFootDirection(evidence).edge,edge);
+  assert.equal(evidenceText(evidence),`${side==='left'?'왼발':'오른발'} ${label}이 들리는 꺾임을 조심하세요!`);
+  assert.match(romEvidenceDetail(evidence),/최대 42° \/ 기록 기준 30° · 12° 초과/);
+  const result=await f.service.generate(selection(evidence));assert.equal(result.status,200);
+  const input=JSON.parse(sent.messages[1].content);
+  assert.equal(input.footDirectionKnown,true);assert.equal(input.footDirection.edge,edge);
+  assert.deepEqual(Object.keys(input.choices.walking),[`walk_${edge}_raised`]);
+  const html=renderSensorFeedback({dataSource:'esp32',sensorFeedback:{data:f.service.snapshot()},sensorFeedbackRequests:{[`rom-${side}`]:{eventId:evidence.id,result}}},'rom');
+  assert.match(html,/sensor-feedback-caution/);assert.ok(html.includes(evidenceText(evidence)));
+  assert.match(html,/측정값·방향 근거 보기/);assert.doesNotMatch(html,/방향 다시 기록/);
+ }
+});
+
+test('legacy, invalid and ambiguous directions never create inward or outward cautions',()=>{
+ const base={kind:'rom',side:'left',at:start-2000,peak:42,rangeMax:30,sensorX:-42,sensorY:0};
+ for(const footDirection of [null,savedDirection('left',0,-42),savedDirection('left',0,20),
+  {...savedDirection('left',0,42),source:'sensor-axis'}, {...savedDirection('left',0,42),referenceAt:start},
+  {...savedDirection('left',0,42),left:NaN}]) {
+  const evidence={...base,footDirection};assert.equal(recordedFootDirection(evidence),null);
+  assert.equal(evidenceText(evidence),'왼발이 기록한 범위를 넘어 꺾이지 않도록 조심하세요.');
+  assert.match(romEvidenceDetail(evidence),/방향 미확인/);
+  assert.deepEqual(actionGroups(evidence).walking,['walk_even_surface','walk_supportive_shoes']);
+ }
+ assert.equal(recordedFootDirection({...base,peak:95,footDirection:savedDirection('left',0,42)}),null);
+ const html=renderSensorFeedback({dataSource:'esp32',sensorFeedback:{data:{entries:[{kind:'rom',side:'left',evidence:base}]}}},'rom');
+ assert.match(html,/왼발 방향 다시 기록/);assert.doesNotMatch(html,/안쪽이 들리는 꺾임|바깥쪽이 들리는 꺾임/);
+});
+
+test('Ollama cannot return a caution for the opposite recorded edge',async()=>{
+ const f=fixture({fetchImpl:async()=>successful(['walk_outer_raised','check_attachment'])});
+ f.addRom({side:'left',peak:42,footDirection:savedDirection('right',0,-42)});
+ const result=await f.service.generate(selection(f.evidence('rom','left')));
+ assert.equal(result.status,503);assert.equal(result.actionIds,undefined);
 });

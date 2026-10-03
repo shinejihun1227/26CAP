@@ -30,7 +30,7 @@ export function footDisplayConnected(state, side, now = Date.now()) {
   return Boolean(hw.footSide === side || hw.bilateralAvailable);
 }
 
-export function thermalDisplayForFoot(state, side, mode, now = Date.now()) {
+function physicalReadings(state, side, mode, now) {
   const shared = profileForFoot(state, side) === 'two-shared';
   const rows = footDisplayConnected(state, side, now) ? state.thermal?.[side] ?? [] : [];
   const field = mode === 'humidity' ? 'humidity' : 'temp';
@@ -39,19 +39,35 @@ export function thermalDisplayForFoot(state, side, mode, now = Date.now()) {
     const sensor = shared ? SHARED_SENSOR_MAP[index] : index;
     if (validReading(rows[index]) && !physical.has(sensor)) physical.set(sensor, rows[index][field]);
   }
-  const mean = physical.size ? [...physical.values()].reduce((sum, value) => sum + value, 0) / physical.size : null;
+  return physical;
+}
+
+const physicalMean = readings => readings.size ? [...readings.values()].reduce((sum, value) => sum + value, 0) / readings.size : null;
+
+export function thermalDisplayForFoot(state, side, mode, now = Date.now()) {
+  const shared = profileForFoot(state, side) === 'two-shared';
+  const connected = footDisplayConnected(state, side, now);
+  const physical = physicalReadings(state, side, mode, now);
+  const mean = physicalMean(physical);
+  const opposite = side === 'left' ? 'right' : 'left';
+  // Read only fresh, physical measurements from the other foot, never its
+  // display estimates. A disconnected target remains disconnected and blank.
+  const reference = connected && mean === null ? physicalReadings(state, opposite, mode, now) : new Map();
+  const referenceMean = physicalMean(reference);
+  const fallbackSide = referenceMean === null ? null : opposite;
   const samples = Array.from({ length: 4 }, (_, index) => {
     const sensor = shared ? SHARED_SENSOR_MAP[index] : index;
     // T1 and T3 represent the physical sensors. T2/T4, and any missing
     // physical slot, use the current same-foot physical mean only.
     if ((!shared || SHARED_SENSOR_MAP.indexOf(sensor) === index) && physical.has(sensor)) {
-      return { value: physical.get(sensor), estimated: false, sources: [sensor] };
+      return { value: physical.get(sensor), estimated: false, sources: [sensor], sourceSide: side };
     }
+    if (fallbackSide) return { value: referenceMean, estimated: true, sources: [...reference.keys()], sourceSide: fallbackSide };
     if (!shared || mean === null) return { value: null, estimated: false, sources: [] };
     const offset = THERMAL_DISPLAY_OFFSETS[index] * THERMAL_DISPLAY_LIMITS[mode === 'humidity' ? 'humidity' : 'temperature'];
     const value = Math.max(mode === 'humidity' ? 0 : -39.99, Math.min(100, mean + offset));
-    return { value: Number(value.toFixed(2)), estimated: true, sources: [...physical.keys()] };
+    return { value: Number(value.toFixed(2)), estimated: true, sources: [...physical.keys()], sourceSide: side };
   });
-  return { samples, mean, physicalCount: physical.size, total: shared ? 2 : 4,
+  return { samples, mean, displayMean: mean ?? referenceMean, fallbackSide, physicalCount: physical.size, total: shared ? 2 : 4,
     estimatedCount: samples.filter(sample => sample.estimated).length, shared };
 }

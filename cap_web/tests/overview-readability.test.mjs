@@ -156,7 +156,7 @@ test('Korean navigation names, active-page semantics and connection tones agree'
   let html = renderSidebar('overview', state);
   assert.match(html, /data-view="overview" aria-current="page"/);
   assert.match(html, /<b>오늘 요약<\/b>/);
-  assert.match(html, /<b>정면 보행<\/b>/);
+  assert.match(html, /<b>홈재활 파트너<\/b>/);
   assert.match(html, /<b>발 움직임<\/b>/);
   assert.match(html, /sidebar-footer connection-waiting/);
   connect(state, ['left']); assert.equal(connectionSummary(state).tone, 'partial');

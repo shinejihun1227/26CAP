@@ -10,7 +10,7 @@ const mobileNavLabels = {
   reports: "리포트",
   trends: "변화 추이",
   devices: "기기",
-  mediapipe: "정면 보행",
+  mediapipe: "홈재활 파트너",
   ankle: "발 움직임",
 };
 

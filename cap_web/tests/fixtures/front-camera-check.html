@@ -5,15 +5,17 @@
 <title>정면 기준 자세 · 카메라 없는 검증</title>
 <link rel="stylesheet" href="/src/styles/purpose-workspace.css">
 <style>
-*{box-sizing:border-box}body{margin:0;padding:24px;background:#f1f6f5;font:17px/1.5 system-ui;color:#173943}button,select{font:inherit;padding:10px;border:1px solid #b7d8d0;border-radius:10px;background:white}button:disabled{opacity:.5}button[hidden]{display:none}h1,h2,p{margin:0 0 10px}.fixture-notice{padding:15px;background:#fff1cf;border:1px solid #d6b876;border-radius:12px;margin-bottom:20px}.front-workspace{max-width:1200px;margin:auto}.front-stage video,.front-stage canvas{object-fit:contain}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:#f1f6f5;font:17px/1.5 system-ui;color:#173943}button,select{font:inherit;padding:10px;border:1px solid #b7d8d0;border-radius:10px;background:white}button:disabled{opacity:.5}button[hidden]{display:none}h1,h2,p{margin:0 0 10px}.fixture-notice{padding:15px;background:#e7f0f2;border:1px solid #b6ced2;border-radius:12px;margin-bottom:20px}.front-workspace{max-width:1200px;margin:auto}.front-stage video,.front-stage canvas{object-fit:contain}
 </style>
-<div class="fixture-notice"><b>검증용 합성 영상 · 실제 사람 측정 아님</b><br>약 3회/초로 결과를 받고 발목 인식을 한 번 누락시킵니다. 운영용 화면과 기록 컨트롤러를 사용하며 카메라·사용자 기록·서버 저장에는 접근하지 않습니다.</div>
-<label>검증 입력 <select id="fixture-mode"><option value="stable">안정된 자세</option><option value="tilt">골반 기울기 변경</option><option value="missing">골반 인식 누락</option></select></label>
+<div class="fixture-notice"><b>검증용 합성 영상 · 실제 사람 측정 아님</b><br>약 10회/초의 합성 관절점으로 짧은 끊김과 발목 변화를 재현합니다. 운영용 화면과 기록 컨트롤러를 사용하며 카메라·사용자 기록·서버 저장에는 접근하지 않습니다.</div>
+<label>검증 입력 <select id="fixture-mode"><option value="stable">안정된 자세</option><option value="tilt">골반 기울기 변경</option><option value="missing">골반 인식 누락</option><option value="brief">짧은 끊김 반복</option><option value="ankle">왼발 미인식 · 오른발 변화</option><option value="multi">두 사람</option></select></label>
 <div id="app"></div>
 <details><summary>검증 기록 JSON</summary><pre id="fixture-saved">[]</pre></details>
 <script type="module">
 import { renderFrontContent } from '/src/views/front-view.js';
 import { mountFrontCamera } from '/src/mediapipe/front-controller.js';
+const theme=new DOMParser().parseFromString(await(await fetch('/index.html')).text(),'text/html');
+await Promise.all([...theme.querySelectorAll('link[rel=stylesheet]')].map(link=>new Promise(resolve=>{const css=document.createElement('link');css.rel='stylesheet';css.href=link.getAttribute('href');css.onload=css.onerror=resolve;document.head.append(css);})));
 const source=document.createElement('canvas');source.width=640;source.height=480;
 const ctx=source.getContext('2d');let count=0;
 const pose=()=>{const p=Array.from({length:33},()=>({x:.5,y:.5,visibility:.95,presence:.95}));
@@ -23,15 +25,16 @@ paint();const painting=setInterval(paint,100);
 Object.defineProperty(navigator.mediaDevices,'getUserMedia',{value:async()=>source.captureStream(10),configurable:true});
 Object.defineProperty(navigator.mediaDevices,'enumerateDevices',{value:async()=>[],configurable:true});
 class TestWorker {
-  active=true;
+  active=true;frames=0;
   postMessage(data){
     if(data.type==='init'){queueMicrotask(()=>this.onmessage?.({data:{type:'ready'}}));return;}
     const p=pose(), now=performance.now(), mode=document.querySelector('#fixture-mode').value;
     if(mode==='tilt')p[24].y+=.07;
-    if(mode==='missing')p[24].visibility=.3;
+    if(mode==='missing'||mode==='brief'&&++this.frames%6===2)p[24].visibility=.3;
+    if(mode==='ankle'){p[27].visibility=.2;p[28].x+=.06;}
     if(window.fixtureBaselineStart && !this.dropped && now-window.fixtureBaselineStart>1400){p[27].visibility=.4;this.dropped=true;}
     data.bitmap.close();
-    setTimeout(()=>{if(this.active)this.onmessage?.({data:{type:'result',poses:[p],timestamp:data.timestamp}});},260);
+    setTimeout(()=>{if(this.active)this.onmessage?.({data:{type:'result',poses:mode==='multi'?[p,p]:[p],timestamp:data.timestamp}});},80);
   }
   terminate(){this.active=false;}
 }

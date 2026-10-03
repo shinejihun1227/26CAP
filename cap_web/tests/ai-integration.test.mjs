@@ -105,6 +105,18 @@ test('same-origin AI proxy forwards calibration, propagates errors and blocks cr
   const bad=await listen(createAiHandler({fetchImpl:async()=>{throw new Error('offline');}}),t);
   const res=await fetch(bad+'/api/ai/state'); assert.equal(res.status,503); assert.equal((await res.json()).fog_score,null);
 });
+
+test('popup sync is a same-origin POST forwarded to the live cue controller',async t=>{
+  const calls=[];
+  const base=await listen(createAiHandler({fetchImpl:async(url,opts)=>{calls.push([String(url),opts]);return new Response(JSON.stringify(valid));}}),t);
+  const opts={method:'POST',headers:{'content-type':'application/json'},body:'{}'};
+  assert.equal((await fetch(base+'/api/ai/cue/sync',opts)).status,200);
+  assert.ok(calls[0][0].endsWith('/api/ai/cue/sync'));
+  assert.deepEqual(JSON.parse(calls[0][1].body),{});
+  assert.equal((await fetch(base+'/api/ai/cue/sync')).status,405);
+  assert.equal((await fetch(base+'/api/ai/cue/sync',{...opts,headers:{...opts.headers,origin:'https://outside.example'}})).status,403);
+  assert.equal(calls.length,1);
+});
 test('collector sample cursor preserves distinct frames and does not replay duplicate snapshots',async(t)=>{
   let n=0, frozen=false;
   const hub=createInsoleHub({pollIntervalMs:2,fetchImpl:async()=>new Response(JSON.stringify({

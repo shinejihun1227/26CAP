@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { PRESSURE_LAYOUT_ID, PRESSURE_LAYOUT_2_SHARED_ID, validPressureChannels, THERMAL_CHANNELS, SHARED_SENSOR_MAP } from '../src/data/sensor-config.js';
 export const SIDES = ['left', 'right'];
 export const HUB_SERVICE = 'stepon-bilateral-v1';
-const STA_FIRMWARES = new Set(['04_sta_bilateral', '04_2_sta_bilateral_wroom']);
+const STA_FIRMWARES = new Set(['04_sta_bilateral', '04_2_sta_bilateral_wroom', '04_3_sta_bilateral_wroom_direct']);
 const cleanIp = (value = '') => value.replace(/^::ffff:/, '');
 const localIp = (ip, loopback = false) => {
   if (isIP(ip) !== 4) return false;
@@ -34,6 +34,12 @@ export function validateFrame(p, side, deviceId) {
     && (p.pressure_physical_count === undefined || p.pressure_physical_count === 4)
     && (p.pressure_sensor_map === undefined || JSON.stringify(p.pressure_sensor_map) === '[0,1,2,3]');
   if (!twoShared && !fourIndependent) throw new Error('pressure_layout_mismatch');
+  if (p.firmware === '04_3_sta_bilateral_wroom_direct' &&
+      (p.pressure_transport !== 'direct-adc1' || JSON.stringify(p.pressure_channels) !== '[0,1,2,3]' ||
+       !Array.isArray(p.pressure_input_gpio) || p.pressure_input_gpio.length !== 4 ||
+       new Set(p.pressure_input_gpio).size !== 4 || !p.pressure_input_gpio.every(pin => [32,33,34,35,36,39].includes(pin)))) {
+    throw new Error('direct_pressure_pins_mismatch');
+  }
   if (!Array.isArray(p.pressure) || p.pressure.length !== 4 || !p.pressure.every((v) => Number.isFinite(v) && v >= 0 && v <= 100)) throw new Error('invalid_pressure');
   if (twoShared && (p.pressure[0] !== p.pressure[1] || p.pressure[2] !== p.pressure[3])) throw new Error('shared_pressure_values_mismatch');
   const thermalLayoutValid = twoShared

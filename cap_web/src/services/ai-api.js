@@ -64,6 +64,7 @@ export function calibrateAi(side, action = 'start') {
   return request(`/api/ai/calibration/${action}`, { method: 'POST', body: { side }, timeoutMs: 9000 });
 }
 export function setFogCue(enabled) { return request('/api/ai/cue', { method: 'POST', body: { enabled } }); }
+export function syncFogCue() { return request('/api/ai/cue/sync', { method: 'POST', body: {} }); }
 export function setFogDetection(enabled) { return request('/api/ai/detection', { method: 'POST', body: { enabled }, timeoutMs: 9000 }); }
 
 export function markAiUnavailable(previous, error) {

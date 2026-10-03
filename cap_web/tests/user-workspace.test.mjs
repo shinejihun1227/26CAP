@@ -10,7 +10,7 @@ import { renderSetViews } from '../src/mediapipe/set-view.js';
 
 test('the compact everyday navigation separates tasks from settings and data management', () => {
   assert.deepEqual(navItems.filter(i => i.group !== 'manage').map(i => i.id), ['overview', 'live', 'ankle', 'mediapipe', 'safety']);
-  assert.equal(navItems.find(i => i.id === 'mediapipe').korean, '정면 보행');
+  assert.equal(navItems.find(i => i.id === 'mediapipe').korean, '홈재활 파트너');
   assert.deepEqual(navItems.filter(i => i.group === 'manage').map(i => i.id), ['devices', 'records']);
   const jointHtml = renderMediaPipeContent();
   assert.match(jointHtml, /내 발목 기준 만들기/);

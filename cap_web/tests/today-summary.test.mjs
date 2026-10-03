@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { summaryFog, summaryAnkle, summaryCop, sphereMarker } from '../src/data/today-summary.js';
+import { summaryFog, summaryAnkle, summaryCop, sphereMarker, inclinationMarker } from '../src/data/today-summary.js';
 import { tiltRotationVector, inclination } from '../src/mediapipe/ankle-monitor.js';
 import { renderTodaySummary } from '../src/components/today-summary.js';
 import { openNavigationShortcut } from '../src/utils/navigation-shortcuts.js';
@@ -38,7 +38,41 @@ test('unprepared, stale, disconnected or moving ranges show no falsely safe blue
     s=>s.dailyAnkle.error='network',s=>s.dailyAnkle.data.feet.left.state='moving',s=>s.dailyAnkle.data.feet.left.state='offline',s=>s.paused=true]) {
     const s=todayState(now);alter(s);const d=summaryAnkle(s,'left',now);
     assert.equal(d.tilt,null);assert.equal(sphereMarker(d.tilt,d.plan?.max,d.vector),null);
+    const left=renderTodaySummary(s,now).split('data-summary-ankle-side="left"')[1].split('</article>')[0];
+    assert.match(left,/today-sphere-grid/);
+    assert.doesNotMatch(left,/data-range-state=/);
   }
+});
+
+test('a stored range without toe-up calibration still shows genuine magnitude, never invented direction',()=>{
+  const s=todayState(now),f=s.dailyAnkle.data.feet.left;
+  f.plan.max=75.6;f.plan.directionReady=false;f.current.direction=null;
+  for(const [tilt,expected] of [[0,'within'],[31.9,'within'],[75.6,'within'],[76,'outside'],[180,'outside']]) {
+    f.current.tilt=tilt;
+    const result=summaryAnkle(s,'left',now),point=inclinationMarker(result.tilt,result.plan.max);
+    assert.equal(point.outside,expected==='outside');assert.equal(result.direction,null);
+    assert.equal(Math.hypot(point.x-140,point.y-120)>80,expected==='outside');
+    const html=renderTodaySummary(s,now).split('data-summary-ankle-side="left"')[1].split('</article>')[0];
+    assert.match(html,new RegExp(`data-range-state="${expected}"`));
+    assert.match(html,/data-range-mode="magnitude"/);assert.match(html,/75.6°/);
+    assert.match(html,/today-sphere-grid/);
+    assert.doesNotMatch(html,/today-magnitude-track|data-direction=|today-direction-arrow|전방 · 발끝|후방 · 뒤꿈치/);
+  }
+  for(const [tilt,max] of [[null,25],[NaN,25],[-1,25],[181,25],[10,0],[10,null]])assert.equal(inclinationMarker(tilt,max),null);
+});
+
+test('missing direction, motion, lost baseline and ambiguous high tilt have distinct explanations',()=>{
+  const s=todayState(now),f=s.dailyAnkle.data.feet.left;
+  f.plan.directionReady=false;f.current.direction=null;
+  assert.match(summaryAnkle(s,'left',now).hint,/발끝 방향은 확인되지/);
+  f.state='moving';assert.match(summaryAnkle(s,'left',now).hint,/잠깐 멈추면/);
+  f.state='within';f.plan.directionReady=true;f.current.tilt=100;
+  assert.match(summaryAnkle(s,'left',now).hint,/90° 이상/);
+  f.plan=null;f.phase='failed';f.state='quiet';f.current=null;f.message='기기 또는 전원이 바뀌었어요. 기준을 다시 맞추세요.';
+  assert.match(summaryAnkle(s,'left',now).hint,/기기 또는 전원/);
+  const html=renderTodaySummary(s,now);
+  assert.match(html,/기록값의 95백분위/);assert.match(html,/처음 자세 = 0°/);
+  assert.match(html,/방향별 최소·최대값을 따로 측정한 것도 아닙니다/);
 });
 
 test('sphere projection always makes within/outside unambiguous regardless of direction', () => {

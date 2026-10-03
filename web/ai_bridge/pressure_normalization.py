@@ -1,19 +1,20 @@
-"""Per-physical-sensor peaks from the walking part of IMU calibration only."""
+"""Fixed standing reference from the first five seconds of IMU calibration."""
 import math
+import statistics
 import uuid
 
 
-class WalkingPressurePeaks:
+class StandingPressureReference:
     def __init__(self, side):
         self.side = side
         self.contract = None
-        self.maxima = [0.0] * 4
+        self.values = [[] for _ in range(4)]
         self.samples = 0
         self.first = self.last = None
         self.invalidated = False
 
     def observe(self, payload, elapsed, still_sec=5, duration_sec=25):
-        if not payload or not still_sec <= elapsed <= duration_sec or payload.get('pressure_ready') is not True:
+        if not payload or not 0 <= elapsed <= duration_sec or payload.get('pressure_ready') is not True:
             return
         values = payload.get('pressure_raw')
         if not isinstance(values, list) or len(values) != 4 or any(
@@ -29,14 +30,31 @@ class WalkingPressurePeaks:
             return
         contract = {'device_id': payload.get('device_id'), 'foot_side': self.side,
                     'sensor_profile': 'two-shared' if shared else 'four-independent',
-                    'pressure_channels': list(channels), 'sensor_map': list(sensor_map)}
+                    'pressure_channels': list(channels), 'sensor_map': list(sensor_map),
+                    'pressure_transport': payload.get('pressure_transport'),
+                    'pressure_input_gpio': payload.get('pressure_input_gpio')}
         if not contract['device_id'] or payload.get('foot_side') != self.side:
             return
         if self.contract is not None and self.contract != contract:
             self.invalidated = True
             return
         self.contract = contract
-        self.maxima = [max(old, value) for old, value in zip(self.maxima, values)]
+        if elapsed >= still_sec:
+            return  # Walking never moves the saved 50-point reference.
+        try:
+            accel = [payload['accel'][key] for key in ('x', 'y', 'z')]
+            gyro = [payload['gyro'][key] for key in ('x', 'y', 'z')]
+            if payload.get('imu_ready') is not True or any(
+                    isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in accel + gyro):
+                return
+            if abs(math.hypot(*accel) - 1) > .12 or math.hypot(*gyro) > 12:
+                return
+        except (KeyError, TypeError):
+            return
+        if self.last is not None and elapsed <= self.last:
+            return
+        for collected, value in zip(self.values, values):
+            collected.append(value)
         self.samples += 1
         if self.first is None:
             self.first = elapsed
@@ -45,8 +63,10 @@ class WalkingPressurePeaks:
     def finish(self):
         span = self.last - self.first if self.first is not None else 0
         # A missing/unloaded channel must not amplify a tiny ADC noise floor.
-        ready = not self.invalidated and self.samples >= 20 and span >= 10 and all(v >= 32 for v in self.maxima)
-        return {**(self.contract or {}), 'version': 1, 'method': 'walk-max-v1',
+        reference = [float(statistics.median(values)) if values else 0 for values in self.values]
+        ready = not self.invalidated and self.samples >= 20 and span >= 3 and all(v >= 32 for v in reference)
+        return {**(self.contract or {}), 'version': 2, 'method': 'standing-50-v1',
                 'id': uuid.uuid4().hex, 'status': 'ready' if ready else 'incomplete',
-                'max_raw': self.maxima, 'samples': self.samples, 'span_sec': round(span, 3),
+                'reference_raw': reference, 'reference_score': 50, 'statistic': 'median',
+                'samples': self.samples, 'span_sec': round(span, 3),
                 'physical_count': 2 if self.contract and self.contract['sensor_profile'] == 'two-shared' else 4}

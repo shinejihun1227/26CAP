@@ -5,18 +5,30 @@ import { todayState } from './today-state.mjs';
 import { renderSidebar } from '../../src/components/sidebar.js';
 import { renderPurposeView } from '../../src/views/purpose-view.js';
 import { renderMobileApp } from '../../src/mobile/mobile-app.js';
+import { renderTodaySummary } from '../../src/components/today-summary.js';
+import { renderSensorFeedback } from '../../src/components/sensor-feedback.js';
 const source = new DOMParser().parseFromString(await (await fetch('/index.html')).text(), 'text/html');
 await Promise.all([...source.querySelectorAll('link[rel=stylesheet]')].map(link => new Promise(resolve => {
   const style=document.createElement('link');style.rel='stylesheet';style.href=link.getAttribute('href');style.onload=style.onerror=resolve;document.head.append(style);
 })));
 const state=todayState();
+const rangeMode=new URLSearchParams(location.search).get('range');
+if(rangeMode==='missing')for(const side of ['left','right']){
+  const foot=state.dailyAnkle.data.feet[side];foot.plan.directionReady=false;foot.current.direction=null;
+}
+if(rangeMode==='waiting'){
+  const left=state.dailyAnkle.data.feet.left;left.state='moving';left.current=null;
+  const right=state.dailyAnkle.data.feet.right;right.plan=null;right.phase='failed';right.state='quiet';right.current=null;right.message='기기 또는 전원이 바뀌었어요. 기준을 다시 맞추세요.';
+}
 if (new URLSearchParams(location.search).has('feedback')) {
-  const example = await (await fetch('./sensor-feedback-result.json')).json();
+  const example = await (await fetch(new URLSearchParams(location.search).get('feedback')==='direction'?'./rom-direction-feedback.json':'./sensor-feedback-result.json')).json();
   if (!example.exampleOnly) throw Error('Example fixture required');
   state.hardware.feet.left.state.pressure = [90,90,10,10];
   state.sensorFeedback = { receivedAt: Date.now(), data: example.data };
   state.sensorFeedbackRequests = example.requests;
 }
 const mobile=new URLSearchParams(location.search).has('mobile');
-document.querySelector('#fixture').innerHTML=`<div style="position:sticky;top:0;z-index:9999;background:#fff3d6;color:#735016;padding:12px 20px;font:700 15px sans-serif;text-align:center">개발 검증 예시 · 실제 센서값 아님 · 기기 명령을 보내지 않음</div>${mobile ? renderMobileApp(state,'overview') : `<div class="app-frame is-easy-mode">${renderSidebar('overview',state)}${renderPurposeView(state)}</div>`}`;
+const focus=new URLSearchParams(location.search).get('focus');
+const rangeCard=focus==='range'?new DOMParser().parseFromString(renderTodaySummary(state),'text/html').querySelector('.today-rom').outerHTML:focus==='feedback'?`<section class="today-card today-rom">${renderSensorFeedback(state,'rom')}</section>`:null;
+document.querySelector('#fixture').innerHTML=`<div style="position:sticky;top:0;z-index:9999;background:#edf3f6;color:#3c5f70;padding:12px 20px;font:700 15px sans-serif;text-align:center">개발 검증 예시 · 실제 센서값 아님 · 기기 명령을 보내지 않음</div>${rangeCard?`<main class="today-dashboard" style="max-width:850px;margin:20px auto;padding:12px">${rangeCard}</main>`:mobile ? renderMobileApp(state,'overview') : `<div class="app-frame is-easy-mode">${renderSidebar('overview',state)}${renderPurposeView(state)}</div>`}`;
 </script></body></html>

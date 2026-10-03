@@ -44,13 +44,13 @@ if __package__:
     from .csv_pipeline import calibration_from_rows
     from .datasets import DatasetService, BODY_LIMIT
     from . import pressure_rules, personal_threshold
-    from .pressure_normalization import WalkingPressurePeaks
+    from .pressure_normalization import StandingPressureReference
 else:
     from csv_pipeline import calibration_from_rows
     from datasets import DatasetService, BODY_LIMIT
     import pressure_rules
     import personal_threshold
-    from pressure_normalization import WalkingPressurePeaks
+    from pressure_normalization import StandingPressureReference
 SEVERITY = {None: 0, 'normal': 0, 'warning': 1, 'confirmed': 2}
 
 
@@ -123,7 +123,7 @@ class FootRuntime:
         self.pressure_rows = []              # (t, forefoot_raw, heel_raw) during calibration
         self.pressure_baseline = None
         self.pressure_normalization = None
-        self.pressure_peaks = WalkingPressurePeaks(side)
+        self.pressure_reference = StandingPressureReference(side)
         self.personal = None                 # per-wearer thresholds from the calibration walk
         self.personal_status = None
         self.last_pressure = None            # (pc_time_s, forefoot_raw, heel_raw) of the last accepted sample
@@ -365,7 +365,7 @@ class FootRuntime:
         self.pressure_rows = []
         self.capture = {'status': 'countdown', 'starts_at': time.monotonic() + 3,
                         'elapsed_sec': 0, 'duration_sec': 25, 'still_sec': 5, 'error': None}
-        self.pressure_peaks = WalkingPressurePeaks(self.side)
+        self.pressure_reference = StandingPressureReference(self.side)
 
     def cancel_calibration(self):
         if self.capture:
@@ -381,7 +381,7 @@ class FootRuntime:
             c.update(status='recording', first_t=t)
         elapsed = t - c['first_t']
         c['elapsed_sec'] = round(elapsed, 1)
-        self.pressure_peaks.observe(payload, elapsed, c['still_sec'], c['duration_sec'])
+        self.pressure_reference.observe(payload, elapsed, c['still_sec'], c['duration_sec'])
         self.capture_rows.append([t * 1000, *accel.tolist(), *gyro.tolist()])
         if self._current_pressure:
             self.pressure_rows.append((t, *self._current_pressure))
@@ -392,7 +392,7 @@ class FootRuntime:
             result = calibration_from_rows(rows, self.side, self.identity[0])
             # Quiet-standing pressure (first 5 s) and walking stride time for the pressure rules.
             result['pressure_baseline'] = pressure_rules.baseline_from_rows(self.pressure_rows, self.pressure_config, c['still_sec'])
-            result['pressure_normalization'] = self.pressure_peaks.finish()
+            result['pressure_normalization'] = self.pressure_reference.finish()
             self.data_dir.mkdir(parents=True, exist_ok=True)
             stamp = time.time_ns()
             self.capture_path = self.data_dir / f'{self.side}-{stamp}.csv'
@@ -441,6 +441,7 @@ class FootRuntime:
                 'fog_score': diag.get('raw_model_score'), 'decision_score': diag.get('decision_score'),
                 'score_percent': round(diag['decision_score'] * 100, 1) if ready else None,
                 'diagnostics': diag, 'device_connected': connected, 'detector_loaded': self.detector is not None,
+                'motion_gates_enabled': bool(self.detector.motion_gates_enabled) if self.detector else None,
                 'last_window_at_ms': self.last_window_epoch_ms if ready else None,
                 'window_ready': ready, 'window_count': self.window_count, 'total_windows': self.total_windows,
                 'received_hz': round(self.input_hz(), 1), 'sample_rate_hz': TARGET_HZ,
@@ -602,6 +603,8 @@ class BridgeState:
                 self.events.append({'timestamp_ms': int(time.time() * 1000), 'foot': key[0], 'state': key[1],
                                     'fog_score': snap['fog_score'], 'decision_score': snap['decision_score'],
                                     'reason': snap['diagnostics'].get('reason'), 'reasons': snap['reasons']})
+            if key != self.last_decision:
+                self.cue.request_sync()
             self.last_decision = key
 
     def poll_device(self):
@@ -759,6 +762,11 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 raise ValueError('json_object_required')
             if route == '/api/ai/cue':
                 self.bridge.cue.set_enabled(body.get('enabled'))
+                return self.send_json(200, self.bridge.snapshot())
+            if route == '/api/ai/cue/sync':
+                # A popup is a wake-up signal, never authority to invent a FoG result.
+                # Workers recheck live inference, user stops, collection and device identity.
+                self.bridge.cue.request_sync()
                 return self.send_json(200, self.bridge.snapshot())
             if route == '/api/ai/detection':
                 self.bridge.set_detection_enabled(body.get('enabled'))

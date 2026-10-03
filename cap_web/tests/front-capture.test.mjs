@@ -29,7 +29,7 @@ test('duplicate, old, invalid and frozen results cannot complete a baseline', ()
   capture.push(sample(0));
   for (let i = 0; i < 100; i++) capture.push(sample(100));
   assert.equal(capture.snapshot(100).heldMs, 0);
-  assert.equal(capture.snapshot(1000).samples, 0);
+  assert.equal(capture.snapshot(1700).samples, 0);
   capture.push(sample(1100, { pelvis: NaN }));
   const result = capture.snapshot(100+BASELINE_TIMEOUT_MS);
   assert.equal(result.done, true); assert.equal(result.baseline, null);
@@ -39,7 +39,7 @@ test('a long loss or a moving posture needs a new stable hold', () => {
   for (const mode of ['gap', 'movement']) {
     const capture = createFrontBaselineCapture(0);
     for (let at = 0; at <= 1000; at += 100) capture.push(sample(at));
-    const start = mode === 'gap' ? 2000 : 1100;
+    const start = mode === 'gap' ? 2700 : 1100;
     const pelvis = mode === 'movement' ? 12 : 3;
     capture.push(sample(start, { pelvis }));
     assert.equal(capture.snapshot(start).heldMs, 0);
@@ -74,7 +74,7 @@ test('70 percent is still required; rounded display, replay and short sessions c
   assert.equal(summarizeFrontObservation(repeated,0,10000).validSeconds,.1);
   const near=rows.slice(0,-1);near.push(sample(6990));
   const result=summarizeFrontObservation(near,0,10000);
-  assert.equal(result.eligible,false);assert.equal(result.ratio,69);assert.equal(result.validSeconds,6.9);
+  assert.equal(result.eligible,false);assert.equal(result.ratio,69);assert.equal(result.validSeconds,6.99);
 });
 
 test('new ten-second results and historical twenty-second results survive storage validation',()=>{

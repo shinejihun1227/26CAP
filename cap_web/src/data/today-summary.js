@@ -46,7 +46,14 @@ export function summaryAnkle(state, side, now = Date.now()) {
   const outside = measurable && tilt > plan.max;
   const direction=measurable && plan.directionReady && f.current.direction?.source==='toe-up'
     && [f.current.direction.forward,f.current.direction.left].every(finite) ? f.current.direction : null;
+  const hint = blocked || (!plan ? f?.message || '3초 기준 자세부터 기록해 주세요.'
+    : !measurable ? f?.state === 'moving' ? '움직임이 커서 비교를 쉬고 있어요. 발을 잠깐 멈추면 다시 표시해요.'
+      : labels[f?.state] || '새로운 BMI 값을 기다리고 있어요.'
+    : !direction ? !plan.directionReady ? '범위는 저장됐지만 발끝 방향은 확인되지 않았어요.'
+      : tilt >= 90 ? '90° 이상에서는 앞뒤·좌우 방향을 구분하지 않아요.' : '방향값을 기다리는 동안 크기만 비교해요.'
+    : '점·화살표는 발에서 올라간 쪽을 나타내요.');
   return { side, plan, tilt: measurable ? tilt : null, vector: measurable ? f.current.vector : null,direction,
+    hint,
     label: blocked || phase[f?.phase] || (measurable ? outside ? '기록 범위 밖' : '기록 범위 안' : labels[f?.state] || '기준 기록 필요'),
     outside: Boolean(outside), eventConfirmed: measurable && f.state === 'outside',
     events: source?.data?.events?.filter(event => event.side === side).length ?? 0,
@@ -67,6 +74,15 @@ export function summaryCop(state, side, now = Date.now()) {
   const { position, shared } = center;
   return { side, position, front: Math.round(position * 100), rear: 100 - Math.round(position * 100),
     label: position > .55 ? '앞쪽 중심' : position < .45 ? '뒤쪽 중심' : '가운데 중심', shared };
+}
+
+// Scalar fallback on the same globe: radial distance only, no anatomical bearing.
+export function inclinationMarker(tilt, max) {
+  if (!finite(tilt) || tilt < 0 || tilt > 180 || !finite(max) || max <= 0 || max > 180) return null;
+  const ratio = tilt / max;
+  const distance = ratio <= 1 ? ratio * 76 : 87 + 23 * Math.min(1, ratio - 1);
+  return { x: 140 + distance / Math.sqrt(2), y: 120 - distance / Math.sqrt(2), distance,
+    outside: ratio > 1, ratio, clipped: ratio > 2 };
 }
 
 // A radial range gauge projected over a sphere. Radius always encodes tilt,

@@ -104,9 +104,10 @@ test('private IPv4 targets only, strict firmware identity and four-channel contr
   assert.throws(() => validateFrame(frame('left', 1, { pressure_channels: [0, 1, 2, 4] }), 'left'), /layout/);
   assert.throws(() => validateFrame(frame('left'), 'left', 'another'), /device_id/);
 });
-test('C3 and WROOM STA frames share the sensor contract without accepting other firmware', () => {
-  for (const firmware of ['04_sta_bilateral', '04_2_sta_bilateral_wroom']) {
-    const payload = frame('right', 2, { firmware, device_id: 'wroom-right' });
+test('C3 and both WROOM STA versions share the sensor contract without accepting other firmware', () => {
+  for (const firmware of ['04_sta_bilateral', '04_2_sta_bilateral_wroom', '04_3_sta_bilateral_wroom_direct']) {
+    const payload = frame('right', 2, { firmware, device_id: 'wroom-right',
+      ...(firmware.endsWith('_direct') ? {pressure_transport:'direct-adc1',pressure_channels:[0,1,2,3],pressure_input_gpio:[34,35,32,33]} : {}) });
     assert.equal(validateFrame(payload, 'right', 'wroom-right'), payload);
     assert.throws(() => validateFrame({ ...payload, wifi_mode: 'AP' }, 'right'), /sta_firmware/);
     assert.throws(() => validateFrame({ ...payload, pressure_channels: [0, 1, 2, 4] }, 'right'), /layout/);
@@ -167,12 +168,12 @@ test('automatic registration uses the requesting board address, not a supplied U
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ firmware, foot_side: 'left', device_id: 'TEST-left', url: 'http://example.com' }),
   });
-  for (const firmware of ['04_sta_bilateral', '04_2_sta_bilateral_wroom']) {
+  for (const firmware of ['04_sta_bilateral', '04_2_sta_bilateral_wroom', '04_3_sta_bilateral_wroom_direct']) {
     assert.equal((await register(firmware)).status, 200);
     assert.deepEqual(registrations.at(-1), { side: 'left', deviceId: 'TEST-left', url: 'http://127.0.0.1', automatic: true });
   }
   assert.equal((await register('06_bmi270_csv_wroom')).status, 400);
-  assert.equal(registrations.length, 2);
+  assert.equal(registrations.length, 3);
 });
 test('connection cards escape untrusted values and never print hotspot credentials', () => {
   const p = both(); p.feet.left.base_url = '<img src=x>'; p.feet.left.last_error = '<script>alert(1)</script>';

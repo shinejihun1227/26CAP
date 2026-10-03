@@ -15,8 +15,8 @@ test('front records retain measured summaries only, with the same 30-day / 20-re
 });
 test('front records do not invent individual joint angles and preserve interrupted observations', () => {
   const html=renderFrontRecords([{at:1800000000000,eligible:false,ratio:35,changedSeconds:1.2}]);
-  assert.match(html,/이 브라우저/);assert.match(html,/인식 부족 \/ 중단/);assert.match(html,/35%/);assert.match(html,/1.2초/);
-  assert.match(html,/개별 각도가 포함되지/);assert.doesNotMatch(html,/3방향|set-create/);
+  assert.match(html,/이 브라우저/);assert.match(html,/부분 기록 \/ 중단/);assert.match(html,/35%/);assert.match(html,/1.2초/);
+  assert.match(html,/이전 기록에 없던 부위는 —/);assert.doesNotMatch(html,/3방향|set-create|왼발 0°|오른발 0°/);
 });
 test('ankle records show actual peak and sensor axes without inventing anatomical direction', () => {
   const html=renderAnkleRecords({day:'2026-10-02',feet:{},events:[{at:1800000000000,side:'right',peak:47,threshold:40.5,sensorX:-36.7,sensorY:-49.7}]});

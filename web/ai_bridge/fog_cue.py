@@ -37,6 +37,12 @@ class FogCueController:
         self.stop_event = threading.Event()
         self.workers = []
         self.feet = {}
+        self.wake = {side: threading.Event() for side in bridge.feet}
+
+    def request_sync(self):
+        """Wake the lease workers; each worker rechecks the latest decision and stops."""
+        for event in self.wake.values():
+            event.set()
 
     def snapshot(self):
         with self.lock:
@@ -53,6 +59,7 @@ class FogCueController:
             pending.write_text(json.dumps({'enabled': enabled}), encoding='utf-8')
             pending.replace(self.path)
             self.enabled = enabled
+        self.request_sync()
 
     def send(self, side, foot, active, level=70, laser=True):
         value = {'active': active, 'device_id': foot.get('device_id'), 'boot_id': foot.get('boot_id')}
@@ -86,11 +93,19 @@ class FogCueController:
         try:
             # Renew every 400ms while a cue is wanted; off commands also clear old leases
             # after service restart, calibration, dismissal, cancellation or a normal result.
-            self.send(side, foot, active, level, laser)
+            ack = self.send(side, foot, active, level, laser)
+            accepted_laser = bool(ack.get('laser', laser)) if active else False
+            accepted_vibration = bool(ack.get('vibration', level > 0)) if active else False
+            missing = []
+            if active and laser and not accepted_laser:
+                missing.append('레이저')
+            if active and level > 0 and not accepted_vibration:
+                missing.append('진동')
             result = {'requested': active, 'acknowledged': True, 'status': 'active' if active else 'off',
-                      'level': level if active else 0, 'laser': laser if active else False,
+                      'level': ack.get('level', level) if active else 0, 'laser': accepted_laser,
+                      'vibration': accepted_vibration,
                       'cue_state': plan['state'] if active else None, 'suppressed': plan.get('suppressed', False),
-                      'error': None}
+                      'error': f'{"·".join(missing)} 출력을 사용할 수 없어요. 기기 설정에서 연결을 확인하세요.' if missing else None}
         except Exception as exc:
             result = {'requested': active, 'acknowledged': False, 'status': 'error',
                       'error': f'출력 연결을 확인하세요. 최신 펌웨어가 필요할 수 있어요. ({exc})'}
@@ -99,8 +114,9 @@ class FogCueController:
 
     def run(self, side):
         while not self.stop_event.is_set():
+            self.wake[side].clear()
             self.tick(side)
-            self.stop_event.wait(0.4)
+            self.wake[side].wait(0.4)
         # The board also expires its lease if this best-effort stop cannot arrive.
         try:
             with self.bridge.lock:
@@ -118,5 +134,6 @@ class FogCueController:
 
     def close(self):
         self.stop_event.set()
+        self.request_sync()
         for worker in self.workers:
             worker.join(timeout=2)

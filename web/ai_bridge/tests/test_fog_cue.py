@@ -31,6 +31,42 @@ class CueTests(unittest.TestCase):
         self.assertEqual(wants_cue(foot, WARNING), (False, 0, False))
         self.assertTrue(wants_cue(foot, CONFIRMED)[0])
 
+    def test_popup_wakes_both_workers_but_never_overrides_stop_or_invents_inference(self):
+        with tempfile.TemporaryDirectory() as folder:
+            plan = dict(OFF)
+            bridge = SimpleNamespace(lock=threading.RLock(), detection_enabled=True,
+                feet={side: SimpleNamespace(snapshot=self.foot) for side in ('left', 'right')},
+                datasets=SimpleNamespace(capture=None), cue_plan=lambda: plan)
+            controller = FogCueController(bridge, folder)
+            controller.send = Mock(return_value={'accepted': True, 'cue_api_version': 1})
+            controller.request_sync()
+            self.assertTrue(all(event.is_set() for event in controller.wake.values()))
+            controller.tick('left')
+            self.assertFalse(controller.send.call_args.args[2])
+            plan.update(CONFIRMED)
+            for side in bridge.feet:
+                controller.tick(side)
+                self.assertEqual(controller.send.call_args.args[2:], (True, 70, True))
+            controller.set_enabled(False)
+            controller.request_sync(); controller.tick('left')
+            self.assertFalse(controller.send.call_args.args[2])
+            controller.set_enabled(True); bridge.detection_enabled = False
+            controller.request_sync(); controller.tick('right')
+            self.assertFalse(controller.send.call_args.args[2])
+
+    def test_partial_hardware_ack_reports_missing_motor_but_retains_laser(self):
+        with tempfile.TemporaryDirectory() as folder:
+            bridge = SimpleNamespace(lock=threading.RLock(), feet={'left': SimpleNamespace(snapshot=self.foot)},
+                datasets=SimpleNamespace(capture=None), cue_plan=lambda: CONFIRMED)
+            controller = FogCueController(bridge, folder)
+            controller.send = Mock(return_value={'accepted': True, 'cue_api_version': 1,
+                'laser': True, 'vibration': False, 'level': 0})
+            controller.tick('left')
+            result = controller.snapshot()['feet']['left']
+            self.assertTrue(result['laser'])
+            self.assertFalse(result['vibration'])
+            self.assertIn('진동', result['error'])
+
     def test_renew_until_clear_and_stop_during_collection_disable_and_restart(self):
         with tempfile.TemporaryDirectory() as folder:
             snapshot = self.foot()

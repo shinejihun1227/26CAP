@@ -14,9 +14,9 @@ const exportButton = (disabled = false) => `<button type="button" data-record-ac
 const table = (headers, rows) => `<div class="records-table-wrap"><table><thead><tr>${headers.map(h=>`<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 
 export function renderFrontRecords(records) {
-  return head('정면 보행 관찰', '이 브라우저 · 최근 20건 / 최대 30일 · 영상 저장 안 함', `${refresh}${exportButton(!records.length)}<button type="button" data-view="mediapipe">정면 보행 관찰하기 →</button>`)
-    + `<div class="records-explainer">처음 자세와 비교한 <b>골반선·몸통의 변화 시간</b>입니다. 현재 저장 형식에는 각 부위의 개별 각도가 포함되지 않습니다.</div>`
-    + (records.length ? table(['관찰 시각','관찰 길이','기록 상태','유효 인식','변화가 이어진 시간'], [...records].reverse().map(r=>`<tr><td>${stamp(r.at)}</td><td>${number(r.plannedSeconds??20)}초</td><td><span class="records-state ${r.eligible?'':'is-review'}">${r.eligible?'관찰 완료':'인식 부족 / 중단'}</span></td><td>${number(r.ratio)}%</td><td>${number(r.changedSeconds)}초</td></tr>`)) : empty('아직 정면 보행 기록이 없어요.', '정면 보행에서 2초 기준 자세를 맞춘 뒤 10초 관찰을 완료하세요. 휴대폰과 PC 브라우저의 기록은 서로 다릅니다.'));
+  return head('홈재활 걸음 관찰', '이 브라우저 · 최근 20건 / 최대 30일 · 영상 저장 안 함', `${refresh}${exportButton(!records.length)}<button type="button" data-view="mediapipe">홈재활 시작하기 →</button>`)
+    + `<div class="records-explainer">처음 자세와 비교한 <b>골반선·몸통·무릎–발목 선의 변화</b>입니다. 직접 인식과 보간 시간을 나누고, 최대 변화는 직접 인식값만 사용합니다. 이전 기록에 없던 부위는 —로 표시합니다.</div>`
+    + (records.length ? table(['관찰 시각','관찰 길이','기록 상태','직접 인식 / 보간','최대 변화 · 실측','변화가 이어진 시간'], [...records].reverse().map(r=>`<tr><td>${stamp(r.at)}</td><td>${number(r.plannedSeconds??20)}초</td><td><span class="records-state ${r.eligible?'':'is-review'}">${r.eligible?'관찰 완료':'부분 기록 / 중단'}</span></td><td>${r.validSeconds!==undefined?`${number(r.validSeconds)}초 / ${number(r.interpolatedSeconds??0)}초`:`${number(r.ratio)}% / —`}</td><td>${[['pelvis','골반'],['ankleLeft','왼발'],['ankleRight','오른발'],['trunk','몸통']].map(([key,label])=>`<small>${label} ${r.metrics?.[key]?.available?`${number(r.metrics[key].peak)}°`:'—'}</small>`).join('')}</td><td>${number(r.changedSeconds)}초</td></tr>`)) : empty('아직 홈재활 기록이 없어요.', '2초 기준 자세를 맞추고 10초간 걸음을 관찰해요. 휴대폰과 PC 브라우저의 기록은 서로 다릅니다.'));
 }
 export function renderAnkleRecords(data) {
   return head('오늘의 발 움직임', `${e(data.day)} · PC 저장 · 오늘의 이탈 기록만 표시`, `${refresh}${exportButton(!data.events.length)}<button type="button" data-view="ankle">양발 기준 · 실시간 보기 →</button>`)

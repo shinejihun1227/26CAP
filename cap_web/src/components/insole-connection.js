@@ -5,14 +5,17 @@ function value(n, digits = 1) { return typeof n === 'number' && Number.isFinite(
 function vector(v) { return ['x', 'y', 'z'].map((axis) => `${axis.toUpperCase()} ${value(v?.[axis], 2)}`).join(' · '); }
 function connectionError(error, side) {
   if (error === 'foot_side_mismatch') return `보드의 좌우 설정이 다릅니다. ${label[side]} 보드는 STEPON_RIGHT_FOOT=${side === 'right' ? 1 : 0}으로 업로드하세요.`;
-  if (error === 'sta_firmware_required') return '웹 연결용 04 또는 4-2 STA 펌웨어를 업로드하세요.';
+  if (error === 'sta_firmware_required') return '펌웨어 정보를 확인하지 못했습니다. 지원 버전은 04 / 4-2 / 4-3 STA입니다. 4-3을 올렸다면 최신 웹 서버인지 먼저 확인하세요.';
+  if (error === 'device_timeout') return '기기 응답이 없습니다. 보드의 전원·Wi-Fi와 시리얼 모니터의 현재 IP를 확인하세요.';
+  if (error === 'device_id_mismatch') return '등록된 보드와 다른 기기입니다. 새 보드로 교체했다면 현재 IP를 다시 등록하세요.';
+  if (error === 'direct_pressure_pins_mismatch') return '4-3 압력 입력 설정이 맞지 않습니다. ADC1 직접 입력과 서로 다른 GPIO 4개 설정을 확인하세요.';
   return `${error} · IP·좌우 설정·전원 확인`;
 }
 
 export function renderInsoleConnections(state, { configure = false } = {}) {
   const sta = state.hardware?.transport === 'sta';
   if (!sta && !configure) return '';
-  if (!sta) return `<section class="panel insole-hub-panel"><h2>04 / 4-2 STA 양발 연결</h2><p>노트북과 왼발·오른발을 같은 휴대폰 핫스팟 또는 Wi-Fi에 연결한 뒤 실센서 모드에서 확인하세요.</p><button class="primary-button" data-action="connect-sta">STA 실센서 화면 열기</button></section>`;
+  if (!sta) return `<section class="panel insole-hub-panel"><h2>04 / 4-2 / 4-3 STA 양발 연결</h2><p>노트북과 왼발·오른발을 같은 휴대폰 핫스팟 또는 Wi-Fi에 연결한 뒤 실센서 모드에서 확인하세요.</p><button class="primary-button" data-action="connect-sta">STA 실센서 화면 열기</button></section>`;
   const active = state.rehab?.config?.activeFoot === 'right' ? 'right' : 'left';
   return `<section class="insole-hub-panel" aria-label="STA 양발 연결 상태"><div class="insole-hub-heading"><div><span class="eyebrow">STA · SHARED WI-FI</span><h2>왼발과 오른발 연결</h2><p>같은 Wi-Fi로 연결 · ESP32 → 노트북 자동 등록 · 노트북에서 센서 수집과 AI 처리</p></div><label data-insole-controls>분석·출력 대상 <select data-rehab-setting="activeFoot" aria-label="분석 및 출력 대상 발"><option value="left" ${active === 'left' ? 'selected' : ''}>왼발</option><option value="right" ${active === 'right' ? 'selected' : ''}>오른발</option></select></label></div>
     <div class="insole-hub-grid">${['left', 'right'].map((side) => {

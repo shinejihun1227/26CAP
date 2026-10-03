@@ -4,7 +4,7 @@ import { icon } from '../components/icons.js';
 export const RECORD_TABS = [
   { id: 'fog', title: 'FOG 분석 자료', detail: 'BMI 보정 · AI 점수 · CSV', icon: 'activity' },
   { id: 'ankle', title: '발 움직임 기록', detail: '기울기 기준 · 이탈', icon: 'shoe' },
-  { id: 'front', title: '정면 보행 기록', detail: '골반선 · 몸통 변화', icon: 'camera' },
+  { id: 'front', title: '홈재활 기록', detail: '골반 · 양발 · 인식 품질', icon: 'camera' },
   { id: 'sensors', title: '압력·온습도 기록', detail: '센서 저장 · 날짜별 비교', icon: 'chart' },
 ];
 

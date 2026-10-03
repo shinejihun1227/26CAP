@@ -23,12 +23,12 @@ export const APP_FEATURES = [
   },
   {
     id: 'front', view: 'mediapipe', icon: 'camera', tag: 'MediaPipe 정면 카메라',
-    title: '보행 자세 돌아보기',
-    summary: '정면 카메라로 골반선과 몸통 기울기의 변화를 살펴요.',
-    description: '발목·무릎·골반을 함께 보며, 골반 높이 차이와 몸통 기울기의 변화를 살펴요.',
+    title: '홈재활 파트너',
+    summary: '집에서 내 기준 자세와 골반·발목의 변화를 함께 살펴요.',
+    description: '2초 기준 자세, 10초 걸음 관찰. 골반선과 무릎–발목 선을 비교하며 짧은 인식 끊김은 보간해요.',
     steps: ['정면 촬영', '관절점 확인', '자세 변화 관찰'],
     note: '처음 자세와 비교해요. 카메라 영상은 저장하지 않아요.',
-    action: '정면 보행 보기',
+    action: '홈재활 시작하기',
   },
 ];
 

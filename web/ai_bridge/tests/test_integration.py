@@ -248,7 +248,7 @@ class IntegrationTests(unittest.TestCase):
             p=frame(i)
             p.update(pressure_ready=True, sensor_profile='four-independent',
                      pressure_channels=[0, 2, 4, 6], pressure_sensor_map=[0, 1, 2, 3],
-                     pressure_raw=[4095]*4 if i <= 320 else [500, 1000, 1500, 2000])
+                     pressure_raw=[500, 1000, 1500, 2000] if i <= 320 else [4095]*4)
             if i<=320: p['accel']={'x':0.001*math.sin(i),'y':0.001*math.cos(i),'z':1}
             r.ingest(p)
         self.assertEqual(r.capture['status'],'complete', r.capture)
@@ -256,7 +256,8 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(json.loads(r.calibration_path.read_text())['device_id'],'test-right')
         pressure = json.loads(r.calibration_path.read_text())['pressure_normalization']
         self.assertEqual(pressure['status'], 'ready')
-        self.assertEqual(pressure['max_raw'], [500, 1000, 1500, 2000])
+        self.assertEqual(pressure['reference_raw'], [500, 1000, 1500, 2000])
+        self.assertEqual(pressure['method'], 'standing-50-v1')
         self.assertEqual(r.snapshot()['pressure_normalization']['id'], pressure['id'])
         self.assertIsNotNone(r.detector)
         self.assertFalse(r.snapshot()['ready'])

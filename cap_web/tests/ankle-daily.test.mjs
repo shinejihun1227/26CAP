@@ -126,6 +126,30 @@ test('events persist without restoring stale calibration; corrupt event fields a
  const restored=createAnkleDaily({directory,now:f.time});assert.equal(restored.snapshot().events.length,1);assert.equal(restored.snapshot().feet.left.plan,null);
  const p=path.join(directory,'events.json'),events=JSON.parse(fs.readFileSync(p));events.push({...events[0],peak:'<img>'});fs.writeFileSync(p,JSON.stringify(events));assert.equal(createAnkleDaily({directory,now:f.time}).snapshot().events.length,1);
 });
+
+test('event direction follows the peak sample, survives storage, and is not reinterpreted by later poses',t=>{
+ const directory=fs.mkdtempSync(path.join(os.tmpdir(),'stepon-peak-direction-'));
+ t.after(()=>fs.rmSync(directory,{recursive:true,force:true}));
+ const f=fixture(directory);f.prepare();for(let i=0;i<30;i++)f.observe(40);
+ let event=f.monitor.snapshot().events[0];assert.equal(event.footDirection.code,'front');
+ const referenceAt=event.footDirection.referenceAt;
+ f.advance(50);const raw=f.raw();raw.accel={x:0,y:Math.sin(50*Math.PI/180),z:Math.cos(50*Math.PI/180)};
+ f.monitor.observe('left',raw);event=f.monitor.snapshot().events[0];
+ assert.equal(event.footDirection.code,'left');assert.equal(event.peak,50);
+ f.observe(40);assert.equal(f.monitor.snapshot().events[0].footDirection.code,'left');
+ f.observe();f.monitor.flush();f.boot('new-boot');f.observe();
+ const saved=createAnkleDaily({directory,now:f.time}).snapshot().events[0];
+ assert.equal(saved.footDirection.code,'left');assert.equal(saved.footDirection.referenceAt,referenceAt);
+});
+
+test('unreferenced or upside-down excursion peaks do not retain a plausible but false direction',()=>{
+ const f=fixture();f.prepare();for(let i=0;i<30;i++)f.observe(40);
+ assert.ok(f.monitor.snapshot().events[0].footDirection);
+ f.observe(100);assert.equal(f.monitor.snapshot().events[0].footDirection,null);
+ const other=fixture();other.startRange();for(let i=0;i<200;i++)other.observe(i<85?0:i%40<20?20:0);
+ for(let i=0;i<30;i++)other.observe(40);
+ assert.equal(other.monitor.snapshot().events[0].footDirection,null);
+});
 test('daily HTTP endpoint blocks cross-origin commands and reports real missing-device errors',async t=>{
  const f=fixture(),server=http.createServer(createAnkleDailyHandler(f.monitor,{snapshot:()=>({feet:{}})}));await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));
  const url=`http://127.0.0.1:${server.address().port}`;

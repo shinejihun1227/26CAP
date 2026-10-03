@@ -3,6 +3,7 @@ const routes = new Map([
   ['/api/ai/state', 'GET'], ['/api/ai/ping', 'GET'], ['/api/ai/events', 'GET'],
   ['/api/ai/calibration/start', 'POST'], ['/api/ai/calibration/cancel', 'POST'],
   ['/api/ai/cue', 'POST'],
+  ['/api/ai/cue/sync', 'POST'],
   ['/api/ai/detection', 'POST'],
   ['/api/ai/datasets', 'GET'], ['/api/ai/datasets/validate', 'POST'], ['/api/ai/datasets/analyze', 'POST'],
   ['/api/ai/datasets/record/start', 'POST'], ['/api/ai/datasets/record/stop', 'POST'],

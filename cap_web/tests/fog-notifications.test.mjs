@@ -14,9 +14,35 @@ test('only fresh real confirmed inference opens a warning, never demo, paused, s
   assert.equal(isLiveFog(live(), 10000), true);
   for(const state of [live({dataSource:'demo'}),live({paused:true}),live({fogLocalStop:true}),live({aiEnabled:false}),
     ...[{detectionEnabled:false},{available:false},{ready:false},{deviceConnected:false},{windowReady:false},
-      {state:'warning'},{state:'normal'},{lastWindowAtMs:null},{lastWindowAtMs:10001},{lastWindowAtMs:7499}].map(ai=>live({},ai))]) {
+      {state:'warning'},{state:'normal'},{lastWindowAtMs:null},{lastWindowAtMs:10001},{lastWindowAtMs:7999}].map(ai=>live({},ai))]) {
     assert.equal(isLiveFog(state,10000),false);
   }
+});
+
+test('a real popup requests immediate server output sync; audio preview and stale results do not', async () => {
+  let syncs=0, alerts=0;
+  const notifications=createFogNotifications({audio:createMobileFogAudio({AudioContextCtor:null}),
+    speak:()=>true,cancelSpeech:()=>{},onAlert:()=>alerts++,syncCue:async()=>syncs++,now:()=>10000});
+  await notifications.activate();
+  assert.equal(syncs,0);
+  notifications.observe(live({}, {lastWindowAtMs:7999}));
+  notifications.observe(live({dataSource:'demo'}));
+  assert.equal(alerts,0);
+  notifications.observe(live()); notifications.observe(live());
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(alerts,1);assert.equal(syncs,1);
+  notifications.observe(live({}, {detectionEnabled:false}));
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(syncs,1);
+});
+
+test('an output sync failure keeps the popup visible and reports the connection error',async()=>{
+  let alerts=0,errors=0;
+  const notifications=createFogNotifications({audio:createMobileFogAudio({AudioContextCtor:null}),
+    onAlert:()=>alerts++,syncCue:async()=>{throw Error('offline');},onCueError:()=>errors++,now:()=>10000});
+  notifications.observe(live());
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(alerts,1);assert.equal(errors,1);
 });
 
 test('popup works without audio permission; repeated confirmed samples speak once per episode', async () => {

@@ -1,0 +1,156 @@
+{
+  "exampleOnly": true,
+  "data": {
+    "version": 1,
+    "model": "qwen2.5:3b",
+    "observedAt": 1790915684302,
+    "entries": [
+      {
+        "kind": "rom",
+        "side": "left",
+        "evidence": {
+          "id": "example-direction-left",
+          "kind": "rom",
+          "side": "left",
+          "at": 1790915681802,
+          "endedAt": 1790915683802,
+          "peak": 42,
+          "rangeMax": 30,
+          "threshold": 35,
+          "sensorX": -42,
+          "sensorY": 0,
+          "direction": "X− 방향",
+          "footDirection": {
+            "source": "toe-up",
+            "code": "right",
+            "forward": 0,
+            "left": -42,
+            "referenceAt": 1790915669302,
+            "edge": "inner",
+            "label": "안쪽"
+          },
+          "seconds": 2
+        }
+      },
+      {
+        "kind": "rom",
+        "side": "right",
+        "evidence": {
+          "id": "example-direction-right",
+          "kind": "rom",
+          "side": "right",
+          "at": 1790915681802,
+          "endedAt": 1790915683802,
+          "peak": 42,
+          "rangeMax": 30,
+          "threshold": 35,
+          "sensorX": -42,
+          "sensorY": 0,
+          "direction": "X− 방향",
+          "footDirection": {
+            "source": "toe-up",
+            "code": "right",
+            "forward": 0,
+            "left": -42,
+            "referenceAt": 1790915669302,
+            "edge": "outer",
+            "label": "바깥쪽"
+          },
+          "seconds": 2
+        }
+      },
+      {
+        "kind": "cop",
+        "side": "left",
+        "evidence": null
+      },
+      {
+        "kind": "cop",
+        "side": "right",
+        "evidence": null
+      }
+    ],
+    "pressureState": {
+      "left": "offline",
+      "right": "offline"
+    }
+  },
+  "requests": {
+    "rom-left": {
+      "eventId": "example-direction-left",
+      "result": {
+        "status": 200,
+        "eventId": "example-direction-left",
+        "kind": "rom",
+        "side": "left",
+        "evidence": {
+          "id": "example-direction-left",
+          "kind": "rom",
+          "side": "left",
+          "at": 1790915681802,
+          "endedAt": 1790915683802,
+          "peak": 42,
+          "rangeMax": 30,
+          "threshold": 35,
+          "sensorX": -42,
+          "sensorY": 0,
+          "direction": "X− 방향",
+          "footDirection": {
+            "source": "toe-up",
+            "code": "right",
+            "forward": 0,
+            "left": -42,
+            "referenceAt": 1790915669302,
+            "edge": "inner",
+            "label": "안쪽"
+          },
+          "seconds": 2
+        },
+        "model": "qwen2.5:3b",
+        "generatedAt": 1790915684302,
+        "actionIds": [
+          "walk_inner_raised",
+          "check_attachment"
+        ]
+      }
+    },
+    "rom-right": {
+      "eventId": "example-direction-right",
+      "result": {
+        "status": 200,
+        "eventId": "example-direction-right",
+        "kind": "rom",
+        "side": "right",
+        "evidence": {
+          "id": "example-direction-right",
+          "kind": "rom",
+          "side": "right",
+          "at": 1790915681802,
+          "endedAt": 1790915683802,
+          "peak": 42,
+          "rangeMax": 30,
+          "threshold": 35,
+          "sensorX": -42,
+          "sensorY": 0,
+          "direction": "X− 방향",
+          "footDirection": {
+            "source": "toe-up",
+            "code": "right",
+            "forward": 0,
+            "left": -42,
+            "referenceAt": 1790915669302,
+            "edge": "outer",
+            "label": "바깥쪽"
+          },
+          "seconds": 2
+        },
+        "model": "qwen2.5:3b",
+        "generatedAt": 1790915684302,
+        "actionIds": [
+          "walk_outer_raised",
+          "check_attachment"
+        ]
+      }
+    }
+  }
+}

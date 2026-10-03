@@ -27,6 +27,78 @@ function stateFor(ready=[true,true], side='left') {
   return state;
 }
 const values = result => result.samples.map(sample=>sample.value);
+function bilateralFor(left, right) {
+  const state = normalizeBilateralState({service:'stepon-bilateral-v1', feet:{
+    left:{connected:true,age_ms:10,state:left}, right:{connected:true,age_ms:10,state:right}
+  }},structuredClone(initialState));
+  state.sensorReceivedAt=10000;
+  return state;
+}
+
+test('a missing foot uses the other foot physical mean without counting shared slots twice',()=>{
+  for (const side of ['left','right']) for (const ready of [[true,false],[true,true]]) {
+    const sourceSide=side==='left'?'right':'left';
+    const state=bilateralFor(payload('left',side==='left'?[false,false]:ready),payload('right',side==='right'?[false,false]:ready));
+    const before=structuredClone(state);
+    for (const [mode,expected] of [['temperature',ready[1]?31:30],['humidity',ready[1]?55:50]]) {
+      const result=thermalDisplayForFoot(state,side,mode,10000);
+      assert.deepEqual(values(result),[expected,expected,expected,expected]);
+      assert.equal(result.mean,null);assert.equal(result.displayMean,expected);
+      assert.equal(result.fallbackSide,sourceSide);assert.equal(result.physicalCount,0);
+      assert.equal(result.estimatedCount,4);
+      assert.ok(result.samples.every(s=>s.estimated&&s.sourceSide===sourceSide));
+      assert.deepEqual(result.samples[0].sources,ready[1]?[0,1]:[0]);
+    }
+    assert.deepEqual(state,before,'display fallback does not create measurements or readiness');
+    assert.equal(readObservationFeet(state,10000)[side].temperature,null);
+  }
+});
+
+test('cross-foot fallback supports four independent sensors and uses only valid physical sources',()=>{
+  const state=bilateralFor(payload('left',[true,false,true,false],false),payload('right',[false,false,false,false],false));
+  const result=thermalDisplayForFoot(state,'right','temperature',10000);
+  assert.deepEqual(values(result),[31,31,31,31]);assert.equal(result.total,4);
+  assert.deepEqual(result.samples[0].sources,[0,2]);
+  state.thermal.left[0].temp=-127;
+  assert.deepEqual(values(thermalDisplayForFoot(state,'right','temperature',10000)),[32,32,32,32]);
+});
+
+test('same-foot recovery wins immediately; missing or stale sources never circulate estimates',()=>{
+  const state=bilateralFor(payload('left'),payload('right',[false,false]));
+  const recovered=normalizeBilateralState({service:'stepon-bilateral-v1',feet:{
+    left:state.hardware.feet.left,
+    right:{connected:true,age_ms:0,state:{...payload('right',[true,false]),temperature:[35,35,32,32]}}
+  }},state);
+  recovered.sensorReceivedAt=10000;
+  const result=thermalDisplayForFoot(recovered,'right','temperature',10000);
+  assert.equal(result.fallbackSide,null);assert.equal(result.mean,35);assert.equal(result.displayMean,35);
+  assert.equal(result.samples[0].value,35);assert.equal(result.samples[0].estimated,false);
+  assert.ok(result.samples.every(s=>s.sourceSide==='right'));
+  for (const changedSide of ['left','right']) {
+    const disconnected=structuredClone(state);disconnected.hardware.feet[changedSide].connected=false;
+    assert.deepEqual(values(thermalDisplayForFoot(disconnected,'right','temperature',10000)),[null,null,null,null]);
+    const stale=structuredClone(state);stale.hardware.feet[changedSide].age_ms=2501;
+    assert.deepEqual(values(thermalDisplayForFoot(stale,'right','temperature',10000)),[null,null,null,null]);
+  }
+  assert.deepEqual(values(thermalDisplayForFoot(state,'right','temperature',12501)),[null,null,null,null]);
+  const none=bilateralFor(payload('left',[false,false]),payload('right',[false,false]));
+  for (const side of ['left','right']) assert.deepEqual(values(thermalDisplayForFoot(none,side,'humidity',10000)),[null,null,null,null]);
+});
+
+test('cross-foot display labels the source and reference average without inventing a measured difference',()=>{
+  const state=bilateralFor(payload('left',[true,false]),payload('right',[false,false]));
+  const now=Date.now();state.sensorReceivedAt=state.sensorAdvancedAt=now;
+  const before=buildSensorSample(state,'P01','flat',now);
+  assert.equal(before,null,'the selected right foot has no measurements to record');
+  const html=renderBilateralHeatmap({...state,heatmapMode:'temperature'});
+  assert.match(html,/실측 0\/2<\/b> · 왼발 평균 사용/);
+  assert.match(html,/오른발 참고 평균<\/span><b>30.0°C/);
+  assert.match(html,/heatmap-difference[^]*?<b>--<\/b>/);
+  assert.equal((html.match(/data-value-source="estimated"/g)||[]).length,7);
+  assert.equal((html.match(/추정 · 왼발 센서 1 실측 평균 기반/g)||[]).length,4);
+  assert.doesNotMatch(html,/heat-estimate-tag/);
+  assert.deepEqual(buildSensorSample(state,'P01','flat',now),before);
+});
 
 test('two physical readings stay exact; two extra slots use their unweighted mean with bounded offsets',()=>{
   const state=stateFor(), before=structuredClone(state);

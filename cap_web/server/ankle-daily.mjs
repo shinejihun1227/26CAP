@@ -114,13 +114,16 @@ export function createAnkleDaily({ directory = null, now = Date.now } = {}) {
     f.outside.count++; f.state='checking';
     if(t-f.outside.at<1000 || f.outside.count<3) return;
     f.state='outside';
+    // Bind the display direction to the peak sample and its original wearing
+    // reference. Never reinterpret an old excursion using a later calibration.
+    const peakDirection = f.current.direction ? {...f.current.direction, referenceAt:f.plan.directionFrame.at} : null;
     if(!f.activeEvent) {
       if(events.filter(e=>localDay(e.at)===localDay(t)).length>=200) { f.message='오늘 표시 가능한 이벤트 200개에 도달했습니다.'; return; }
-      f.activeEvent={id:randomUUID(),side,at:f.outside.at,endedAt:t,peak:round(tilt),sensorX:f.current.x,sensorY:f.current.y,threshold:f.plan.max+5,planId:f.plan.id,baselineAt:f.plan.at};
+      f.activeEvent={id:randomUUID(),side,at:f.outside.at,endedAt:t,peak:round(tilt),sensorX:f.current.x,sensorY:f.current.y,footDirection:peakDirection,threshold:f.plan.max+5,planId:f.plan.id,baselineAt:f.plan.at};
       events.push(f.activeEvent);
     }
     f.activeEvent.endedAt=t;
-    if(tilt>f.activeEvent.peak) Object.assign(f.activeEvent,{peak:round(tilt),sensorX:f.current.x,sensorY:f.current.y});
+    if(tilt>f.activeEvent.peak) Object.assign(f.activeEvent,{peak:round(tilt),sensorX:f.current.x,sensorY:f.current.y,footDirection:peakDirection});
     dirty=true;
   }
   function command(side, action, hub) {

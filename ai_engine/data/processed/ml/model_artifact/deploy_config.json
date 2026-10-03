@@ -33,5 +33,9 @@
     "threshold": 0.4,
     "n_consecutive": 4,
     "note": "Two-tier output (2026-10-01): the state machine above (ensemble 0.26, 2 windows) still decides any cue; CONFIRMED (laser + strong vibration) additionally needs score >= 0.40 for 3 consecutive 0.5 s windows (1.5 s), else WARNING (weak vibration, no laser). fog_validation_20hz_run/scripts/confirmed_tier_threshold_search.py, full live pipeline incl. motion gates, PD_only: VAL CONFIRMED episodes 43->41/47, laser false-alarm rate on non-FoG windows 27.1%->13.5%; TEST 45->44/46, 31.4%->10.6%. Every episode still reaches at least WARNING (VAL 43/47, TEST 45/46, unchanged). The val-only selection rule's own pick (0.52, 1 window) tied on VAL episodes (41) at 12.7%; 0.40 x 3 was kept as the pre-specified, spike-robust 1.5 s rule. 2026-10-01 demo choice: n_consecutive 3->4 (2.0 s). Same search, VAL: CONFIRMED episodes 41->38/47, laser false-alarm 13.5%->12.1%; every episode still reaches WARNING (43/47). Chosen by the team for a calmer laser in the demo, not by the selection rule."
+  },
+  "motion_gates": {
+    "enabled": false,
+    "note": "2026-10-02 demo choice: both motion gates (low-motion 0.20, confirmed-grade 0.25) disabled so CONFIRMED (laser) = ensemble score >= 0.40 for 2 s regardless of motion. The validated gate numbers (96.2% walking-FoG kept, 47.4% voluntary-stop alarms downgraded) no longer apply while this is false. Set true to restore."
   }
 }

@@ -20,7 +20,7 @@ test('navigation labels, destinations and active state agree across summary, ran
 test('frontal camera observes alignment without weekly medical target angles', () => {
   const html = renderMobileApp({ ...structuredClone(initialState), easyMode: true }, 'mediapipe');
   assert.doesNotMatch(html, /rom-weekly-targets|data-rom-week=/);
-  assert.match(html, /2초 기준 자세/);
+  assert.match(html, /2초 기준 맞추기/);
   assert.match(html, /10초 관찰 시작/);
-  assert.match(html, /골반선 변화/);
+  assert.match(html, /data-front-metric="pelvis"[\s\S]*?처음 골반 높이와 비교/);
 });

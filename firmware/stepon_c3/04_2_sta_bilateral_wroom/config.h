@@ -16,7 +16,7 @@ constexpr const char *DEVICE_HOSTNAME = STEPON_RIGHT_FOOT ? "stepon-wroom-right"
 // Empty uses the DHCP gateway: valid only when the laptop hosts the hotspot.
 // Phone hotspot/router: enter the laptop's Wi-Fi IPv4, NOT the phone/gateway.
 // Local phone-hotspot address; recheck with check-network.bat after reconnecting.
-constexpr const char *PC_HOST = "172.20.10.2";
+constexpr const char *PC_HOST = "10.23.57.153";
 constexpr uint16_t PC_PORT = 8000;
 constexpr bool WIFI_POWER_SAVE = false; // Low-latency polling. true trades latency for idle power saving.
 // Four-sensor wiring: MUX S2 -> GPIO4; pressure sensors -> C0/C2/C4/C6.
@@ -26,6 +26,7 @@ constexpr uint8_t I2C_SDA = 21, I2C_SCL = 22;
 constexpr uint8_t MUX_S0 = 32, MUX_S1 = 33, MUX_S2 = 4, MUX_S3 = 26;
 constexpr uint8_t MUX_SIG = 34; // ADC1 input: usable while Wi-Fi runs; no internal pull-up.
 constexpr uint8_t PRESSURE_ADC_PINS[2] = {34, 35};
+constexpr uint8_t PRESSURE_DIRECT_PINS[4] = {34, 35, 32, 33};
 // Separate bus for thermal sensor 2 in the 2-sensor profile.
 constexpr uint8_t THERMAL2_SDA = 13, THERMAL2_SCL = 14;
 static_assert(MUX_SIG >= 32 && MUX_SIG <= 39, "Pressure input must use ADC1 with Wi-Fi");

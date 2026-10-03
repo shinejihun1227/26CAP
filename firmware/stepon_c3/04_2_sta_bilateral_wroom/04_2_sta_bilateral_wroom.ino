@@ -154,7 +154,7 @@ void sensorTask(void *) {
     const bool manualLaser = manualLaserRequested;
     portEXIT_CRITICAL(&cueLock);
     // CONFIRMED: vibration + laser. WARNING: weaker vibration only (laser=0).
-    const bool wantedLaser = ENABLE_LASER_OUTPUT && WiFi.status() == WL_CONNECTED && ((hold && cue.laser && f.drvReady) || manualLaser);
+    const bool wantedLaser = ENABLE_LASER_OUTPUT && WiFi.status() == WL_CONNECTED && ((hold && cue.laser) || manualLaser);
     if (wantedLaser != laserOn) { digitalWrite(LASER_PIN, wantedLaser ? HIGH : LOW); laserOn = wantedLaser; }
     if (hold != sustainedVibration) {
       if (f.drvReady) {
@@ -270,12 +270,15 @@ void setup() {
     }
     const bool laser = !server.hasArg("laser") || server.arg("laser") == "1";
     const auto f = copyFrame();
-    if (enabled && (!f.imuReady || !f.drvReady || !ENABLE_LASER_OUTPUT || uint32_t(millis() - f.atMs) >= 1000)) {
+    // A missing motor driver must not block the independent laser output.
+    const bool laserAvailable = laser && ENABLE_LASER_OUTPUT;
+    const bool vibrationAvailable = level > 0 && f.drvReady;
+    if (enabled && (!f.imuReady || (!laserAvailable && !vibrationAvailable) || uint32_t(millis() - f.atMs) >= 1000)) {
       updateFogCue(false);
       sendJson(409, "{\"error\":\"cue_hardware_not_ready\"}"); return;
     }
-    updateFogCue(enabled, uint8_t(level), laser);
-    sendJson(200, "{\"accepted\":true,\"cue_api_version\":1,\"cue_level_supported\":true,\"lease_ms\":1500,\"level\":" + String(level) + ",\"laser\":" + String(laser ? "true" : "false") + "}");
+    updateFogCue(enabled, vibrationAvailable ? uint8_t(level) : 0, laserAvailable);
+    sendJson(200, "{\"accepted\":true,\"cue_api_version\":1,\"cue_level_supported\":true,\"lease_ms\":1500,\"level\":" + String(enabled && vibrationAvailable ? level : 0) + ",\"laser\":" + String(enabled && laserAvailable ? "true" : "false") + ",\"vibration\":" + String(enabled && vibrationAvailable ? "true" : "false") + "}");
   });
   server.onNotFound([] { sendJson(404, "{\"error\":\"not_found\"}"); });
   server.begin();

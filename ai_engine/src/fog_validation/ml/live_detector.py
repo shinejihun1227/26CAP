@@ -5,6 +5,12 @@ Normal/Warning/Confirmed actuation tier. Split out from scripts/ble_receiver.py
 so this logic is testable without a bleak import or any hardware, the same
 reason ble_codec.py is separate from the BLE I/O around it.
 
+Deployment overrides: motion_gates.enabled=false skips the two motion checks
+described below; an absent key restores them. Yaw suppression, the state machine,
+the confirmed score streak and optional pressure gates still apply. The current
+StepOn build also disables the historical prolonged-stillness escalation in
+push_sample(). Historical validation numbers below do not validate these overrides.
+
 STATE_NORMAL / STATE_WARNING / STATE_CONFIRMED: the three tiers push_sample()
 can resolve to once a window completes (see its own docstring). This is a
 DIFFERENT axis from the yaw gate: the yaw gate runs BEFORE the state machine
@@ -134,8 +140,8 @@ class LiveFogDetector:
     not tuned numbers; calibration.py's module docstring for why the yaw
     gate is opportunistic (only runs when calibration actually found a yaw
     axis - see docs/own_data_schema.md's "Yaw 게이트" section); and
-    motion_gate.py for the low-motion gate, which is UNCONDITIONAL (always
-    runs, no calibration precondition - it reuses the same main accel window
+    motion_gate.py for the low-motion gate, which runs when motion_gates.enabled
+    is true (default), with no calibration precondition - it reuses the main accel window
     every model score already needs, see docs/own_data_schema.md's "저모션
     게이트" section) and its second, stricter CONFIRMED-tier check (see
     docs/own_data_schema.md's "저모션 게이트 - CONFIRMED 2차 게이트" section);
@@ -225,6 +231,9 @@ class LiveFogDetector:
         # Two-tier output: CONFIRMED (laser) needs a stronger, sustained score on top of
         # every existing gate; otherwise the Active decision stays WARNING. Absent from
         # older deploy_config.json files -> tier disabled, behaviour unchanged.
+        # Demo build switch: motion_gates.enabled=false skips both motion gates, so
+        # CONFIRMED depends only on the score tier (absent key -> gates on, as validated).
+        self.motion_gates_enabled = (deploy_config.get("motion_gates") or {}).get("enabled", True)
         tier_cfg = deploy_config.get("confirmed_tier") or {}
         self.confirmed_threshold = tier_cfg.get("threshold")
         self.confirmed_n_consecutive = int(tier_cfg.get("n_consecutive", 1))
@@ -401,6 +410,7 @@ class LiveFogDetector:
         fog_score = float(proba[0, self.i_fog])
         self.last_fog_score = fog_score
         self.last_diagnostics = {
+            "motion_gates_enabled": bool(self.motion_gates_enabled),
             "raw_model_score": fog_score,
             "rf_score": float(proba_rf[0, self.i_fog]) if self.model_name == "ensemble" else (fog_score if self.model_name == "rf" else None),
             "cnn_score": float(proba_cnn[0, self.i_fog]) if self.model_name == "ensemble" else (fog_score if self.model_name == "cnn" else None),
@@ -451,7 +461,7 @@ class LiveFogDetector:
         if pretransition_low:
             return self._decision(STATE_WARNING, "pressure_transition")
 
-        if not is_active_walking(window):
+        if self.motion_gates_enabled and not is_active_walking(window):
             return self._decision(STATE_WARNING, "low_motion")
         # is_active_walking passed - a SECOND, stricter motion check now
         # decides WARNING vs CONFIRMED (never NORMAL, so the floor above is
@@ -460,7 +470,7 @@ class LiveFogDetector:
         # without being real locomotion - see motion_gate.py's
         # CONFIRMED_TIER_MOTION_ENERGY_THRESHOLD docstring for why/how this
         # was validated (scripts/warning_floor_gate_investigation.py).
-        if not is_confirmed_grade_motion(window):
+        if self.motion_gates_enabled and not is_confirmed_grade_motion(window):
             return self._decision(STATE_WARNING, "motion_grade")
 
         # OPTIONAL SIGNAL 1 (pressure_gate.had_genuine_footlift) - a THIRD,
@@ -474,4 +484,4 @@ class LiveFogDetector:
                 return self._decision(STATE_WARNING, "no_footlift")
         if self.confirmed_threshold is not None and self._strong_streak < self.confirmed_n_consecutive:
             return self._decision(STATE_WARNING, "below_confirmed_tier")
-        return self._decision(STATE_CONFIRMED, "sustained_model_and_motion")
+        return self._decision(STATE_CONFIRMED, "sustained_model_and_motion" if self.motion_gates_enabled else "sustained_model_score")

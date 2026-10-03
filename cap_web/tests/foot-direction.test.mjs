@@ -49,13 +49,15 @@ test('directional sphere places front up, rear down, sides correctly, and every 
  assert.equal(directionMarker(10,25,{source:'toe-up',forward:0,left:0}),null);
  assert.equal(directionMarker(0,25,{source:'toe-up',forward:0,left:0}).distance,0);
 });
-test('UI labels raised-side directions; unknown references and stale values never show directional dots',()=>{
+test('UI labels raised-side directions; an unknown reference uses only a scalar marker',()=>{
  const now=10000,state=todayState(now),html=renderTodaySummary(state,now);
  for(const text of ['전방 · 발끝','후방 · 뒤꿈치','바깥쪽 측면 들림','올라간 쪽','today-direction-arrow'])assert.ok(html.includes(text));
  state.dailyAnkle.data.feet.left.plan.directionReady=false;
  assert.equal(summaryAnkle(state,'left',now).direction,null);
  const left=renderTodaySummary(state,now).split('data-summary-ankle-side="left"')[1].split('</article>')[0];
- assert.doesNotMatch(left,/data-range-state=/);assert.match(left,/발끝 방향 기록 필요/);
+ assert.match(left,/data-range-state="within"/);assert.match(left,/data-range-mode="magnitude"/);
+ assert.doesNotMatch(left,/data-direction=|today-direction-arrow|전방 · 발끝|후방 · 뒤꿈치/);
+ assert.match(left,/왼발 방향 다시 기록/);assert.match(left,/발끝 방향은 확인되지/);
  state.dailyAnkle.data.feet.right.state='moving';assert.equal(summaryAnkle(state,'right',now).direction,null);
  const form=renderAnkleDailyContent();assert.match(form,/10초 방향·범위 기록/);assert.match(form,/처음 4초/);assert.doesNotMatch(form,/15초/);
 });

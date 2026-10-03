@@ -17,7 +17,7 @@ import { loadFootLayout, normalizeFootLayout } from "./data/foot-layout.js";
 import { renderMobileApp, renderMobileOnboarding } from "./mobile/mobile-app.js";
 import { fetchEsp32State, markEsp32Disconnected, normalizeEsp32State } from "./services/esp32-api.js";
 import { setLaser, vibrate, usesBilateralSta, hubRequest } from "./services/esp32-api.js";
-import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi, setFogCue, setFogDetection } from "./services/ai-api.js";
+import { fetchAiState, markAiUnavailable, normalizeAiState, calibrateAi, setFogCue, setFogDetection, syncFogCue } from "./services/ai-api.js";
 import { createFogNotifications } from './services/fog-notifications.js';
 import { requestLatestSensorFeedback } from './services/sensor-feedback-api.js';
 import { renderFogPopup } from './components/fog-control.js';
@@ -104,7 +104,8 @@ let toastTimer;
 let fogPopup = null;
 let fogReturnFocus = null;
 let detectionRevision = 0;
-const fogNotifications = createFogNotifications({onAlert: () => openFogPopup()});
+const fogNotifications = createFogNotifications({onAlert: () => openFogPopup(), syncCue: syncFogCue,
+  onCueError: () => showToast('FOG는 감지됐지만 신발 출력 요청이 실패했어요. 기기 연결을 확인하세요.')});
 const toastMarkup = () => `<div class="toast-region" aria-live="polite">${toastMessage ? `<div class="toast">${escapeHtml(toastMessage)}</div>` : ''}</div>`;
 const fogPopupMarkup = () => fogPopup ? renderFogPopup(fogPopup) : '';
 function openFogPopup({ preview = false } = {}) {

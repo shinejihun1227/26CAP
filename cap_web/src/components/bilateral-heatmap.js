@@ -11,7 +11,7 @@ import { renderPressureCalibrationStatus } from './pressure-calibration-status.j
 export const PRESSURE_ACTIVE_THRESHOLD = 50;
 
 const MODES = [
-  { id: "pressure", label: "압력", unit: "%", description: "FSR406 상대 압력" },
+  { id: "pressure", label: "압력", unit: "점", description: "FSR406 상대 압력" },
   { id: "temperature", label: "온도", unit: "°C", description: "SHTC3 부위별 온도" },
   { id: "humidity", label: "습도", unit: "%", description: "SHTC3 부위별 습도" },
 ];
@@ -50,7 +50,7 @@ function pointsForMode(mode, side, sensorLayout) {
   return pointsForSensorMode(mode, side, sensorLayout);
 }
 
-function renderSpots(values, mode, side, sensorLayout, pressureChannels, sensorProfile, sensorMap = [0, 1, 2, 3], thermal = null) {
+function renderSpots(values, mode, side, sensorLayout, pressureChannels, sensorProfile, sensorMap = [0, 1, 2, 3], thermal = null, directPins = null) {
   const points = pointsForMode(mode, side, sensorLayout);
   const sensorKind = mode === "pressure" ? "pressure" : "thermal";
   return points.map((point, index) => {
@@ -72,11 +72,13 @@ function renderSpots(values, mode, side, sensorLayout, pressureChannels, sensorP
     const siteLabel = mode === 'pressure' ? PRESSURE_SITES[index] : THERMAL_SITES[index];
     const physicalIndex = sensorMap[index] ?? index;
     const channel = mode === 'pressure' ? pressureChannels[index] : THERMAL_CHANNELS[index];
-    const sourceLabel = sensorProfile === 'two-shared'
+    const sourceLabel = estimated
+      ? `추정 · ${sample.sourceSide !== side ? sample.sourceSide === 'left' ? '왼발' : '오른발' : '같은 발'} 센서 ${sample.sources.map(source => source + 1).join('·')} 실측 평균 기반`
+      : sensorProfile === 'two-shared'
       ? mode === 'pressure' ? `압력 센서 ${physicalIndex + 1} 원본 기반 파생 표시`
-        : unavailable ? '유효 온습도 수신 대기' : estimated ? `추정 · 같은 발 센서 ${sample.sources.map(source => source + 1).join('·')} 평균 기반`
+        : unavailable ? '유효 온습도 수신 대기'
           : `온습도 센서 ${physicalIndex + 1} 실측`
-      : mode === 'pressure' ? `MUX CH${channel}` : `TCA CH${channel}`;
+      : mode === 'pressure' ? directPins ? `GPIO${directPins[index]} 직접 입력` : `MUX CH${channel}` : `TCA CH${channel}`;
     const label = unavailable
       ? "측정 대기"
       : `${formatValue(value, mode, sensorProfile === 'two-shared')}${MODES.find((item) => item.id === mode)?.unit ?? ""}`;
@@ -101,10 +103,12 @@ export function renderBilateralHeatmap(state) {
   const thermal = mode === 'pressure' ? null : Object.fromEntries(['left', 'right'].map(side => [side, thermalDisplayForFoot(state, side, mode)]));
   const leftValues = thermal ? thermal.left.samples.map(sample => sample.value) : dataForMode(state, mode, "left");
   const rightValues = thermal ? thermal.right.samples.map(sample => sample.value) : dataForMode(state, mode, "right");
-  const leftAverage = thermal ? thermal.left.mean : average(leftValues);
-  const rightAverage = thermal ? thermal.right.mean : average(rightValues);
+  const leftAverage = thermal ? thermal.left.displayMean : average(leftValues);
+  const rightAverage = thermal ? thermal.right.displayMean : average(rightValues);
   const samePressureBasis = (state.hardware?.feet?.left?.state?.pressure_calibration?.status === 'ready') === (state.hardware?.feet?.right?.state?.pressure_calibration?.status === 'ready');
-  const difference = (thermal || samePressureBasis) && leftAverage !== null && rightAverage !== null ? rightAverage - leftAverage : null;
+  const difference = thermal
+    ? thermal.left.mean !== null && thermal.right.mean !== null ? thermal.right.mean - thermal.left.mean : null
+    : samePressureBasis && leftAverage !== null && rightAverage !== null ? rightAverage - leftAverage : null;
   const differenceLabel = difference === null
     ? "--"
     : `${difference >= 0 ? "+" : ""}${formatValue(difference, mode)}${selectedMode.unit}`;
@@ -114,41 +118,49 @@ export function renderBilateralHeatmap(state) {
     ? pressureChannelsFor(state.hardware.feet?.[side]?.state) ?? PRESSURE_CHANNELS
     : state.hardware?.pressureChannels ?? PRESSURE_CHANNELS;
   const leftChannels = channelsForSide('left'), rightChannels = channelsForSide('right');
+  const pinsForSide = (side) => {
+    const raw = state.hardware?.transport === 'sta' ? state.hardware.feet?.[side]?.state : state.hardware?.raw;
+    const pins = raw?.pressure_input_gpio;
+    return raw?.pressure_transport === 'direct-adc1' && Array.isArray(pins) && pins.length === 4
+      && new Set(pins).size === 4 && pins.every(pin => [32,33,34,35,36,39].includes(pin)) ? pins : null;
+  };
+  const pinLabel = (side, i) => pinsForSide(side) ? `GPIO${pinsForSide(side)[i]}` : `C${channelsForSide(side)[i]}`;
   const profileForSide = (side) => profileForFoot(state, side);
   const mapForSide = (side, kind) => {
     const raw = state.hardware?.transport === 'sta' ? state.hardware.feet?.[side]?.state : state.hardware?.raw;
     return kind === 'pressure' ? raw?.pressure_sensor_map ?? [0, 1, 2, 3] : raw?.thermal_sensor_map ?? [0, 1, 2, 3];
   };
   const channelLabel = (i) => mode !== 'pressure' ? `CH${THERMAL_CHANNELS[i]}`
-    : leftAvailable && rightAvailable && leftChannels[i] !== rightChannels[i] ? `왼발 C${leftChannels[i]} / 오른발 C${rightChannels[i]}`
-    : `C${(leftAvailable ? leftChannels : rightAvailable ? rightChannels : PRESSURE_CHANNELS)[i]}`;
+    : leftAvailable && rightAvailable && pinLabel('left',i) !== pinLabel('right',i) ? `왼발 ${pinLabel('left',i)} / 오른발 ${pinLabel('right',i)}`
+    : leftAvailable || rightAvailable ? pinLabel(leftAvailable ? 'left' : 'right',i) : `C${PRESSURE_CHANNELS[i]}`;
   const sharedProfile = ['left', 'right'].some(side => (side === 'left' ? leftAvailable : rightAvailable) && profileForSide(side) === 'two-shared');
   const description = sharedProfile ? (mode === 'pressure'
-    ? '물리 압력센서는 발당 2개입니다. 보정 후에는 센서별 정상 보행 최고값을 100%로 하고 같은 센서의 짝 지점에는 같은 비율을 표시합니다. 보정 전 짝 지점은 화면용 파생 표시이며 실제 4곳 측정값이나 CoP가 아닙니다. RF·CNN 입력과 압력 보조 규칙은 원시값을 유지합니다.'
-    : '2센서 모드는 T1·T3에 실측값을 표시합니다. 나머지 칸과 미수신 칸은 같은 발에서 수신한 센서의 평균에 최대 ±0.15°C / ±0.6%p의 고정 표시 편차를 적용합니다. 추정값은 독립 측정값이 아닙니다. 모두 미수신이면 대기로 표시하며 평균·기록·분석·알림에는 실측값만 사용합니다.')
-    : (mode === 'pressure' ? state.hardware?.layoutWarning : null) || (mode !== 'pressure' ? '온습도 센서 4개는 TCA9548A의 CH3·4·5·6에 연결합니다. 미연결 값은 측정 대기로 표시합니다.' : leftAvailable && rightAvailable
-    ? '압력 P1 앞쪽 · P2 가운데 안쪽 · P3 가운데 바깥쪽 · P4 뒤꿈치. 연결된 보드의 MUX 채널을 표시합니다.'
+    ? `물리 압력센서는 발당 2개입니다. 보정 후에는 센서별 서 있는 기준값을 50점으로 하고 같은 센서의 짝 지점에는 같은 비율을 표시합니다. 보정 전 짝 지점은 화면용 파생 표시이며 실제 4곳 측정값이나 CoP가 아닙니다. RF·CNN 입력과 압력 보조 규칙은 원시값을 유지합니다.`
+    : '2센서 모드는 T1·T3에 실측값을 표시합니다. 나머지 칸과 미수신 칸은 같은 발에서 수신한 센서의 평균에 최대 ±0.15°C / ±0.6%p의 고정 표시 편차를 적용합니다. 한 발의 온습도가 모두 미수신이면 반대쪽 발의 실측 평균을 참고값으로 표시합니다. 실제 수신이 돌아오면 자동 전환하며, 보완값은 독립 측정값이 아닙니다. 기록·분석·알림에 사용하지 않습니다.')
+    : (mode === 'pressure' ? state.hardware?.layoutWarning : null) || (mode !== 'pressure' ? '온습도 센서 4개는 TCA9548A의 CH3·4·5·6에 연결합니다. 한 발의 온습도가 모두 미수신이면 반대쪽 발의 실측 평균을 참고값으로 표시합니다. 일부 센서만 미수신이면 해당 칸은 대기로 표시합니다. 보완값은 독립 측정값이 아닙니다. 기록·분석·알림에 사용하지 않습니다.' : leftAvailable && rightAvailable
+    ? '압력 P1 앞쪽 · P2 가운데 안쪽 · P3 가운데 바깥쪽 · P4 뒤꿈치. 연결된 보드의 GPIO 또는 MUX 채널을 표시합니다.'
     : leftAvailable || rightAvailable ? '한쪽 깔창이 연결되어 있습니다. 압력은 앞쪽 1개·가운데 2개·뒤꿈치 1개이며, 반대쪽 발은 연결 대기로 표시합니다.' : '양발 연결 대기 중입니다. ESP32와 노트북을 같은 핫스팟 또는 Wi-Fi에 연결하세요.');
   const comparisonPoints = sharedProfile ? '물리 센서 2개 · 파생 표시 4곳' : mode === "pressure" ? "한 발당 4개" : "한 발당 4개 부위";
   const connectionLabel = leftAvailable && rightAvailable ? '양발 연결됨' : leftAvailable ? '오른발 연결 대기' : rightAvailable ? '왼발 연결 대기' : '양발 연결 대기';
-  const thermalStatus = thermal ? `<div class="heatmap-thermal-status">${['left', 'right'].map(side => `<span>${side === 'left' ? '왼발' : '오른발'} <b>실측 ${thermal[side].physicalCount}/${thermal[side].total}</b> · ${thermal[side].physicalCount ? thermal[side].estimatedCount ? `추정 ${thermal[side].estimatedCount}칸` : '실측 표시' : '수신 대기'}</span>`).join('')}</div>` : '';
+  const thermalStatus = thermal ? `<div class="heatmap-thermal-status">${['left', 'right'].map(side => `<span>${side === 'left' ? '왼발' : '오른발'} <b>실측 ${thermal[side].physicalCount}/${thermal[side].total}</b> · ${thermal[side].fallbackSide ? `${thermal[side].fallbackSide === 'left' ? '왼발' : '오른발'} 평균 사용` : thermal[side].physicalCount ? thermal[side].estimatedCount ? `추정 ${thermal[side].estimatedCount}칸` : '실측 표시' : '수신 대기'}</span>`).join('')}</div>` : '';
+  const averageLabel = side => thermal ? `${thermal[side].fallbackSide ? '참고' : '실측'} 평균` : '평균';
 
   return `<article class="panel bilateral-heatmap-panel compact-heatmap">
     <div class="panel-heading heatmap-heading"><div><span class="panel-kicker">양발 한눈에 보기</span><h2>양발 ${selectedMode.label} 히트맵 <small>단위 ${selectedMode.unit}</small></h2></div><div class="heatmap-heading-actions"><div class="heatmap-mode-switch" role="group" aria-label="히트맵 표시 종류">${renderModeTabs(mode)}</div></div></div>
-    <p class="heatmap-status">${connectionLabel}${sharedProfile && mode === 'pressure' ? ' · 2센서 모드는 4곳 파생 표시' : ''} <span>${thermal && sharedProfile ? '일부 값은 같은 발의 실측 평균으로 보완한 추정값이에요.' : '숫자는 센서 위치예요.'}</span></p>
+    <p class="heatmap-status">${connectionLabel}${sharedProfile && mode === 'pressure' ? ' · 2센서 모드는 4곳 파생 표시' : ''} <span>${thermal && (thermal.left.estimatedCount || thermal.right.estimatedCount) ? '일부 값은 실측 평균으로 보완한 추정값이에요.' : '숫자는 센서 위치예요.'}</span></p>
     ${thermalStatus}
     ${mode === 'pressure' ? renderPressureCalibrationStatus(state) : ''}
     <div class="heatmap-workspace">
     <div class="foot-pair-map" aria-label="양발 ${selectedMode.label} 히트맵">
-      <div class="foot-map-figure foot-map-left ${leftAvailable ? "" : "is-unavailable"}" data-foot-side="left" role="img" aria-label="왼발 발바닥 형상과 센서 위치"><div class="foot-map-layer" data-foot-mode="${mode}" data-foot-layer-side="left" style="${footLayoutStyle(mode, "left", footLayout)}"><div class="foot-shape-surface"><img src="/assets/foot-left-silhouette.png" alt="" draggable="false" /></div><div class="foot-hotspots">${renderSpots(leftValues, mode, "left", sensorLayout, leftChannels, profileForSide('left'), mapForSide('left', mode === 'pressure' ? 'pressure' : 'thermal'), thermal?.left)}</div></div><span class="foot-side-label">왼발${leftAvailable ? "" : " · 연결 대기"}</span></div>
-      <div class="foot-map-figure foot-map-right ${rightAvailable ? "" : "is-unavailable"}" data-foot-side="right" role="img" aria-label="오른발 발바닥 형상과 센서 위치"><div class="foot-map-layer" data-foot-mode="${mode}" data-foot-layer-side="right" style="${footLayoutStyle(mode, "right", footLayout)}"><div class="foot-shape-surface"><img src="/assets/foot-right-silhouette.png" alt="" draggable="false" /></div><div class="foot-hotspots">${renderSpots(rightValues, mode, "right", sensorLayout, rightChannels, profileForSide('right'), mapForSide('right', mode === 'pressure' ? 'pressure' : 'thermal'), thermal?.right)}</div></div><span class="foot-side-label">오른발${rightAvailable ? "" : " · 연결 대기"}</span></div>
+      <div class="foot-map-figure foot-map-left ${leftAvailable ? "" : "is-unavailable"}" data-foot-side="left" role="img" aria-label="왼발 발바닥 형상과 센서 위치"><div class="foot-map-layer" data-foot-mode="${mode}" data-foot-layer-side="left" style="${footLayoutStyle(mode, "left", footLayout)}"><div class="foot-shape-surface"><img src="/assets/foot-left-silhouette.png" alt="" draggable="false" /></div><div class="foot-hotspots">${renderSpots(leftValues, mode, "left", sensorLayout, leftChannels, profileForSide('left'), mapForSide('left', mode === 'pressure' ? 'pressure' : 'thermal'), thermal?.left, pinsForSide('left'))}</div></div><span class="foot-side-label">왼발${leftAvailable ? "" : " · 연결 대기"}</span></div>
+      <div class="foot-map-figure foot-map-right ${rightAvailable ? "" : "is-unavailable"}" data-foot-side="right" role="img" aria-label="오른발 발바닥 형상과 센서 위치"><div class="foot-map-layer" data-foot-mode="${mode}" data-foot-layer-side="right" style="${footLayoutStyle(mode, "right", footLayout)}"><div class="foot-shape-surface"><img src="/assets/foot-right-silhouette.png" alt="" draggable="false" /></div><div class="foot-hotspots">${renderSpots(rightValues, mode, "right", sensorLayout, rightChannels, profileForSide('right'), mapForSide('right', mode === 'pressure' ? 'pressure' : 'thermal'), thermal?.right, pinsForSide('right'))}</div></div><span class="foot-side-label">오른발${rightAvailable ? "" : " · 연결 대기"}</span></div>
     </div>
-    <div class="heatmap-summary" aria-label="양발 측정 요약"><div><span>왼발 ${thermal ? '실측 ' : ''}평균</span><b>${formatValue(leftAverage, mode)}${leftAverage === null ? "" : selectedMode.unit}</b></div><div><span>오른발 ${thermal ? '실측 ' : ''}평균</span><b>${formatValue(rightAverage, mode)}${rightAverage === null ? "" : selectedMode.unit}</b></div><div class="heatmap-difference"><span>좌우 차이 <small>오른발 − 왼발</small></span><b>${differenceLabel}</b></div><p class="heatmap-reading-note">${thermal ? '평균과 좌우 차이는 수신된 실측값만 사용해요. 센서 구성이 다르면 직접 비교에 주의하세요.' : sharedProfile ? '원본 센서에서 만든 화면용 표시값의 평균이에요.' : '표시된 센서값의 평균이에요.'}<br>값이 없으면 <b>--</b>로 표시해요.</p></div>
+    <div class="heatmap-summary" aria-label="양발 측정 요약"><div><span>왼발 ${averageLabel('left')}</span><b>${formatValue(leftAverage, mode)}${leftAverage === null ? "" : selectedMode.unit}</b></div><div><span>오른발 ${averageLabel('right')}</span><b>${formatValue(rightAverage, mode)}${rightAverage === null ? "" : selectedMode.unit}</b></div><div class="heatmap-difference"><span>좌우 차이 <small>오른발 − 왼발</small></span><b>${differenceLabel}</b></div><p class="heatmap-reading-note">${thermal ? '좌우 차이·기록·분석은 실측값만 사용해요. 양발 실측이 모이면 차이를 표시해요.' : sharedProfile ? '원본 센서에서 만든 화면용 표시값의 평균이에요.' : '표시된 센서값의 평균이에요.'}<br>값이 없으면 <b>--</b>로 표시해요.</p></div>
     </div>
-    <div class="heatmap-legend ${mode === "pressure" ? "is-pressure-threshold" : ""}">${mode === "pressure" ? `<span><i class="legend-high"></i>압력 있음 ≥ ${PRESSURE_ACTIVE_THRESHOLD}%</span><span><i class="legend-low"></i>압력 없음 &lt; ${PRESSURE_ACTIVE_THRESHOLD}%</span>` : `<span><i class="legend-low"></i>낮음</span><span><i class="legend-mid"></i>중간</span><span><i class="legend-high"></i>높음</span>`}</div>
+    <div class="heatmap-legend ${mode === "pressure" ? "is-pressure-threshold" : ""}">${mode === "pressure" ? `<span><i class="legend-high"></i>압력 있음 ≥ ${PRESSURE_ACTIVE_THRESHOLD}점</span><span><i class="legend-low"></i>압력 없음 &lt; ${PRESSURE_ACTIVE_THRESHOLD}점</span>` : `<span><i class="legend-low"></i>낮음</span><span><i class="legend-mid"></i>중간</span><span><i class="legend-high"></i>높음</span>`}</div>
     <details class="heatmap-details" data-ui-disclosure="heatmap-sensor-details"><summary>센서 위치 · 표시 안내</summary>
       <p class="panel-description">${description}</p>
-      ${mode === 'pressure' ? '<p class="panel-description">보정 후 압력 = 현재 ADC ÷ 정상 보행 중 해당 센서의 최대 ADC × 100. 화면은 100%까지 표시하며 원시 ADC는 유지합니다. 앞뒤 중심·압력 관찰에는 같은 보정값을 사용합니다. kg이나 체중 비율이 아닙니다.</p>' : ''}
+      ${mode === 'pressure' ? `<p class="panel-description">새 보정 후 압력 = 현재 ADC ÷ 처음 5초 서 있을 때의 해당 센서 기준 ADC × 50. 화면은 최대 100점까지 표시하며 원시 ADC는 유지합니다. 앞뒤 중심·압력 관찰에는 같은 보정값을 사용합니다. kg이나 체중 비율이 아닙니다.</p>` : ''}
       <div class="sensor-channel-map" aria-label="센서 위치와 연결 정보">${(mode === "pressure" ? PRESSURE_SITES : THERMAL_SITES).map((site, i) => `<span><b>${mode === "pressure" ? "P" : "T"}${i + 1}</b> ${site} <small>${sharedProfile ? `센서 ${(mapForSide(leftAvailable ? 'left' : 'right', mode === 'pressure' ? 'pressure' : 'thermal')[i] ?? i) + 1} 공유` : channelLabel(i)}</small></span>`).join("")}</div>
       <div class="heatmap-detail-actions"><span>${comparisonPoints}</span><button type="button" class="heatmap-edit-button" data-action="open-editor">이 화면 직접 편집</button><button class="text-button" type="button" data-view="records" data-record-section="sensors">센서 기록 관리 ${icon("arrow")}</button></div>
     </details>

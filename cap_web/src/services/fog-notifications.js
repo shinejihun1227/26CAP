@@ -8,12 +8,12 @@ export function isLiveFog(state, now = Date.now()) {
   return Boolean(state.dataSource === 'esp32' && !state.paused && !state.fogLocalStop
     && state.aiEnabled !== false && ai.detectionEnabled !== false && !ai.suppression?.active && ai.available && ai.ready
     && ai.deviceConnected && ai.windowReady && ai.state === 'confirmed'
-    && typeof at === 'number' && Number.isFinite(at) && now >= at && now-at <= 2500);
+    && typeof at === 'number' && Number.isFinite(at) && now >= at && now-at <= 2000);
 }
 
 // One popup and one spoken message per fresh confirmed episode, on every page.
 export function createFogNotifications({ audio = createMobileFogAudio(), speak = speakCue,
-  cancelSpeech = cancelCue, onAlert, now = Date.now } = {}) {
+  cancelSpeech = cancelCue, onAlert, syncCue, onCueError, now = Date.now } = {}) {
   let soundEnabled = false;
   return {
     get soundEnabled() { return soundEnabled; },
@@ -29,7 +29,13 @@ export function createFogNotifications({ audio = createMobileFogAudio(), speak =
     observe(state, {foreground = true} = {}) {
       const confirmed = isLiveFog(state, now());
       const entered = audio.observe({ready:confirmed, state:confirmed?'confirmed':null}, {foreground});
-      if (entered) { onAlert?.(); if (soundEnabled) speak(FOG_VOICE_MESSAGE); }
+      if (entered) {
+        onAlert?.();
+        // No device command from a test preview, demo, stale result or paused screen.
+        // The server revalidates the result and both stop controls before sending.
+        if (syncCue) Promise.resolve().then(() => syncCue()).catch(error => onCueError?.(error));
+        if (soundEnabled) speak(FOG_VOICE_MESSAGE);
+      }
       return entered;
     },
   };

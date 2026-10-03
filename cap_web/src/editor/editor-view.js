@@ -26,7 +26,7 @@ const SCREEN_DEFS = [
   { id: "live", label: "실시간 측정", short: "Live", description: "센서 흐름과 현재 신호" },
   { id: "safety", label: "압력·온습도", short: "Sensors", description: "양발 센서값과 기록 연결" },
   { id: "devices", label: "기기 관리", short: "Devices", description: "ESP32와 센서 연결 상태" },
-  { id: "mediapipe", label: "정면 보행", short: "MediaPipe", description: "정면 관절점·골반 높이·몸통 기울기" },
+  { id: "mediapipe", label: "홈재활 파트너", short: "MediaPipe", description: "기준 자세·골반·양발 정렬 관찰" },
   { id: "ankle", label: "발 움직임", short: "BMI270", description: "양발 기울기 기준·하루 이탈 기록" },
 ];
 

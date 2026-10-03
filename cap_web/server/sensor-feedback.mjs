@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { pressureCenter } from '../src/data/pressure-center.js';
 import { localDay } from '../src/mediapipe/ankle-monitor.js';
-import { actionGroups, validFeedbackActions, FEEDBACK_ACTIONS, sensorDirection } from '../src/data/sensor-feedback.js';
+import { actionGroups, validFeedbackActions, FEEDBACK_ACTIONS, sensorDirection, recordedFootDirection, evidenceText } from '../src/data/sensor-feedback.js';
 
 const SIDES = ['left', 'right'];
 const vector = value => ['x', 'y', 'z'].every(k => Number.isFinite(value?.[k])) ? [value.x, value.y, value.z] : null;
@@ -34,7 +34,7 @@ export function createSensorFeedback({ ankleDaily, now = Date.now, fetchImpl = f
     if (!run.event) {
       prune();
       run.event = { id: randomUUID(), kind: 'cop', side, at: run.at, direction,
-        pressureBasis: f.pressureCalibrationId ? 'walk-max-v1' : 'adc-percent', pressureCalibrationId: f.pressureCalibrationId };
+        pressureBasis: raw.pressure_calibration?.status === 'ready' ? raw.pressure_calibration.method : 'adc-percent', pressureCalibrationId: f.pressureCalibrationId };
       events.push(run.event);
     }
     Object.assign(run.event, { endedAt: t, seconds: round((t - run.at) / 1000), peakPercent: Math.round(run.peak) });
@@ -45,7 +45,7 @@ export function createSensorFeedback({ ankleDaily, now = Date.now, fetchImpl = f
       && localDay(e.at) === localDay(now()) && e.at <= now() && e.endedAt >= e.at && e.peak > e.threshold && e.threshold > 5)
       .map(e => ({ id: e.id, kind: 'rom', side: e.side, at: e.at, endedAt: e.endedAt, peak: e.peak,
         rangeMax: round(e.threshold - 5), threshold: e.threshold, sensorX: e.sensorX, sensorY: e.sensorY,
-        direction: sensorDirection(e.sensorX, e.sensorY), seconds: round((e.endedAt - e.at) / 1000) }));
+        direction: sensorDirection(e.sensorX, e.sensorY), footDirection:recordedFootDirection(e), seconds: round((e.endedAt - e.at) / 1000) }));
   }
   function snapshot() {
     prune();
@@ -65,7 +65,7 @@ export function createSensorFeedback({ ankleDaily, now = Date.now, fetchImpl = f
     if (now() < retryAt) return { status: 429, error: 'cooldown', message: '잠시 후 다시 눌러 주세요.' };
     pending = key;
     // Snapshot once. Later samples cannot silently change the LLM's evidence.
-    const input = { ...evidence }, groups = actionGroups(input);
+    const input = { ...evidence, ...(evidence.footDirection?{footDirection:{...evidence.footDirection}}:{}) }, groups = actionGroups(input);
     const schema = { type: 'object', properties: {
       walkingAction: { type: 'string', enum: groups.walking },
       checkAction: { type: 'string', enum: groups.check },
@@ -75,11 +75,13 @@ export function createSensorFeedback({ ankleDaily, now = Date.now, fetchImpl = f
       const response = await fetchImpl('http://127.0.0.1:11434/api/chat', {
         method: 'POST', redirect: 'error', signal: controller.signal, headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ model, stream: false, format: schema, options: { temperature: 0, num_predict: 180 }, messages: [
-          { role: 'system', content: '너는 센서 관찰 기록에 맞는 일반 보행 안내와 다음 확인 행동을 고르는 비의료적 도우미다. walking 후보에서 walkingAction 하나, check 후보에서 checkAction 하나를 고른다. 새로운 문장을 만들지 않는다. 기록은 정지에 가까운 구간의 관찰값이며 걸음 전체를 분석한 결과가 아니다. ROM은 실제 발목 관절각이 아닌 발 장착 센서의 중력 대비 기울기다. X/Y 부호를 해부학적 안쪽·바깥쪽이나 발등·발바닥 방향으로 추정하지 않는다. ROM은 평평한 바닥/편안한 보행 안내와 장착/기준 확인을 고른다. 압력은 앞뒤 상대 비중이며 체중 비율이나 임상 CoP가 아니다. 앞/뒤 쏠림에 맞는 안내와 해당 센서/바닥/재측정 확인을 고른다. 반대 방향 체중 이동, 50:50 강제, 질환·부상 위험·치료·맞춤 스트레칭을 판단하거나 지시하지 않는다. JSON 스키마를 따른다: ' + JSON.stringify(schema) },
+          { role: 'system', content: '너는 센서 관찰 기록에 맞는 일반 보행 안내와 다음 확인 행동을 고르는 비의료적 도우미다. walking 후보에서 walkingAction 하나, check 후보에서 checkAction 하나를 고른다. 새로운 문장을 만들지 않는다. 기록은 정지에 가까운 구간의 관찰값이며 걸음 전체를 분석한 결과가 아니다. ROM은 실제 발목 관절각이 아닌 발 장착 센서의 중력 대비 기울기다. X/Y 부호를 해부학적 안쪽·바깥쪽이나 발등·발바닥 방향으로 추정하지 않는다. footDirectionKnown이 true일 때만 저장된 footDirection의 들린 쪽에 맞는 주의 문구를 고른다. 이 방향은 발끝 들기 보정에 따른 발의 들린 쪽이며 관절 손상 방향이 아니다. 방향 미확인은 일반 보행 안내와 장착/기준 확인을 고른다. 압력은 앞뒤 상대 비중이며 체중 비율이나 임상 CoP가 아니다. 앞/뒤 쏠림에 맞는 안내와 해당 센서/바닥/재측정 확인을 고른다. 반대 방향 체중 이동, 50:50 강제, 질환·부상 위험·치료·맞춤 스트레칭을 판단하거나 지시하지 않는다. JSON 스키마를 따른다: ' + JSON.stringify(schema) },
           { role: 'user', content: JSON.stringify({ kind: input.kind, side: input.side, direction: input.direction,
             observationScope: 'quiet-foot-only; not a walking posture or injury-risk assessment',
             ...(kind === 'rom' ? { peakDeg: input.peak, rangeMaxDeg: input.rangeMax, sensorXDeg: input.sensorX, sensorYDeg: input.sensorY,
-              seconds: input.seconds, thresholdDeg: input.threshold, anatomicalDirectionKnown: false }
+              seconds: input.seconds, thresholdDeg: input.threshold, anatomicalDirectionKnown: false,
+              footDirectionKnown:Boolean(input.footDirection),footDirection:input.footDirection,
+              directionMeaning:'raised edge at peak, from recorded toe-up reference',caution:evidenceText(input) }
               : { peakPercent: input.peakPercent, seconds: input.seconds, pressureBasis: input.pressureBasis,
                 rule: 'quiet foot, >=80% for >=3 seconds; relative sensor shares, not body-weight; observation rule only' }),
             choices: Object.fromEntries(Object.entries(groups).map(([group,ids])=>[group,Object.fromEntries(ids.map(id => [id, FEEDBACK_ACTIONS[id]]))])) }) },

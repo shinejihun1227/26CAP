@@ -1,5 +1,5 @@
 import { escapeHtml } from "../utils/text.js";
-import { pressureCalibrationText } from './pressure-calibration-status.js';
+import { pressureCalibrationText, pressureCalibrationForFoot } from './pressure-calibration-status.js';
 
 const STATUS_META = {
   dismissed: { label: '알림 잠시 쉬는 중', tone: 'lavender', detail: '연속 발 구름이 인식되어 5초 동안 감지 알림을 쉬어요.' },
@@ -64,6 +64,7 @@ const REASONS = {
   rhythm_irregular: '걸음 간격의 불규칙한 변화',
   below_confirmed_tier: '강한 신호의 연속 조건 추가 확인 중',
   sustained_model_and_motion: '연속 모델 신호와 보행 움직임 조건 충족',
+  sustained_model_score: '강한 모델 점수의 연속 조건 충족',
   below_entry_or_debouncing: '진입 기준 미달 또는 연속 신호 확인 중',
   yaw_suppressed: '큰 회전 움직임으로 해당 창의 판정 점수 억제',
   prolonged_stillness: '장시간 무동작 관찰로 주의 단계',
@@ -90,7 +91,9 @@ export function renderAiDetails(state) {
     const personal = foot.personal_threshold;
     const baseline = foot.pressure_baseline;
     const pressureNote = running && capture.status === 'recording' && capture.elapsed_sec >= 5
-      ? '센서별 압력 최고값 수집 중'
+      ? '서 있는 기준 수집 후 보행 보정 중'
+      : pressureCalibrationForFoot(state, side) ? pressureCalibrationText(pressureCalibrationForFoot(state, side))
+      : foot.pressure_normalization?.status === 'ready' ? '압력 기준 저장됨 · 실시간 표시 대기'
       : pressureCalibrationText(foot.pressure_normalization);
     const calibrationNote = foot.personal_status === 'scoring_walk' ? '개인 보행 기준 계산 중'
       : personal ? `개인 진입 기준 ${displayScore(personal.enter)}점 · 강한 신호 기준 ${displayScore(personal.confirmed)}점`
@@ -102,7 +105,7 @@ export function renderAiDetails(state) {
     return `<div class="ai-foot-result"><b>${label} · ${escapeHtml(progress)}</b><span>${foot.ready && !state.paused && state.connected && ai.available && (!Number.isFinite(foot.last_window_at_ms) || Date.now() - foot.last_window_at_ms <= 2500) ? `${displayScore(foot.decision_score)}점` : '—'} · PC 수신 ${Number.isFinite(foot.received_hz) ? foot.received_hz : 0}Hz → 모델 ${ai.sampleRateHz ?? 20}Hz</span><small>${escapeHtml(foot.last_error ?? (foot.ready ? REASONS[foot.diagnostics?.reason] ?? '' : '센서 연결과 개인 보정이 필요합니다.'))}</small><small>${escapeHtml(calibrationNote)} · ${baseline?.front_ok ? '압력 기준 저장됨' : '압력 기준 미설정'}</small><small>압력 표시: ${escapeHtml(pressureNote)}</small><button type="button" class="outline-button" data-action="${running ? 'ai-calibration-cancel' : 'ai-calibrate'}" data-ai-side="${side}" ${!ai.available || !foot.device_connected || state.paused ? 'disabled' : ''}>${running ? '보정 취소' : `${label} BMI·압력 보정`}</button></div>`;
   }).join('');
   const diagnostics = score === null ? {} : ai.diagnostics ?? {};
-  return `<div class="ai-decision-details"><p><b>최종 판단: ${escapeHtml(ai.suppression?.active ? '알림 잠시 쉬는 중' : aiReasonText(ai))}</b></p><p>RF ${displayScore(diagnostics.rf_score)} · CNN ${displayScore(diagnostics.cnn_score)} · 원래 모델 점수 ${displayScore(score === null ? null : ai.rawScore)} · 판정 점수 ${displayScore(score)}</p><p>분석 가능한 발 ${Number(ai.coverage ?? 0)} / 2${ai.selectedFoot ? ` · 최종 판단 기준 ${ai.selectedFoot === 'left' ? '왼발' : '오른발'}` : ''}. 양발 AI와 개인 압력 규칙 중 더 높은 상태를 표시합니다.</p><div class="ai-foot-results">${rows}</div><p>3초 준비 → 5초 정지 → 20초 일반 보행. 보행 중 센서별 압력 최고값도 함께 저장하며, 이후 그 값을 100%로 표시합니다. 원시 CSV와 보정값은 이 PC에 저장됩니다. 센서를 다시 부착하거나 착용자가 바뀌면 다시 보정하세요.</p>${ai.actionError ? `<p role="alert">${escapeHtml(ai.actionError)}</p>` : ''}<small>RF·CNN 점수는 IMU로 계산합니다. 개인 기준이 있는 압력 규칙은 별도로 최종 알림 상태를 보완하며 모델 점수에 더하지 않습니다. 온습도·카메라는 별도 관찰 지표입니다.</small></div>`;
+  return `<div class="ai-decision-details"><p><b>최종 판단: ${escapeHtml(ai.suppression?.active ? '알림 잠시 쉬는 중' : aiReasonText(ai))}</b></p><p>RF ${displayScore(diagnostics.rf_score)} · CNN ${displayScore(diagnostics.cnn_score)} · 원래 모델 점수 ${displayScore(score === null ? null : ai.rawScore)} · 판정 점수 ${displayScore(score)}</p><p>분석 가능한 발 ${Number(ai.coverage ?? 0)} / 2${ai.selectedFoot ? ` · 최종 판단 기준 ${ai.selectedFoot === 'left' ? '왼발' : '오른발'}` : ''}. 양발 AI와 개인 압력 규칙 중 더 높은 상태를 표시합니다.</p><div class="ai-foot-results">${rows}</div><p>3초 준비 → 양발을 편히 딛고 5초 정지 → 20초 일반 보행. 처음 5초의 센서별 기준값을 50점으로 저장합니다. 움직일 때도 같은 기준으로 비례 환산하며 화면은 0~100점으로 표시합니다. 원시 CSV와 보정값은 이 PC에 저장됩니다. 센서를 다시 부착하거나 착용자가 바뀌면 다시 보정하세요.</p>${ai.actionError ? `<p role="alert">${escapeHtml(ai.actionError)}</p>` : ''}<small>RF·CNN 점수는 IMU로 계산합니다. 개인 기준이 있는 압력 규칙은 별도로 최종 알림 상태를 보완하며 모델 점수에 더하지 않습니다. 온습도·카메라는 별도 관찰 지표입니다.</small></div>`;
 }
 
 export function renderAiStatusCard(state, { compact = false } = {}) {
